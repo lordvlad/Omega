@@ -58,14 +58,14 @@ const ACTIONS: Array<{
     label: "Approve & execute",
     hint: "Execute from a fresh context seeded with this plan.",
     icon: <IconCheck size={16} />,
-    color: "lagoon",
+    color: "cyan",
   },
   {
     action: "compact",
     label: "Approve & compact",
     hint: "Distil the planning transcript, then execute.",
     icon: <IconPackage size={16} />,
-    color: "lagoon",
+    color: "cyan",
   },
   {
     action: "keep",
@@ -162,7 +162,7 @@ export function Planning({ plan, loading, busy, compact, onAction, onSave }: Pla
             // without rendering a nested tree.
             pl={8 + (section.level - 1) * 12}
             py={4}
-            color="lagoon"
+            color="cyan"
             variant="light"
           />
         ))
@@ -178,7 +178,7 @@ export function Planning({ plan, loading, busy, compact, onAction, onSave }: Pla
             {plan.title ?? "Draft plan"}
           </Text>
           {plan.awaitingApproval ? (
-            <Badge size="sm" color="lagoon" variant="filled">
+            <Badge size="sm" color="cyan" variant="filled">
               awaiting review
             </Badge>
           ) : (
@@ -200,7 +200,7 @@ export function Planning({ plan, loading, busy, compact, onAction, onSave }: Pla
             }}
             disabled={!plan.content}
             aria-label={editing ? "Save the plan" : "Edit the plan"}
-            color={editing ? "lagoon" : "plum"}
+            color={editing ? "cyan" : "plum"}
           >
             {editing ? <IconDeviceFloppy size={18} /> : <IconEdit size={18} />}
           </ActionIcon>

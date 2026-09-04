@@ -22,18 +22,18 @@ const plum: MantineColorsTuple = [
   "#54129b",
 ];
 
-/** Accent: teal, used for the plan surface and confirmations. */
-const lagoon: MantineColorsTuple = [
-  "#e0fbf6",
-  "#cdf2eb",
-  "#9fe2d6",
-  "#6dd2bf",
-  "#47c4ac",
-  "#2fbca0",
-  "#1bb899",
-  "#04a185",
-  "#009076",
-  "#007c65",
+/** Accent: cyan, used for the plan surface and confirmations. */
+const cyan: MantineColorsTuple = [
+  "#e1fcff",
+  "#c8f7fc",
+  "#95eef9",
+  "#5de4f7",
+  "#31dbf5",
+  "#14d6f5",
+  "#00d3f6",
+  "#00bbdc",
+  "#00a6c5",
+  "#008fad",
 ];
 
 /**
@@ -60,7 +60,7 @@ export const theme = createTheme({
   luminanceThreshold: 0.35,
   colors: {
     plum,
-    lagoon,
+    cyan,
     dark: [
       "#eceaf2",
       "#bdb8c9",
@@ -76,7 +76,7 @@ export const theme = createTheme({
     slate,
     // Named so components can ask for "accent" without knowing which hue it
     // resolves to, and so a light scheme could remap it in one place.
-    accent: virtualColor({ name: "accent", dark: "lagoon", light: "lagoon" }),
+    accent: virtualColor({ name: "accent", dark: "cyan", light: "cyan" }),
   },
   defaultRadius: "md",
   fontFamily:

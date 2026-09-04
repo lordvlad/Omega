@@ -24,7 +24,7 @@ import type { SessionStatus, SessionSummary, Workspace } from "../api/model.ts";
 
 /** Badge colour per omp session status. */
 const STATUS_COLOR: Record<SessionStatus, string> = {
-  complete: "lagoon",
+  complete: "cyan",
   interrupted: "yellow",
   aborted: "orange",
   error: "red",
@@ -124,7 +124,7 @@ export function SessionTree({
                   <Button
                     size="compact-sm"
                     variant="light"
-                    color="lagoon"
+                    color="cyan"
                     leftSection={<IconPlus size={14} />}
                     onClick={() => onNewSession(workspace.cwd)}
                     disabled={!workspace.exists}
@@ -145,7 +145,7 @@ export function SessionTree({
                           {session.title || session.firstMessage || "Untitled session"}
                         </Text>
                         {session.live ? (
-                          <Badge size="xs" color="lagoon" variant="filled">
+                          <Badge size="xs" color="cyan" variant="filled">
                             live
                           </Badge>
                         ) : null}

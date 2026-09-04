@@ -18,6 +18,7 @@ import {
   Burger,
   Drawer,
   Group,
+  Indicator,
   ScrollArea,
   Stack,
   Switch,
@@ -26,13 +27,7 @@ import {
 } from "@mantine/core";
 import { useDisclosure, useLocalStorage, useMediaQuery } from "@mantine/hooks";
 import { notifications } from "@mantine/notifications";
-import {
-  IconChecklist,
-  IconLayoutSidebarRightExpand,
-  IconListCheck,
-  IconMap2,
-  IconPlugConnected,
-} from "@tabler/icons-react";
+import { IconChecklist, IconListCheck, IconPlugConnected, IconRoute } from "@tabler/icons-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useCallback, useEffect, useState } from "react";
 
@@ -120,7 +115,7 @@ export function App() {
     if (!live.planAwaiting) return;
     setPlanOpen(true);
     notifications.show({
-      color: "lagoon",
+      color: "cyan",
       title: "Plan ready for review",
       message: "The agent submitted a plan and is waiting on your decision.",
     });
@@ -171,7 +166,7 @@ export function App() {
       { path: { key: sessionKey }, body: { action, feedback, tier } },
       {
         onSuccess: result => {
-          notifications.show({ color: "lagoon", title: "Plan", message: result.detail ?? "Done." });
+          notifications.show({ color: "cyan", title: "Plan", message: result.detail ?? "Done." });
           // `execute` runs the approved plan in a fresh session; follow it.
           if (result.sessionKey) setSessionKey(result.sessionKey);
           if (action !== "refine") setPlanOpen(false);
@@ -235,81 +230,84 @@ export function App() {
             >
               <Badge
                 size="sm"
-                variant="dot"
-                color={live.status === "open" ? "lagoon" : live.status === "connecting" ? "yellow" : "red"}
-                leftSection={<IconPlugConnected size={10} />}
+                variant="light"
+                color={live.status === "open" ? "cyan" : live.status === "connecting" ? "yellow" : "red"}
+                leftSection={<IconPlugConnected size={12} />}
               >
                 {live.running ? "running" : live.status}
               </Badge>
             </Tooltip>
 
-            <Tooltip label="Plan mode">
-              <Switch
-                size="sm"
-                color="lagoon"
-                checked={planEnabled}
-                disabled={!sessionKey || setPlanMode.isPending}
-                onChange={event => {
-                  if (!sessionKey) return;
-                  const enabled = event.currentTarget.checked;
-                  setPlanMode.mutate(
-                    { path: { key: sessionKey }, body: { enabled } },
-                    {
-                      onSuccess: () => {
-                        if (enabled) setPlanOpen(true);
-                        refresh();
+            <Tooltip
+              label="Plan mode: agent researches and drafts a plan before modifying code"
+              withinPortal
+              multiline
+              w={220}
+            >
+              <Group gap={6} wrap="nowrap" style={{ cursor: "pointer" }}>
+                <Text size="xs" fw={600} c={planEnabled ? "cyan" : "dimmed"}>
+                  Plan
+                </Text>
+                <Switch
+                  size="sm"
+                  color="cyan"
+                  checked={planEnabled}
+                  disabled={!sessionKey || setPlanMode.isPending}
+                  onChange={event => {
+                    if (!sessionKey) return;
+                    const enabled = event.currentTarget.checked;
+                    setPlanMode.mutate(
+                      { path: { key: sessionKey }, body: { enabled } },
+                      {
+                        onSuccess: () => {
+                          if (enabled) setPlanOpen(true);
+                          refresh();
+                        },
+                        onError: fail,
                       },
-                      onError: fail,
-                    },
-                  );
-                }}
-                aria-label="Plan mode"
-              />
+                    );
+                  }}
+                  aria-label="Toggle plan mode"
+                />
+              </Group>
             </Tooltip>
 
             <Tooltip label={planOpen ? "Hide the plan" : "Show the plan"}>
               <ActionIcon
                 onClick={() => setPlanOpen(value => !value)}
                 disabled={!sessionKey}
-                color={planOpen ? "lagoon" : "plum"}
+                color={planOpen ? "cyan" : "plum"}
                 aria-label="Toggle the planning panel"
               >
-                {narrow ? <IconMap2 size={18} /> : <IconLayoutSidebarRightExpand size={18} />}
+                <IconRoute size={18} />
               </ActionIcon>
             </Tooltip>
-            <Tooltip label={todoOpen ? "Hide tasks" : "Show tasks"}>
-              <ActionIcon
-                onClick={() => setTodoOpen(value => !value)}
-                color={todoOpen ? "lagoon" : "plum"}
-                aria-label="Toggle tasks panel"
-                style={{ position: "relative" }}
-              >
-                <IconListCheck size={18} />
-                {(() => {
-                  const all = (state.data?.todos ?? []).flatMap(p => p.tasks);
-                  const total = all.length;
-                  if (total === 0) return null;
-                  const done = all.filter(t => t.status === "completed").length;
-                  return (
-                    <Badge
-                      size="xs"
-                      variant="filled"
-                      color={done === total ? "lagoon" : "plum"}
-                      style={{
-                        position: "absolute",
-                        top: -4,
-                        right: -6,
-                        padding: "0 4px",
-                        height: 14,
-                        fontSize: 9,
-                      }}
+
+            {(() => {
+              const all = (state.data?.todos ?? []).flatMap(p => p.tasks);
+              const total = all.length;
+              const done = all.filter(t => t.status === "completed").length;
+              return (
+                <Tooltip label={todoOpen ? "Hide tasks" : "Show tasks"}>
+                  <Indicator
+                    inline
+                    disabled={total === 0}
+                    label={`${done}/${total}`}
+                    size={16}
+                    color={done === total ? "cyan" : "plum"}
+                    offset={4}
+                  >
+                    <ActionIcon
+                      onClick={() => setTodoOpen(value => !value)}
+                      color={todoOpen ? "cyan" : "plum"}
+                      aria-label="Toggle tasks panel"
                     >
-                      {done}/{total}
-                    </Badge>
-                  );
-                })()}
-              </ActionIcon>
-            </Tooltip>
+                      <IconListCheck size={18} />
+                    </ActionIcon>
+                  </Indicator>
+                </Tooltip>
+              );
+            })()}
           </Group>
         </Group>
       </AppShell.Header>
@@ -369,15 +367,13 @@ export function App() {
 
       <AppShell.Main>
         <Stack gap={0} className="omega-main">
-          <ScrollArea className="omega-scroll" type="auto" px="sm" pt="sm">
-            <Transcript
-              messages={transcript.data?.messages ?? []}
-              liveParts={live.parts}
-              running={live.running}
-              error={live.error}
-              notices={live.notices}
-            />
-          </ScrollArea>
+          <Transcript
+            messages={transcript.data?.messages ?? []}
+            liveParts={live.parts}
+            running={live.running}
+            error={live.error}
+            notices={live.notices}
+          />
           <Composer
             state={state.data}
             models={models.data ?? []}

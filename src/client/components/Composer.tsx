@@ -20,7 +20,7 @@ import {
   Tooltip,
 } from "@mantine/core";
 import { IconMicrophone, IconMicrophoneOff, IconPlayerStopFilled, IconSend } from "@tabler/icons-react";
-import { useMemo, useState } from "react";
+import { memo, useCallback, useMemo, useState } from "react";
 
 import type { LiveState, ModelOption } from "../api/model.ts";
 import { useDictation } from "../lib/speech.ts";
@@ -47,26 +47,12 @@ export function Composer({
   const [text, setText] = useState("");
   const [deliverAs, setDeliverAs] = useState<"steer" | "followUp">("steer");
 
-  // Dictated phrases append to whatever is typed, so voice and keyboard mix.
-  const dictation = useDictation(phrase => {
+  // Stable dictation commit callback avoids re-binding speech recognition listeners.
+  const onDictationCommit = useCallback((phrase: string) => {
     if (!phrase) return;
     setText(current => (current ? `${current} ${phrase}` : phrase));
-  });
-
-  // 593 models is normal on an authenticated machine, so the selector groups
-  // by provider and relies on Mantine's search rather than a flat list.
-  const modelData = useMemo(() => {
-    const byProvider = new Map<string, Array<{ value: string; label: string }>>();
-    for (const model of models) {
-      const group = byProvider.get(model.provider);
-      const item = { value: model.ref, label: model.name };
-      if (group) group.push(item);
-      else byProvider.set(model.provider, [item]);
-    }
-    return [...byProvider.entries()]
-      .sort((left, right) => left[0].localeCompare(right[0]))
-      .map(([provider, items]) => ({ group: provider, items }));
-  }, [models]);
+  }, []);
+  const dictation = useDictation(onDictationCommit);
 
   const send = (): void => {
     const message = text.trim();
@@ -106,7 +92,7 @@ export function Composer({
             <Tooltip label={dictation.listening ? "Stop dictation" : "Dictate"}>
               <ActionIcon
                 variant={dictation.listening ? "filled" : "subtle"}
-                color={dictation.listening ? "lagoon" : "plum"}
+                color={dictation.listening ? "cyan" : "plum"}
                 disabled={disabled}
                 onClick={() => (dictation.listening ? dictation.stop() : dictation.start())}
                 aria-label={dictation.listening ? "Stop dictation" : "Start dictation"}
@@ -139,20 +125,12 @@ export function Composer({
         </Group>
 
         <Group gap={8} wrap="wrap" justify="space-between">
-          <Select
-            size="xs"
-            searchable
+          <ModelSelector
+            model={state?.model ?? null}
+            models={models}
+            modelsLoading={modelsLoading}
             disabled={disabled}
-            data={modelData}
-            value={state?.model ?? null}
-            onChange={value => value && onSelectModel(value)}
-            placeholder={modelsLoading ? "Loading models…" : "Select a model"}
-            leftSection={modelsLoading ? <Loader size={12} /> : undefined}
-            nothingFoundMessage="No matching model"
-            maxDropdownHeight={280}
-            comboboxProps={{ withinPortal: true }}
-            style={{ flex: "1 1 200px", minWidth: 160 }}
-            aria-label="Model"
+            onSelectModel={onSelectModel}
           />
 
           {running ? (
@@ -169,7 +147,7 @@ export function Composer({
 
           {state?.contextUsage ? (
             <Text size="xs" c="dimmed">
-              {Math.round(state.contextUsage.percent * 100)}% context
+              {Math.round(state.contextUsage.percent)}% context
               {state.queued > 0 ? ` · ${state.queued} queued` : ""}
             </Text>
           ) : null}
@@ -184,3 +162,56 @@ export function Composer({
     </Paper>
   );
 }
+
+interface ModelSelectorProps {
+  model: string | null;
+  models: ModelOption[];
+  modelsLoading: boolean;
+  disabled: boolean;
+  onSelectModel: (ref: string) => void;
+}
+
+/**
+ * Isolated and memoized so typing in the composer textarea does NOT re-render
+ * the 593-item model dropdown on every keystroke.
+ */
+const ModelSelector = memo(function ModelSelector({
+  model,
+  models,
+  modelsLoading,
+  disabled,
+  onSelectModel,
+}: ModelSelectorProps) {
+  // Group by provider and memoize on models catalog changes.
+  const modelData = useMemo(() => {
+    const byProvider = new Map<string, Array<{ value: string; label: string }>>();
+    for (const m of models) {
+      const group = byProvider.get(m.provider);
+      const item = { value: m.ref, label: m.name };
+      if (group) group.push(item);
+      else byProvider.set(m.provider, [item]);
+    }
+    return [...byProvider.entries()]
+      .sort((left, right) => left[0].localeCompare(right[0]))
+      .map(([provider, items]) => ({ group: provider, items }));
+  }, [models]);
+
+  return (
+    <Select
+      size="xs"
+      searchable
+      limit={30}
+      disabled={disabled}
+      data={modelData}
+      value={model}
+      onChange={value => value && onSelectModel(value)}
+      placeholder={modelsLoading ? "Loading models…" : "Select a model"}
+      leftSection={modelsLoading ? <Loader size={12} /> : undefined}
+      nothingFoundMessage="No matching model"
+      maxDropdownHeight={280}
+      comboboxProps={{ withinPortal: true }}
+      style={{ flex: "1 1 200px", minWidth: 160 }}
+      aria-label="Model"
+    />
+  );
+});

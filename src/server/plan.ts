@@ -19,10 +19,10 @@ import type { PlanActionRequest, PlanDocument, PlanSection } from "../shared/mod
 import type { LiveSession, Registry } from "./registry.ts";
 
 /**
- * Share of the context window above which omp disables its keep-context
- * option. Approving with a nearly-full context leaves no room to execute.
+ * Percent of the context window above which omp disables its keep-context
+ * option (matching omp's PLAN_KEEP_CONTEXT_DISABLE_THRESHOLD_PERCENT = 95).
  */
-const KEEP_CONTEXT_LIMIT = 0.6;
+const KEEP_CONTEXT_LIMIT = 95;
 
 /** omp's approved-plan directive, read once from the installed package. */
 let approvedTemplate: Promise<string> | undefined;

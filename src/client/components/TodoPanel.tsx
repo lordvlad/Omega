@@ -37,7 +37,7 @@ export interface TodoPanelProps {
 }
 
 const STATUS_ICONS: Record<TodoTaskStatus, { icon: typeof IconCircle; color: string; label: string }> = {
-  completed: { icon: IconCircleCheckFilled, color: "lagoon", label: "Completed" },
+  completed: { icon: IconCircleCheckFilled, color: "cyan", label: "Completed" },
   in_progress: { icon: IconPlayerPlayFilled, color: "plum", label: "In Progress" },
   pending: { icon: IconCircle, color: "slate", label: "Pending" },
   blocked: { icon: IconAlertOctagon, color: "orange", label: "Blocked" },
@@ -109,12 +109,12 @@ export function TodoPanel({ phases, onClose }: TodoPanelProps) {
       <Paper p="sm" withBorder radius={0} style={{ borderLeft: 0, borderRight: 0, borderTop: 0 }}>
         <Group justify="space-between" align="center" wrap="nowrap">
           <Group gap={8} wrap="nowrap">
-            <IconChecklist size={18} color="var(--mantine-color-lagoon-4)" />
+            <IconChecklist size={18} color="var(--mantine-color-cyan-4)" />
             <Text size="sm" fw={700}>
               Todos
             </Text>
             {total > 0 ? (
-              <Badge size="sm" variant="light" color={percent === 100 ? "lagoon" : "plum"}>
+              <Badge size="sm" variant="light" color={percent === 100 ? "cyan" : "plum"}>
                 {completed}/{total}
               </Badge>
             ) : null}
@@ -129,7 +129,7 @@ export function TodoPanel({ phases, onClose }: TodoPanelProps) {
 
         {total > 0 ? (
           <Box pt="xs">
-            <Progress value={percent} size="xs" color="lagoon" radius="xl" animated={percent < 100} />
+            <Progress value={percent} size="xs" color="cyan" radius="xl" animated={percent < 100} />
           </Box>
         ) : null}
       </Paper>
