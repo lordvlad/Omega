@@ -67,7 +67,7 @@ export function flattenMessages(messages: readonly AgentMessage[]): TranscriptMe
     if (message.role !== "assistant") {
       // Internal metadata messages without display: true should not render in chat
       if ("display" in message && message.display === false) continue;
-      const text = typeof message.content === "string" ? message.content : "";
+      const text = "content" in message && typeof message.content === "string" ? message.content : "";
       if (text.trim()) {
         out.push({ id: `custom-${index}`, role: "custom", timestamp, parts: [{ kind: "text", text }] });
       }

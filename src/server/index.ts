@@ -1,3 +1,5 @@
+import * as os from "node:os";
+
 /**
  * The omega server: static client, REST routes, and one AG-UI WebSocket per
  * live session.
@@ -156,4 +158,23 @@ for (const signal of ["SIGINT", "SIGTERM"] as const) {
   });
 }
 
-console.log(`omega listening on http://${HOST}:${PORT}`);
+console.log(`omega listening on:`);
+console.log(`  Local:   http://localhost:${PORT}`);
+if (HOST === "0.0.0.0" || HOST === "::" || HOST === "") {
+  const interfaces = os.networkInterfaces();
+  for (const [name, addrs] of Object.entries(interfaces)) {
+    if (!addrs) continue;
+    for (const addr of addrs) {
+      if (addr.family === "IPv4" && !addr.internal) {
+        const label = name.startsWith("tailscale")
+          ? "Tailscale"
+          : name.startsWith("docker") || name.startsWith("br-")
+            ? "Docker"
+            : "Network";
+        console.log(`  ${label.padEnd(9)}: http://${addr.address}:${PORT} (${name})`);
+      }
+    }
+  }
+} else if (HOST !== "127.0.0.1" && HOST !== "localhost") {
+  console.log(`  Network:   http://${HOST}:${PORT}`);
+}
