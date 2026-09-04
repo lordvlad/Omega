@@ -1,0 +1,299 @@
+/**
+ * Wire types for the omega web UI.
+ *
+ * These declarations are the single source of truth: `src/shared/schema.ts`
+ * turns them into an OpenAPI document at compile time, and
+ * `bun run gen:api` turns that document into the react-query client the
+ * browser imports. A field renamed here is a type error in both the server
+ * handler and the component that reads it, never a stale document.
+ */
+
+/** A directory that has at least one omp session on disk. */
+export interface Workspace {
+  /** Absolute working directory the sessions were started in. */
+  cwd: string;
+  /** Last path segment, for display. */
+  name: string;
+  /** Sessions started in this directory, newest first. */
+  sessions: SessionSummary[];
+  /** Most recent `modified` across `sessions`, ISO-8601. */
+  modified: string;
+  /** True when the directory still exists on disk. */
+  exists: boolean;
+}
+
+/**
+ * Coarse lifecycle status of a persisted session, mirroring omp's own
+ * `SessionStatus` union so the badge in the UI means what omp means.
+ */
+export type SessionStatus = "complete" | "interrupted" | "aborted" | "error" | "pending" | "unknown";
+
+/** One persisted session, as listed from disk without loading its transcript. */
+export interface SessionSummary {
+  /** Absolute path of the `.jsonl` session file. */
+  path: string;
+  /** omp session UUID. */
+  id: string;
+  cwd: string;
+  /** Generated or user-set session title; absent for untitled sessions. */
+  title?: string;
+  /** ISO-8601. */
+  created: string;
+  /** ISO-8601. */
+  modified: string;
+  messageCount: number;
+  /** Session file size in bytes. */
+  size: number;
+  /** First user message, truncated for preview. */
+  firstMessage: string;
+  status: SessionStatus;
+  /** True when this session is currently loaded as a live agent in the server. */
+  live: boolean;
+}
+
+/** A model the local omp install is authenticated for. */
+export interface ModelOption {
+  provider: string;
+  id: string;
+  name: string;
+  /** `provider/id`, the stable value used by the selector. */
+  ref: string;
+  /** True when the model supports a thinking/reasoning budget. */
+  reasoning: boolean;
+  contextWindow: number;
+}
+
+/** omp thinking levels, in ascending order of budget. */
+export type ThinkingLevel = "off" | "minimal" | "low" | "medium" | "high" | "xhigh" | "max";
+
+/** Context-window consumption for the live session. */
+export interface ContextUsage {
+  tokens: number;
+  contextWindow: number;
+  /** Fraction consumed, 0..1. */
+  percent: number;
+}
+
+/** Everything the chat header and composer need about a live session. */
+export interface LiveState {
+  /**
+   * omp session UUID — the key for every other session route. A UUID rather
+   * than the session's file path so it needs no escaping in a path segment.
+   */
+  key: string;
+  /** Absolute path of the `.jsonl` session file backing this session. */
+  sessionFile: string;
+  cwd: string;
+  title?: string;
+  /** `provider/id` of the active model. */
+  model: string;
+  modelName: string;
+  thinkingLevel: ThinkingLevel;
+  /** True while a turn is in flight. */
+  streaming: boolean;
+  /** Messages queued behind the active turn. */
+  queued: number;
+  contextUsage?: ContextUsage;
+  /** Plan mode state, when plan mode is enabled. */
+  plan?: PlanState;
+  /** Phases and tasks tracked by the session's todo tool. */
+  todos?: TodoPhase[];
+}
+
+/** Lifecycle status of a task in the todo list. */
+export type TodoTaskStatus = "pending" | "in_progress" | "completed" | "abandoned" | "blocked";
+
+/** A single tracked task. */
+export interface TodoTask {
+  content: string;
+  status: TodoTaskStatus;
+  /** Note explaining what the task is blocked on. */
+  blocker?: string;
+}
+
+/** A logical grouping of tasks in the todo list. */
+export interface TodoPhase {
+  name: string;
+  tasks: TodoTask[];
+}
+
+/** Plan-mode status carried alongside live session state. */
+export interface PlanState {
+  enabled: boolean;
+  /** `local://<slug>-plan.md` the agent is writing. */
+  planFilePath: string;
+  /** True once a plan has been submitted for review via `xd://propose`. */
+  awaitingApproval: boolean;
+  /** Resolved plan title, present once proposed. */
+  title?: string;
+}
+
+/** One heading in the plan document, for the left-hand table of contents. */
+export interface PlanSection {
+  /** Stable slug, used as the scroll anchor id. */
+  id: string;
+  /** Heading text without leading `#`. */
+  title: string;
+  /** Heading depth, 1..6. */
+  level: number;
+  /** 0-based line offset of the heading within the plan source. */
+  line: number;
+}
+
+/** The plan document plus everything the three planning panes render. */
+export interface PlanDocument {
+  enabled: boolean;
+  planFilePath: string;
+  title?: string;
+  awaitingApproval: boolean;
+  /** Raw markdown source, empty when the agent has not written a plan yet. */
+  content: string;
+  /** `Bun.markdown.html` rendering of `content`. */
+  html: string;
+  /** Headings of `content`, in document order. */
+  sections: PlanSection[];
+  /** Role tiers the plan may be executed with, for the actions panel. */
+  tiers: PlanTier[];
+  /**
+   * True when approving with the planning context intact would not fit the
+   * model's context window. omp disables its keep-context option in exactly
+   * this case, so the actions panel disables `keep` too.
+   */
+  keepContextDisabled: boolean;
+}
+
+/** One configured role model the approved plan can be executed with. */
+export interface PlanTier {
+  /** Configured role: `smol`, `default`, `slow`, … */
+  role: string;
+  /** `provider/id`. */
+  ref: string;
+  name: string;
+}
+
+/**
+ * The four decisions omp's plan review offers, matching the option list in
+ * `InteractiveMode.handlePlanApproval` one-for-one.
+ *
+ * - `execute` — "Approve and execute": `preserveContext: false`, so execution
+ *   starts from a fresh context seeded with the plan artifact.
+ * - `compact` — "Approve and compact context": distill the planning transcript,
+ *   then execute.
+ * - `keep` — "Approve and keep context": execute with the planning transcript
+ *   intact. omp disables this when the context is already too full.
+ * - `refine` — "Refine plan": stay in plan mode and re-prompt the model with
+ *   `feedback`.
+ */
+export type PlanAction = "execute" | "compact" | "keep" | "refine";
+
+/** A transcript entry, flattened for rendering. */
+export interface TranscriptMessage {
+  /** Stable id; the omp entry id where one exists. */
+  id: string;
+  role: "user" | "assistant" | "toolResult" | "custom";
+  /** Ordered content parts. */
+  parts: MessagePart[];
+  /** ISO-8601, when the entry carried one. */
+  timestamp?: string;
+}
+
+/**
+ * One renderable piece of a message. `text` and `thinking` carry markdown in
+ * `text`; `toolCall` carries the call; `toolResult` carries its outcome.
+ */
+export interface MessagePart {
+  kind: "text" | "thinking" | "toolCall" | "toolResult";
+  /** Markdown source for `text`/`thinking`, rendered output for tool parts. */
+  text: string;
+  /** Tool name, for `toolCall`/`toolResult`. */
+  toolName?: string;
+  /** omp tool call id, correlating a call with its result. */
+  toolCallId?: string;
+  /** JSON-encoded arguments, for `toolCall`. */
+  args?: string;
+  /** True when a `toolResult` reported failure. */
+  isError?: boolean;
+}
+
+/** A transcript page. */
+export interface Transcript {
+  key: string;
+  messages: TranscriptMessage[];
+}
+
+/** Rendered markdown, produced by `Bun.markdown.html` on the server. */
+export interface RenderedMarkdown {
+  html: string;
+}
+
+/** Markdown to render. */
+export interface MarkdownRequest {
+  text: string;
+}
+
+/** Which session to load as a live agent. */
+export interface OpenSessionRequest {
+  /** Absolute `.jsonl` path of an existing session. Omit to start a new one. */
+  sessionPath?: string;
+  /** Working directory for a new session. Required when `sessionPath` is absent. */
+  cwd?: string;
+}
+
+/** A message to send to the agent. */
+export interface PromptRequest {
+  message: string;
+  /**
+   * How to deliver while a turn is already streaming. `steer` interrupts,
+   * `followUp` queues for after the turn. Ignored when the session is idle.
+   */
+  deliverAs?: "steer" | "followUp";
+}
+
+/** Model to switch the live session to. */
+export interface SelectModelRequest {
+  /** `provider/id`, as returned in `ModelOption.ref`. */
+  ref: string;
+  thinkingLevel?: ThinkingLevel;
+}
+
+/** Whether plan mode should be on. */
+export interface PlanModeRequest {
+  enabled: boolean;
+}
+
+/** A decision from the plan actions panel. */
+export interface PlanActionRequest {
+  action: PlanAction;
+  /**
+   * Section annotations and free-text notes re-prompted to the model.
+   * Required by `refine`, ignored otherwise.
+   */
+  feedback?: string;
+  /** Role tier to execute the approved plan with; defaults to `default`. */
+  tier?: string;
+}
+
+/** A hand-edited plan document. */
+export interface PlanEditRequest {
+  content: string;
+}
+
+/** An operation that reports only success. */
+export interface Ack {
+  ok: boolean;
+  /** Human-readable detail, for surfacing in a notification. */
+  detail?: string;
+  /**
+   * Session the caller should switch to. Set by the `execute` plan action,
+   * which runs the approved plan in a fresh session.
+   */
+  sessionKey?: string;
+}
+
+/** A failed request. */
+export interface Problem {
+  /** HTTP status. */
+  status: number;
+  /** Human-readable explanation. */
+  detail: string;
+}

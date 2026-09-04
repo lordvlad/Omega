@@ -1,0 +1,159 @@
+/**
+ * The omega server: static client, REST routes, and one AG-UI WebSocket per
+ * live session.
+ *
+ * It binds on every interface because the point is to reach it from a phone on
+ * the same network. There is no authentication: this process can run arbitrary
+ * tools in your working directories, so it belongs on a trusted LAN only.
+ * `OMEGA_HOST=127.0.0.1` restricts it to this machine.
+ */
+import { serve, type ServerWebSocket } from "bun";
+
+import index from "../client/index.html";
+import type { AguiFrame } from "./agui.ts";
+import { registry } from "./registry.ts";
+import { handlers, HttpError } from "./router.ts";
+
+const PORT = Number(process.env.OMEGA_PORT ?? 4319);
+const HOST = process.env.OMEGA_HOST ?? "0.0.0.0";
+
+/** Per-socket state: which session it streams and how to detach. */
+interface SocketData {
+  key: string;
+  detach?: () => void;
+}
+
+/** Run a handler, mapping thrown `HttpError`s onto the documented `Problem`. */
+async function json(run: () => Promise<unknown>, okStatus = 200): Promise<Response> {
+  try {
+    return Response.json(await run(), { status: okStatus });
+  } catch (error) {
+    if (error instanceof HttpError) {
+      return Response.json({ status: error.status, detail: error.message }, { status: error.status });
+    }
+    const detail = error instanceof Error ? error.message : String(error);
+    console.error("[omega] handler failed:", detail);
+    return Response.json({ status: 500, detail }, { status: 500 });
+  }
+}
+
+const server = serve({
+  port: PORT,
+  hostname: HOST,
+  // A planning turn can think for minutes before writing the plan file; the
+  // default idle timeout would drop the socket mid-turn.
+  idleTimeout: 255,
+
+  routes: {
+    "/api/workspaces": { GET: () => json(() => handlers.listWorkspaces()) },
+    "/api/models": { GET: () => json(() => handlers.listModels()) },
+
+    "/api/sessions": {
+      POST: async request => {
+        const body = await request.json();
+        return json(() => handlers.openSession(body));
+      },
+    },
+
+    "/api/sessions/:key/state": {
+      GET: request => json(() => handlers.getState(request.params.key)),
+    },
+    "/api/sessions/:key/transcript": {
+      GET: request => json(() => handlers.getTranscript(request.params.key)),
+    },
+    "/api/sessions/:key/prompt": {
+      POST: async request => {
+        const body = await request.json();
+        return json(() => handlers.prompt(request.params.key, body), 202);
+      },
+    },
+    "/api/sessions/:key/abort": {
+      POST: request => json(() => handlers.abort(request.params.key)),
+    },
+    "/api/sessions/:key/model": {
+      POST: async request => {
+        const body = await request.json();
+        return json(() => handlers.selectModel(request.params.key, body));
+      },
+    },
+
+    "/api/sessions/:key/plan": {
+      GET: request => json(() => handlers.getPlan(request.params.key)),
+    },
+    "/api/sessions/:key/plan/mode": {
+      POST: async request => {
+        const body = await request.json();
+        return json(() => handlers.setPlanMode(request.params.key, body));
+      },
+    },
+    "/api/sessions/:key/plan/document": {
+      PUT: async request => {
+        const body = await request.json();
+        return json(() => handlers.editPlan(request.params.key, body));
+      },
+    },
+    "/api/sessions/:key/plan/action": {
+      POST: async request => {
+        const body = await request.json();
+        return json(() => handlers.resolvePlan(request.params.key, body));
+      },
+    },
+
+    "/api/markdown": {
+      POST: async request => {
+        const body = await request.json();
+        return json(() => handlers.renderMarkdown(body));
+      },
+    },
+
+    /** AG-UI stream for one session. */
+    "/ws/:key": request => {
+      const key = request.params.key;
+      if (!registry.get(key)) return new Response("No such session", { status: 404 });
+      if (server.upgrade(request, { data: { key } })) return undefined as unknown as Response;
+      return new Response("Expected a WebSocket upgrade", { status: 426 });
+    },
+
+    // Everything else is the single-page client.
+    "/*": index,
+  },
+
+  websocket: {
+    open(socket: ServerWebSocket<SocketData>) {
+      const live = registry.get(socket.data.key);
+      if (!live) {
+        socket.close(1011, "session closed");
+        return;
+      }
+      // `subscribe` replays the frames this session already produced, so a
+      // browser that connects mid-turn — or reconnects after the phone
+      // slept — still renders the whole turn.
+      socket.data.detach = live.subscribe((frame: AguiFrame) => {
+        socket.send(JSON.stringify(frame));
+      });
+    },
+    message(socket: ServerWebSocket<SocketData>, raw) {
+      // The only client→server frame is a keepalive; prompts and aborts are
+      // REST calls so they get a status code and an error body.
+      if (raw === "ping") socket.send(JSON.stringify({ type: "CUSTOM", name: "omp.pong", value: null }));
+    },
+    close(socket: ServerWebSocket<SocketData>) {
+      socket.data.detach?.();
+    },
+  },
+
+  development: process.env.NODE_ENV !== "production" && { hmr: true, console: true },
+});
+
+for (const signal of ["SIGINT", "SIGTERM"] as const) {
+  process.on(signal, () => {
+    void (async () => {
+      // Sessions own child processes, MCP connections and eval kernels;
+      // dropping the process without disposing them leaks all three.
+      await registry.disposeAll();
+      process.exit(0);
+    })();
+  });
+}
+
+console.log(`omega listening on http://${HOST}:${PORT}`);

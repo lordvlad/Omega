@@ -1,0 +1,1366 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "omega",
+    "version": "1.0.0",
+    "description": "Web interface to a local omp coding agent. Every path and schema in this document was derived from the TypeScript declarations in src/shared by the wiz plugin."
+  },
+  "servers": [
+    {
+      "url": "/"
+    }
+  ],
+  "paths": {
+    "/api/workspaces": {
+      "get": {
+        "operationId": "listWorkspaces",
+        "x-service": "OmpApi",
+        "tags": [
+          "OmpApi"
+        ],
+        "summary": "List workspaces and their sessions",
+        "description": "Every directory with sessions on disk, each with its sessions nested.",
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/Workspace"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/models": {
+      "get": {
+        "operationId": "listModels",
+        "x-service": "OmpApi",
+        "tags": [
+          "OmpApi"
+        ],
+        "summary": "List available models",
+        "description": "Models the local omp install is authenticated for.",
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ModelOption"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/sessions": {
+      "post": {
+        "operationId": "openSession",
+        "x-service": "OmpApi",
+        "tags": [
+          "OmpApi"
+        ],
+        "summary": "Open or create a live session",
+        "description": "Load a session as a live agent, or start a new one in `cwd`.\n\nIdempotent for an already-loaded session: the existing live agent is\nreturned rather than a second one being created for the same file.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OpenSessionRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LiveState"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/sessions/{key}/state": {
+      "get": {
+        "operationId": "getState",
+        "x-service": "OmpApi",
+        "tags": [
+          "OmpApi"
+        ],
+        "summary": "Read live session state",
+        "description": "Current model, thinking level, streaming status and plan state.",
+        "parameters": [
+          {
+            "name": "key",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LiveState"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/sessions/{key}/transcript": {
+      "get": {
+        "operationId": "getTranscript",
+        "x-service": "OmpApi",
+        "tags": [
+          "OmpApi"
+        ],
+        "summary": "Read the session transcript",
+        "description": "The session transcript, flattened into renderable parts.",
+        "parameters": [
+          {
+            "name": "key",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Transcript"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/sessions/{key}/prompt": {
+      "post": {
+        "operationId": "prompt",
+        "x-service": "OmpApi",
+        "tags": [
+          "OmpApi"
+        ],
+        "summary": "Prompt the agent",
+        "description": "Send a message. Returns as soon as the turn is scheduled; the reply\narrives as AG-UI frames on the session's WebSocket.",
+        "parameters": [
+          {
+            "name": "key",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PromptRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Ack"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/sessions/{key}/abort": {
+      "post": {
+        "operationId": "abort",
+        "x-service": "OmpApi",
+        "tags": [
+          "OmpApi"
+        ],
+        "summary": "Abort the current turn",
+        "description": "Abort the in-flight turn. Succeeds as a no-op when the session is idle.",
+        "parameters": [
+          {
+            "name": "key",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Ack"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/sessions/{key}/model": {
+      "post": {
+        "operationId": "selectModel",
+        "x-service": "OmpApi",
+        "tags": [
+          "OmpApi"
+        ],
+        "summary": "Select a model",
+        "description": "Switch the live session's model, and optionally its thinking level.",
+        "parameters": [
+          {
+            "name": "key",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SelectModelRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LiveState"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/sessions/{key}/plan": {
+      "get": {
+        "operationId": "getPlan",
+        "x-service": "OmpApi",
+        "tags": [
+          "OmpApi"
+        ],
+        "summary": "Read the plan document",
+        "description": "The plan document, its headings and the executable role tiers — the three\nplanning panes in one payload.",
+        "parameters": [
+          {
+            "name": "key",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PlanDocument"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/sessions/{key}/plan/mode": {
+      "post": {
+        "operationId": "setPlanMode",
+        "x-service": "OmpApi",
+        "tags": [
+          "OmpApi"
+        ],
+        "summary": "Toggle plan mode",
+        "description": "Turn plan mode on or off for the live session.",
+        "parameters": [
+          {
+            "name": "key",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PlanModeRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PlanDocument"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/sessions/{key}/plan/document": {
+      "put": {
+        "operationId": "editPlan",
+        "x-service": "OmpApi",
+        "tags": [
+          "OmpApi"
+        ],
+        "summary": "Edit the plan document",
+        "description": "Persist a hand-edited plan document, mirroring omp's in-overlay edits.",
+        "parameters": [
+          {
+            "name": "key",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PlanEditRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PlanDocument"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/sessions/{key}/plan/action": {
+      "post": {
+        "operationId": "resolvePlan",
+        "x-service": "OmpApi",
+        "tags": [
+          "OmpApi"
+        ],
+        "summary": "Resolve the plan review",
+        "description": "Resolve the plan review: approve and execute, approve and compact,\napprove into a fresh session, or refine with feedback.",
+        "parameters": [
+          {
+            "name": "key",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PlanActionRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Ack"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/markdown": {
+      "post": {
+        "operationId": "renderMarkdown",
+        "x-service": "OmpApi",
+        "tags": [
+          "OmpApi"
+        ],
+        "summary": "Render markdown to HTML",
+        "description": "Render markdown with `Bun.markdown.html`.\n\nThe browser has no `Bun.markdown`, so every rendering in the UI —\ntranscript text, thinking blocks, the plan document — comes from here.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MarkdownRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RenderedMarkdown"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "Problem": {
+        "description": "A failed request.",
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "number",
+            "description": "HTTP status."
+          },
+          "detail": {
+            "type": "string",
+            "description": "Human-readable explanation."
+          }
+        },
+        "required": [
+          "status",
+          "detail"
+        ]
+      },
+      "Workspace": {
+        "description": "A directory that has at least one omp session on disk.",
+        "type": "object",
+        "properties": {
+          "cwd": {
+            "type": "string",
+            "description": "Absolute working directory the sessions were started in."
+          },
+          "name": {
+            "type": "string",
+            "description": "Last path segment, for display."
+          },
+          "sessions": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SessionSummary"
+            },
+            "description": "Sessions started in this directory, newest first."
+          },
+          "modified": {
+            "type": "string",
+            "description": "Most recent `modified` across `sessions`, ISO-8601."
+          },
+          "exists": {
+            "type": "boolean",
+            "description": "True when the directory still exists on disk."
+          }
+        },
+        "required": [
+          "cwd",
+          "name",
+          "sessions",
+          "modified",
+          "exists"
+        ]
+      },
+      "SessionSummary": {
+        "description": "One persisted session, as listed from disk without loading its transcript.",
+        "type": "object",
+        "properties": {
+          "path": {
+            "type": "string",
+            "description": "Absolute path of the `.jsonl` session file."
+          },
+          "id": {
+            "type": "string",
+            "description": "omp session UUID."
+          },
+          "cwd": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string",
+            "description": "Generated or user-set session title; absent for untitled sessions."
+          },
+          "created": {
+            "type": "string",
+            "description": "ISO-8601."
+          },
+          "modified": {
+            "type": "string",
+            "description": "ISO-8601."
+          },
+          "messageCount": {
+            "type": "number"
+          },
+          "size": {
+            "type": "number",
+            "description": "Session file size in bytes."
+          },
+          "firstMessage": {
+            "type": "string",
+            "description": "First user message, truncated for preview."
+          },
+          "status": {
+            "$ref": "#/components/schemas/SessionStatus"
+          },
+          "live": {
+            "type": "boolean",
+            "description": "True when this session is currently loaded as a live agent in the server."
+          }
+        },
+        "required": [
+          "path",
+          "id",
+          "cwd",
+          "created",
+          "modified",
+          "messageCount",
+          "size",
+          "firstMessage",
+          "status",
+          "live"
+        ]
+      },
+      "SessionStatus": {
+        "description": "Coarse lifecycle status of a persisted session, mirroring omp's own\n`SessionStatus` union so the badge in the UI means what omp means.",
+        "anyOf": [
+          {
+            "const": "complete"
+          },
+          {
+            "const": "interrupted"
+          },
+          {
+            "const": "aborted"
+          },
+          {
+            "const": "error"
+          },
+          {
+            "const": "pending"
+          },
+          {
+            "const": "unknown"
+          }
+        ]
+      },
+      "ModelOption": {
+        "description": "A model the local omp install is authenticated for.",
+        "type": "object",
+        "properties": {
+          "provider": {
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "ref": {
+            "type": "string",
+            "description": "`provider/id`, the stable value used by the selector."
+          },
+          "reasoning": {
+            "type": "boolean",
+            "description": "True when the model supports a thinking/reasoning budget."
+          },
+          "contextWindow": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "provider",
+          "id",
+          "name",
+          "ref",
+          "reasoning",
+          "contextWindow"
+        ]
+      },
+      "OpenSessionRequest": {
+        "description": "Which session to load as a live agent.",
+        "type": "object",
+        "properties": {
+          "sessionPath": {
+            "type": "string",
+            "description": "Absolute `.jsonl` path of an existing session. Omit to start a new one."
+          },
+          "cwd": {
+            "type": "string",
+            "description": "Working directory for a new session. Required when `sessionPath` is absent."
+          }
+        }
+      },
+      "LiveState": {
+        "description": "Everything the chat header and composer need about a live session.",
+        "type": "object",
+        "properties": {
+          "key": {
+            "type": "string",
+            "description": "omp session UUID — the key for every other session route. A UUID rather\nthan the session's file path so it needs no escaping in a path segment."
+          },
+          "sessionFile": {
+            "type": "string",
+            "description": "Absolute path of the `.jsonl` session file backing this session."
+          },
+          "cwd": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "model": {
+            "type": "string",
+            "description": "`provider/id` of the active model."
+          },
+          "modelName": {
+            "type": "string"
+          },
+          "thinkingLevel": {
+            "$ref": "#/components/schemas/ThinkingLevel"
+          },
+          "streaming": {
+            "type": "boolean",
+            "description": "True while a turn is in flight."
+          },
+          "queued": {
+            "type": "number",
+            "description": "Messages queued behind the active turn."
+          },
+          "contextUsage": {
+            "$ref": "#/components/schemas/ContextUsage"
+          },
+          "plan": {
+            "$ref": "#/components/schemas/PlanState",
+            "description": "Plan mode state, when plan mode is enabled."
+          },
+          "todos": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/TodoPhase"
+            },
+            "description": "Phases and tasks tracked by the session's todo tool."
+          }
+        },
+        "required": [
+          "key",
+          "sessionFile",
+          "cwd",
+          "model",
+          "modelName",
+          "thinkingLevel",
+          "streaming",
+          "queued"
+        ]
+      },
+      "ThinkingLevel": {
+        "description": "omp thinking levels, in ascending order of budget.",
+        "anyOf": [
+          {
+            "const": "off"
+          },
+          {
+            "const": "minimal"
+          },
+          {
+            "const": "low"
+          },
+          {
+            "const": "medium"
+          },
+          {
+            "const": "high"
+          },
+          {
+            "const": "xhigh"
+          },
+          {
+            "const": "max"
+          }
+        ]
+      },
+      "ContextUsage": {
+        "description": "Context-window consumption for the live session.",
+        "type": "object",
+        "properties": {
+          "tokens": {
+            "type": "number"
+          },
+          "contextWindow": {
+            "type": "number"
+          },
+          "percent": {
+            "type": "number",
+            "description": "Fraction consumed, 0..1."
+          }
+        },
+        "required": [
+          "tokens",
+          "contextWindow",
+          "percent"
+        ]
+      },
+      "PlanState": {
+        "description": "Plan-mode status carried alongside live session state.",
+        "type": "object",
+        "properties": {
+          "enabled": {
+            "type": "boolean"
+          },
+          "planFilePath": {
+            "type": "string",
+            "description": "`local://<slug>-plan.md` the agent is writing."
+          },
+          "awaitingApproval": {
+            "type": "boolean",
+            "description": "True once a plan has been submitted for review via `xd://propose`."
+          },
+          "title": {
+            "type": "string",
+            "description": "Resolved plan title, present once proposed."
+          }
+        },
+        "required": [
+          "enabled",
+          "planFilePath",
+          "awaitingApproval"
+        ]
+      },
+      "TodoPhase": {
+        "description": "A logical grouping of tasks in the todo list.",
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "tasks": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/TodoTask"
+            }
+          }
+        },
+        "required": [
+          "name",
+          "tasks"
+        ]
+      },
+      "TodoTask": {
+        "description": "A single tracked task.",
+        "type": "object",
+        "properties": {
+          "content": {
+            "type": "string"
+          },
+          "status": {
+            "$ref": "#/components/schemas/TodoTaskStatus"
+          },
+          "blocker": {
+            "type": "string",
+            "description": "Note explaining what the task is blocked on."
+          }
+        },
+        "required": [
+          "content",
+          "status"
+        ]
+      },
+      "TodoTaskStatus": {
+        "description": "Lifecycle status of a task in the todo list.",
+        "anyOf": [
+          {
+            "const": "pending"
+          },
+          {
+            "const": "in_progress"
+          },
+          {
+            "const": "completed"
+          },
+          {
+            "const": "abandoned"
+          },
+          {
+            "const": "blocked"
+          }
+        ]
+      },
+      "Transcript": {
+        "description": "A transcript page.",
+        "type": "object",
+        "properties": {
+          "key": {
+            "type": "string"
+          },
+          "messages": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/TranscriptMessage"
+            }
+          }
+        },
+        "required": [
+          "key",
+          "messages"
+        ]
+      },
+      "TranscriptMessage": {
+        "description": "A transcript entry, flattened for rendering.",
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Stable id; the omp entry id where one exists."
+          },
+          "role": {
+            "anyOf": [
+              {
+                "const": "user"
+              },
+              {
+                "const": "assistant"
+              },
+              {
+                "const": "toolResult"
+              },
+              {
+                "const": "custom"
+              }
+            ]
+          },
+          "parts": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/MessagePart"
+            },
+            "description": "Ordered content parts."
+          },
+          "timestamp": {
+            "type": "string",
+            "description": "ISO-8601, when the entry carried one."
+          }
+        },
+        "required": [
+          "id",
+          "role",
+          "parts"
+        ]
+      },
+      "MessagePart": {
+        "description": "One renderable piece of a message. `text` and `thinking` carry markdown in\n`text`; `toolCall` carries the call; `toolResult` carries its outcome.",
+        "type": "object",
+        "properties": {
+          "kind": {
+            "anyOf": [
+              {
+                "const": "toolResult"
+              },
+              {
+                "const": "text"
+              },
+              {
+                "const": "thinking"
+              },
+              {
+                "const": "toolCall"
+              }
+            ]
+          },
+          "text": {
+            "type": "string",
+            "description": "Markdown source for `text`/`thinking`, rendered output for tool parts."
+          },
+          "toolName": {
+            "type": "string",
+            "description": "Tool name, for `toolCall`/`toolResult`."
+          },
+          "toolCallId": {
+            "type": "string",
+            "description": "omp tool call id, correlating a call with its result."
+          },
+          "args": {
+            "type": "string",
+            "description": "JSON-encoded arguments, for `toolCall`."
+          },
+          "isError": {
+            "anyOf": [
+              {
+                "const": false
+              },
+              {
+                "const": true
+              }
+            ],
+            "description": "True when a `toolResult` reported failure."
+          }
+        },
+        "required": [
+          "kind",
+          "text"
+        ]
+      },
+      "PromptRequest": {
+        "description": "A message to send to the agent.",
+        "type": "object",
+        "properties": {
+          "message": {
+            "type": "string"
+          },
+          "deliverAs": {
+            "anyOf": [
+              {
+                "const": "steer"
+              },
+              {
+                "const": "followUp"
+              }
+            ],
+            "description": "How to deliver while a turn is already streaming. `steer` interrupts,\n`followUp` queues for after the turn. Ignored when the session is idle."
+          }
+        },
+        "required": [
+          "message"
+        ]
+      },
+      "Ack": {
+        "description": "An operation that reports only success.",
+        "type": "object",
+        "properties": {
+          "ok": {
+            "type": "boolean"
+          },
+          "detail": {
+            "type": "string",
+            "description": "Human-readable detail, for surfacing in a notification."
+          },
+          "sessionKey": {
+            "type": "string",
+            "description": "Session the caller should switch to. Set by the `execute` plan action,\nwhich runs the approved plan in a fresh session."
+          }
+        },
+        "required": [
+          "ok"
+        ]
+      },
+      "SelectModelRequest": {
+        "description": "Model to switch the live session to.",
+        "type": "object",
+        "properties": {
+          "ref": {
+            "type": "string",
+            "description": "`provider/id`, as returned in `ModelOption.ref`."
+          },
+          "thinkingLevel": {
+            "anyOf": [
+              {
+                "const": "off"
+              },
+              {
+                "const": "minimal"
+              },
+              {
+                "const": "low"
+              },
+              {
+                "const": "medium"
+              },
+              {
+                "const": "high"
+              },
+              {
+                "const": "xhigh"
+              },
+              {
+                "const": "max"
+              }
+            ]
+          }
+        },
+        "required": [
+          "ref"
+        ]
+      },
+      "PlanDocument": {
+        "description": "The plan document plus everything the three planning panes render.",
+        "type": "object",
+        "properties": {
+          "enabled": {
+            "type": "boolean"
+          },
+          "planFilePath": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "awaitingApproval": {
+            "type": "boolean"
+          },
+          "content": {
+            "type": "string",
+            "description": "Raw markdown source, empty when the agent has not written a plan yet."
+          },
+          "html": {
+            "type": "string",
+            "description": "`Bun.markdown.html` rendering of `content`."
+          },
+          "sections": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PlanSection"
+            },
+            "description": "Headings of `content`, in document order."
+          },
+          "tiers": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PlanTier"
+            },
+            "description": "Role tiers the plan may be executed with, for the actions panel."
+          },
+          "keepContextDisabled": {
+            "type": "boolean",
+            "description": "True when approving with the planning context intact would not fit the\nmodel's context window. omp disables its keep-context option in exactly\nthis case, so the actions panel disables `keep` too."
+          }
+        },
+        "required": [
+          "enabled",
+          "planFilePath",
+          "awaitingApproval",
+          "content",
+          "html",
+          "sections",
+          "tiers",
+          "keepContextDisabled"
+        ]
+      },
+      "PlanSection": {
+        "description": "One heading in the plan document, for the left-hand table of contents.",
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Stable slug, used as the scroll anchor id."
+          },
+          "title": {
+            "type": "string",
+            "description": "Heading text without leading `#`."
+          },
+          "level": {
+            "type": "number",
+            "description": "Heading depth, 1..6."
+          },
+          "line": {
+            "type": "number",
+            "description": "0-based line offset of the heading within the plan source."
+          }
+        },
+        "required": [
+          "id",
+          "title",
+          "level",
+          "line"
+        ]
+      },
+      "PlanTier": {
+        "description": "One configured role model the approved plan can be executed with.",
+        "type": "object",
+        "properties": {
+          "role": {
+            "type": "string",
+            "description": "Configured role: `smol`, `default`, `slow`, …"
+          },
+          "ref": {
+            "type": "string",
+            "description": "`provider/id`."
+          },
+          "name": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "role",
+          "ref",
+          "name"
+        ]
+      },
+      "PlanModeRequest": {
+        "description": "Whether plan mode should be on.",
+        "type": "object",
+        "properties": {
+          "enabled": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "enabled"
+        ]
+      },
+      "PlanEditRequest": {
+        "description": "A hand-edited plan document.",
+        "type": "object",
+        "properties": {
+          "content": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "content"
+        ]
+      },
+      "PlanActionRequest": {
+        "description": "A decision from the plan actions panel.",
+        "type": "object",
+        "properties": {
+          "action": {
+            "$ref": "#/components/schemas/PlanAction"
+          },
+          "feedback": {
+            "type": "string",
+            "description": "Section annotations and free-text notes re-prompted to the model.\nRequired by `refine`, ignored otherwise."
+          },
+          "tier": {
+            "type": "string",
+            "description": "Role tier to execute the approved plan with; defaults to `default`."
+          }
+        },
+        "required": [
+          "action"
+        ]
+      },
+      "PlanAction": {
+        "description": "The four decisions omp's plan review offers, matching the option list in\n`InteractiveMode.handlePlanApproval` one-for-one.\n\n- `execute` — \"Approve and execute\": `preserveContext: false`, so execution\n  starts from a fresh context seeded with the plan artifact.\n- `compact` — \"Approve and compact context\": distill the planning transcript,\n  then execute.\n- `keep` — \"Approve and keep context\": execute with the planning transcript\n  intact. omp disables this when the context is already too full.\n- `refine` — \"Refine plan\": stay in plan mode and re-prompt the model with\n  `feedback`.",
+        "anyOf": [
+          {
+            "const": "execute"
+          },
+          {
+            "const": "compact"
+          },
+          {
+            "const": "keep"
+          },
+          {
+            "const": "refine"
+          }
+        ]
+      },
+      "MarkdownRequest": {
+        "description": "Markdown to render.",
+        "type": "object",
+        "properties": {
+          "text": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "text"
+        ]
+      },
+      "RenderedMarkdown": {
+        "description": "Rendered markdown, produced by `Bun.markdown.html` on the server.",
+        "type": "object",
+        "properties": {
+          "html": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "html"
+        ]
+      }
+    }
+  }
+}

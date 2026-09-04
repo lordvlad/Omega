@@ -1,0 +1,230 @@
+/*
+ * Layout and the few things Mantine cannot express as props.
+ *
+ * The chat column is a fixed-height flex layout rather than a scrolling
+ * document: the composer must stay reachable with a thumb while the transcript
+ * scrolls behind it, and on iOS a `position: fixed` footer fights the
+ * on-screen keyboard.
+ */
+
+:root {
+  color-scheme: dark;
+  /* Purple-cast surfaces, matching the theme's dark tuple. */
+  --omega-surface: var(--mantine-color-dark-7);
+  --omega-surface-raised: var(--mantine-color-dark-6);
+  --omega-line: var(--mantine-color-dark-4);
+}
+
+html,
+body,
+#root {
+  height: 100%;
+  margin: 0;
+}
+
+body {
+  background:
+    radial-gradient(1200px 600px at 15% -10%, rgba(135, 60, 223, 0.16), transparent 60%),
+    radial-gradient(900px 500px at 100% 0%, rgba(27, 184, 153, 0.1), transparent 55%),
+    var(--mantine-color-dark-8);
+  /* Chat is a fixed viewport; the page itself never scrolls. */
+  overscroll-behavior-y: none;
+}
+
+/* `100dvh` tracks the visible viewport as mobile browser chrome hides. */
+.omega-main {
+  height: calc(100dvh - 56px);
+  min-height: 0;
+}
+
+.omega-scroll {
+  flex: 1;
+  min-height: 0;
+}
+
+.omega-composer {
+  background: var(--omega-surface);
+  border-color: var(--omega-line);
+  border-left: 0;
+  border-right: 0;
+  border-bottom: 0;
+  /* Clear the home indicator on iOS. */
+  padding-bottom: max(var(--mantine-spacing-sm), env(safe-area-inset-bottom));
+}
+
+/* ---- session tree ---- */
+
+.omega-session-row {
+  display: block;
+  width: 100%;
+  text-align: left;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: var(--mantine-radius-sm);
+  padding: 6px 8px;
+  cursor: pointer;
+  color: inherit;
+  font: inherit;
+}
+
+.omega-session-row:hover {
+  background: var(--omega-surface-raised);
+}
+
+.omega-session-row[data-active] {
+  background: color-mix(in srgb, var(--mantine-color-plum-9) 55%, transparent);
+  border-color: var(--mantine-color-plum-6);
+}
+
+/* ---- messages ---- */
+
+.omega-user-bubble {
+  background: color-mix(in srgb, var(--mantine-color-plum-9) 60%, var(--omega-surface));
+  border: 1px solid var(--mantine-color-plum-7);
+  max-width: min(46rem, 88%);
+}
+
+.omega-assistant {
+  max-width: 62rem;
+}
+
+.omega-avatar {
+  display: grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  flex: none;
+  border-radius: 999px;
+  background: var(--mantine-color-plum-8);
+  color: var(--mantine-color-plum-1);
+}
+
+/* ---- collapsible thinking / tool blocks ---- */
+
+.omega-foldable {
+  border: 1px solid var(--omega-line);
+  border-radius: var(--mantine-radius-md);
+  background: color-mix(in srgb, var(--omega-surface) 70%, transparent);
+  overflow: hidden;
+}
+
+.omega-foldable[data-tone="lagoon"] {
+  border-color: color-mix(in srgb, var(--mantine-color-lagoon-8) 55%, var(--omega-line));
+}
+
+.omega-foldable[data-tone="red"] {
+  border-color: color-mix(in srgb, var(--mantine-color-red-9) 60%, var(--omega-line));
+}
+
+.omega-foldable-head {
+  width: 100%;
+  padding: 6px 10px;
+}
+
+.omega-foldable-head:hover {
+  background: var(--omega-surface-raised);
+}
+
+.omega-foldable-chevron {
+  display: grid;
+  place-items: center;
+  transition: transform 150ms ease;
+  color: var(--mantine-color-dimmed);
+}
+
+.omega-foldable-chevron[data-open] {
+  transform: rotate(90deg);
+}
+
+.omega-foldable-body {
+  padding: 4px 10px 10px;
+  border-top: 1px solid var(--omega-line);
+}
+
+.omega-thinking {
+  font-size: 0.9em;
+  color: var(--mantine-color-dark-1);
+  font-style: italic;
+}
+
+/* ---- markdown ---- */
+
+.omega-markdown :where(h1, h2, h3, h4) {
+  /* Anchored headings are scroll targets; keep them clear of the sticky head. */
+  scroll-margin-top: 12px;
+}
+
+.omega-markdown :where(p, ul, ol):first-child {
+  margin-top: 0;
+}
+
+.omega-markdown :where(p, ul, ol):last-child {
+  margin-bottom: 0;
+}
+
+.omega-markdown :where(pre) {
+  margin: 0;
+}
+
+.omega-inline-code {
+  background: var(--mantine-color-dark-6);
+  border: 1px solid var(--omega-line);
+  border-radius: 4px;
+  padding: 1px 5px;
+  font-family: var(--mantine-font-family-monospace);
+  font-size: 0.88em;
+}
+
+/* Streaming text before its first server render: keep line breaks. */
+.omega-markdown-raw {
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+/* ---- planning ---- */
+
+.omega-plan-toc {
+  width: 220px;
+  flex: none;
+  background: color-mix(in srgb, var(--omega-surface) 85%, transparent);
+  border-top: 0;
+  border-bottom: 0;
+  border-left: 0;
+}
+
+.omega-plan-actions {
+  background: var(--omega-surface);
+  border-left: 0;
+  border-right: 0;
+  border-bottom: 0;
+  padding-bottom: max(0px, env(safe-area-inset-bottom));
+}
+
+.omega-plan-scroll {
+  background: color-mix(in srgb, var(--mantine-color-dark-8) 55%, transparent);
+}
+
+/* ---- misc ---- */
+
+@keyframes omega-pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.45;
+  }
+}
+
+.omega-pulse {
+  animation: omega-pulse 1.4s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .omega-pulse {
+    animation: none;
+  }
+  .omega-foldable-chevron {
+    transition: none;
+  }
+}

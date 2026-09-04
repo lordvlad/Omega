@@ -1,23 +1,36 @@
 {
-  "name": "bun-react-template",
-  "version": "0.1.0",
+  "name": "omega",
+  "version": "1.0.0",
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "bun --hot src/index.ts",
-    "build": "bun build ./src/index.html --outdir=dist --sourcemap --target=browser --minify --define:process.env.NODE_ENV='\"production\"' --env='BUN_PUBLIC_*'",
-    "start": "NODE_ENV=production bun src/index.ts"
+    "dev": "bun --hot src/server/index.ts",
+    "start": "NODE_ENV=production bun src/server/index.ts",
+    "schema": "bun run src/shared/schema.ts > openapi.json",
+    "gen:api": "bun run schema && bun node_modules/wiz/src/cli.ts generate -g reactQuery openapi.json --outdir src/client/api",
+    "format": "oxfmt .",
+    "format:check": "oxfmt --check .",
+    "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "react": "^19",
-    "react-dom": "^19"
+    "@mantine/code-highlight": "^9.6.0",
+    "@mantine/core": "^9.6.0",
+    "@mantine/hooks": "^9.6.0",
+    "@mantine/notifications": "^9.6.0",
+    "@oh-my-pi/pi-coding-agent": "file:/home/waldemar/.bun/install/global/node_modules/@oh-my-pi/pi-coding-agent",
+    "@tabler/icons-react": "^3.46.0",
+    "@tanstack/ai": "^0.53.0",
+    "@tanstack/react-query": "^5.102.8",
+    "react": "^19.2.8",
+    "react-dom": "^19.2.8",
+    "shiki": "^4.4.3"
   },
   "devDependencies": {
+    "@types/bun": "latest",
     "@types/react": "^19",
     "@types/react-dom": "^19",
-    "@types/bun": "latest"
-  },
-  "peerDependencies": {
-    "typescript": "^7"
+    "oxfmt": "^0.66.0",
+    "typescript": "^7.0.2",
+    "wiz": "file:../wiz"
   }
 }
