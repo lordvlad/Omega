@@ -52,6 +52,27 @@ body {
   padding-bottom: max(var(--mantine-spacing-sm), env(safe-area-inset-bottom));
 }
 
+/* ---- landing (no session open) ---- */
+
+/* The tree is the only content, so it gets a readable measure and scrolls
+   inside the viewport rather than growing the page. */
+.omega-landing {
+  overflow-y: auto;
+}
+
+.omega-landing-tree {
+  width: 100%;
+  max-width: 46rem;
+  margin: 0 auto;
+  flex: 1;
+  min-height: 0;
+}
+
+/* Roomier rows: a landing list is thumb-driven, not a dense sidebar. */
+.omega-session-row[data-framing="page"] {
+  padding: 10px 12px;
+}
+
 /* ---- session tree ---- */
 
 .omega-session-row {

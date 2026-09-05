@@ -288,7 +288,7 @@ export function App() {
             </Box>
           </Group>
 
-          <Group gap="xs" wrap="nowrap">
+          <Group gap="xs" wrap="nowrap" display={sessionKey ? undefined : "none"}>
             <Tooltip
               label={
                 live.status === "open"
@@ -450,32 +450,62 @@ export function App() {
       ) : null}
 
       <AppShell.Main>
-        <Stack gap={0} className="omega-main">
-          <Transcript
-            messages={transcript.data?.messages ?? []}
-            liveParts={live.parts}
-            running={live.running}
-            error={live.error}
-            notices={live.notices}
-          />
-          <Composer
-            state={state.data}
-            models={models.data ?? []}
-            modelsLoading={models.isLoading}
-            running={live.running || state.data?.streaming === true}
-            onSend={handleSend}
-            onAbort={() => {
-              if (sessionKey) abort.mutate({ path: { key: sessionKey } }, { onError: fail });
-            }}
-            onSelectModel={ref => {
-              if (!sessionKey) return;
-              selectModel.mutate(
-                { path: { key: sessionKey }, body: { ref } },
-                { onSuccess: refresh, onError: fail },
-              );
-            }}
-          />
-        </Stack>
+        {sessionKey ? (
+          <Stack gap={0} className="omega-main">
+            <Transcript
+              messages={transcript.data?.messages ?? []}
+              liveParts={live.parts}
+              running={live.running}
+              error={live.error}
+              notices={live.notices}
+            />
+            <Composer
+              state={state.data}
+              models={models.data ?? []}
+              modelsLoading={models.isLoading}
+              running={live.running || state.data?.streaming === true}
+              onSend={handleSend}
+              onAbort={() => {
+                if (sessionKey) abort.mutate({ path: { key: sessionKey } }, { onError: fail });
+              }}
+              onSelectModel={ref => {
+                if (!sessionKey) return;
+                selectModel.mutate(
+                  { path: { key: sessionKey }, body: { ref } },
+                  { onSuccess: refresh, onError: fail },
+                );
+              }}
+            />
+          </Stack>
+        ) : (
+          // Landing: the same session tree as the nav, framed as a page. An
+          // empty composer over an empty transcript offered nothing to do; the
+          // one useful action here is choosing where to work.
+          <Stack className="omega-main omega-landing" gap="lg" px="md" py="xl">
+            <Stack gap={4} align="center">
+              <Text fw={700} size="xl">
+                omega
+              </Text>
+              <Text size="sm" c="dimmed" ta="center">
+                Pick a workspace to resume a conversation, or start a new one.
+              </Text>
+            </Stack>
+            <Box className="omega-landing-tree">
+              <SessionTree
+                framing="page"
+                workspaces={workspaces.data ?? []}
+                loading={workspaces.isFetching}
+                activeSessionId={sessionKey}
+                activeProject={project}
+                onSelectProject={cwd => navigateTo({ project: cwd ?? undefined })}
+                onOpenSession={handleOpen}
+                onNewSession={handleNew}
+                onAddWorkspace={handleAddWorkspace}
+                onRefresh={() => void workspaces.refetch()}
+              />
+            </Box>
+          </Stack>
+        )}
       </AppShell.Main>
     </AppShell>
   );

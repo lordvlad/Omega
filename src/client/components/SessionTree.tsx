@@ -56,6 +56,8 @@ export interface SessionTreeProps {
   onNewSession: (cwd: string) => void;
   onAddWorkspace: () => void;
   onRefresh: () => void;
+  /** `sidebar` (default) is the compact nav; `page` is the landing surface. */
+  framing?: "sidebar" | "page";
 }
 
 export function SessionTree({
@@ -68,27 +70,32 @@ export function SessionTree({
   onNewSession,
   onAddWorkspace,
   onRefresh,
+  framing = "sidebar",
 }: SessionTreeProps) {
   // The expanded workspace is exactly the `project` path param. No fallback to
   // the open session's workspace: that would silently re-expand the branch the
   // user just collapsed, since collapsing is what clears the param.
   const expanded = activeProject ?? null;
 
+  // Two framings over one tree: `sidebar` is the compact nav, `page` is the
+  // roomier landing surface shown when no conversation is open.
+  const page = framing === "page";
+
   return (
     <Stack gap="xs" h="100%">
       <Group justify="space-between" px="xs" pt="xs" wrap="nowrap">
-        <Text fw={650} size="sm" c="dimmed" tt="uppercase">
+        <Text fw={650} size={page ? "md" : "sm"} c={page ? undefined : "dimmed"} tt="uppercase">
           Workspaces
         </Text>
         <Group gap={4} wrap="nowrap">
           <Tooltip label="Open a directory">
-            <ActionIcon onClick={onAddWorkspace} aria-label="Open a directory">
-              <IconFolderPlus size={18} />
+            <ActionIcon onClick={onAddWorkspace} aria-label="Open a directory" size={page ? "xl" : "lg"}>
+              <IconFolderPlus size={page ? 22 : 18} />
             </ActionIcon>
           </Tooltip>
           <Tooltip label="Refresh">
-            <ActionIcon onClick={onRefresh} aria-label="Refresh session list">
-              {loading ? <Loader size={14} /> : <IconRefresh size={18} />}
+            <ActionIcon onClick={onRefresh} aria-label="Refresh session list" size={page ? "xl" : "lg"}>
+              {loading ? <Loader size={page ? 18 : 14} /> : <IconRefresh size={page ? 22 : 18} />}
             </ActionIcon>
           </Tooltip>
         </Group>
@@ -101,13 +108,19 @@ export function SessionTree({
           </Text>
         ) : null}
 
-        <Accordion value={expanded} onChange={onSelectProject} variant="filled" chevronPosition="left">
+        <Accordion
+          value={expanded}
+          onChange={onSelectProject}
+          variant={page ? "separated" : "filled"}
+          chevronPosition="left"
+          radius="md"
+        >
           {workspaces.map(workspace => (
             <Accordion.Item key={workspace.cwd} value={workspace.cwd}>
               <Accordion.Control>
                 <Group gap="xs" wrap="nowrap" justify="space-between" pr="xs">
                   <Box style={{ minWidth: 0 }}>
-                    <Text size="sm" fw={600} truncate>
+                    <Text size={page ? "md" : "sm"} fw={600} truncate>
                       {workspace.name}
                     </Text>
                     <Text size="xs" c="dimmed" truncate>
@@ -122,7 +135,7 @@ export function SessionTree({
               <Accordion.Panel>
                 <Stack gap={4}>
                   <Button
-                    size="compact-sm"
+                    size={page ? "sm" : "compact-sm"}
                     variant="light"
                     color="cyan"
                     leftSection={<IconPlus size={14} />}
@@ -138,6 +151,7 @@ export function SessionTree({
                       type="button"
                       onClick={() => onOpenSession(session)}
                       className="omega-session-row"
+                      data-framing={page ? "page" : undefined}
                       data-active={session.id === activeSessionId || undefined}
                     >
                       <Group gap={6} justify="space-between" wrap="nowrap">
