@@ -145,10 +145,9 @@ export function Composer({
             />
           ) : null}
 
-          {state?.contextUsage ? (
+          {state?.queued ? (
             <Text size="xs" c="dimmed">
-              {Math.round(state.contextUsage.percent)}% context
-              {state.queued > 0 ? ` · ${state.queued} queued` : ""}
+              {state.queued} queued
             </Text>
           ) : null}
         </Group>

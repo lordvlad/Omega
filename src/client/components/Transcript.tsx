@@ -10,7 +10,7 @@ import { CodeHighlight } from "@mantine/code-highlight";
 import { Alert, Badge, Box, Collapse, Group, Paper, Stack, Text, UnstyledButton } from "@mantine/core";
 import { IconAlertTriangle, IconBrain, IconChevronRight, IconTerminal2, IconUser } from "@tabler/icons-react";
 import { useVirtualizer } from "@tanstack/react-virtual";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import type { MessagePart, TranscriptMessage } from "../api/model.ts";
 import { Markdown } from "../lib/markdown.tsx";
@@ -214,16 +214,37 @@ export function Transcript({ messages, liveParts, running, error, notices }: Tra
     },
   });
 
-  // Track whether user is at bottom and auto-scroll as new tokens or messages land.
+  // Grace threshold in pixels: if within 35px of the bottom, user is considered pinned.
+  const BOTTOM_GRACE_PX = 35;
+
+  const handleScroll = useCallback(() => {
+    const el = scrollRef.current;
+    if (!el) return;
+    const distance = el.scrollHeight - el.scrollTop - el.clientHeight;
+    // Scrolling up even slightly unlocks auto-scroll. Scrolling back down locks it again.
+    pinned.current = distance <= BOTTOM_GRACE_PX;
+  }, []);
+
+  // When new messages or streaming tokens arrive, tail if currently pinned.
   useEffect(() => {
+    if (!pinned.current) return;
     const el = scrollRef.current;
     if (!el || items.length === 0) return;
-    const distance = el.scrollHeight - el.scrollTop - el.clientHeight;
-    pinned.current = distance < 180;
-    if (pinned.current) {
-      virtualizer.scrollToIndex(items.length - 1, { align: "end" });
-    }
+    virtualizer.scrollToIndex(items.length - 1, { align: "end" });
+    requestAnimationFrame(() => {
+      if (pinned.current && scrollRef.current) {
+        scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+      }
+    });
   }, [items.length, liveParts, virtualizer]);
+
+  // When element heights change (markdown renders, thinking toggles), keep pinned if at bottom.
+  const totalSize = virtualizer.getTotalSize();
+  useEffect(() => {
+    if (pinned.current && scrollRef.current) {
+      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+    }
+  }, [totalSize]);
 
   return (
     <Box
@@ -231,6 +252,7 @@ export function Transcript({ messages, liveParts, running, error, notices }: Tra
       className="omega-scroll"
       px="sm"
       pt="sm"
+      onScroll={handleScroll}
       style={{ flex: 1, minHeight: 0, overflowY: "auto", overflowX: "hidden" }}
     >
       {items.length === 0 ? (

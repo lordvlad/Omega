@@ -212,9 +212,27 @@ export function App() {
               <Text fw={700} size="sm" truncate>
                 {state.data?.title ?? "omega"}
               </Text>
-              <Text size="xs" c="dimmed" truncate>
-                {state.data ? `${state.data.modelName} · ${state.data.cwd}` : "no session open"}
-              </Text>
+              {state.data ? (
+                <Group gap={6} wrap="nowrap" align="center">
+                  <Text size="xs" c="dimmed" truncate style={{ minWidth: 0 }}>
+                    {state.data.modelName} · {state.data.cwd}
+                  </Text>
+                  {state.data.contextUsage && state.data.contextUsage.percent >= 60 ? (
+                    <Badge
+                      size="xs"
+                      variant="filled"
+                      color={state.data.contextUsage.percent >= 85 ? "red" : "orange"}
+                      style={{ flexShrink: 0 }}
+                    >
+                      {Math.round(state.data.contextUsage.percent)}%
+                    </Badge>
+                  ) : null}
+                </Group>
+              ) : (
+                <Text size="xs" c="dimmed">
+                  no session open
+                </Text>
+              )}
             </Box>
           </Group>
 
@@ -293,9 +311,19 @@ export function App() {
                     inline
                     disabled={total === 0}
                     label={`${done}/${total}`}
-                    size={16}
+                    size={13}
                     color={done === total ? "cyan" : "plum"}
-                    offset={4}
+                    offset={2}
+                    styles={{
+                      indicator: {
+                        fontSize: 8,
+                        fontWeight: 700,
+                        padding: "0 3px",
+                        height: 13,
+                        minWidth: 13,
+                        lineHeight: "13px",
+                      },
+                    }}
                   >
                     <ActionIcon
                       onClick={() => setTodoOpen(value => !value)}
