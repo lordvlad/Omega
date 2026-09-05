@@ -76,6 +76,9 @@ export class Handlers implements OmpApi {
     const live = this.#require(key);
     const message = body.message.trim();
     if (!message) throw new HttpError(400, "Message is empty.");
+    // A user message is activity even if the agent never replies, so the idle
+    // clock restarts here rather than only on agent events.
+    live.touch();
 
     // A prompt sent while a turn is running must say how to queue; omp
     // rejects an ambiguous one. Default to steering, which is what a user

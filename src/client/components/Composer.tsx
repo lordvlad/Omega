@@ -103,25 +103,32 @@ export function Composer({
             </Tooltip>
           ) : null}
 
-          {running ? (
-            <Tooltip label="Stop the turn">
-              <ActionIcon variant="filled" color="red" onClick={onAbort} aria-label="Stop the turn">
-                <IconPlayerStopFilled size={18} />
-              </ActionIcon>
-            </Tooltip>
-          ) : (
-            <Tooltip label="Send">
-              <ActionIcon
-                variant="filled"
-                color="plum"
-                disabled={disabled || !text.trim()}
-                onClick={send}
-                aria-label="Send message"
-              >
-                <IconSend size={18} />
-              </ActionIcon>
-            </Tooltip>
-          )}
+          {/* Stop is its own control rather than a replacement for Send:
+              swapping them made the steer/queue selector unreachable, because
+              sending mid-turn is exactly how a steer is delivered. */}
+          <Tooltip label={running ? "Interrupt the assistant" : "Nothing to interrupt"}>
+            <ActionIcon
+              variant={running ? "filled" : "subtle"}
+              color="red"
+              disabled={!running}
+              onClick={onAbort}
+              aria-label="Interrupt the assistant"
+            >
+              <IconPlayerStopFilled size={18} />
+            </ActionIcon>
+          </Tooltip>
+
+          <Tooltip label={running ? `Send as ${deliverAs === "steer" ? "steer" : "follow-up"}` : "Send"}>
+            <ActionIcon
+              variant="filled"
+              color="plum"
+              disabled={disabled || !text.trim()}
+              onClick={send}
+              aria-label="Send message"
+            >
+              <IconSend size={18} />
+            </ActionIcon>
+          </Tooltip>
         </Group>
 
         <Group gap={8} wrap="wrap" justify="space-between">

@@ -86,6 +86,9 @@ export function useLiveTurn(key: string | undefined, onStale: () => void): LiveT
     setTick(value => value + 1);
   }, []);
 
+  // Bumped to force a fresh socket after an unexpected close.
+  const [attempt, setAttempt] = useState(0);
+
   useEffect(() => {
     if (!key) {
       setStatus("closed");
@@ -93,6 +96,10 @@ export function useLiveTurn(key: string | undefined, onStale: () => void): LiveT
     }
     reset();
     setStatus("connecting");
+
+    /** True once this effect is tearing down, so its close is expected. */
+    let releasing = false;
+    let retry: number | undefined;
 
     const url = new URL(`/ws/${encodeURIComponent(key)}`, window.location.href);
     url.protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
@@ -105,8 +112,18 @@ export function useLiveTurn(key: string | undefined, onStale: () => void): LiveT
     }, 25_000);
 
     socket.addEventListener("open", () => setStatus("open"));
-    socket.addEventListener("close", () => setStatus("closed"));
-    socket.addEventListener("error", () => setStatus("closed"));
+    // An unexpected close means the server restarted, the network dropped, or
+    // the idle sweep released the session. Refetch REST state — a released
+    // session 404s, which is what drives the reopen-from-URL path — and then
+    // dial back in so a recovered session streams again without a reload.
+    const reconnect = (): void => {
+      setStatus("closed");
+      if (releasing) return;
+      stale.current();
+      retry = window.setTimeout(() => setAttempt(value => value + 1), 2_000);
+    };
+    socket.addEventListener("close", reconnect);
+    socket.addEventListener("error", reconnect);
 
     socket.addEventListener("message", event => {
       let frame: Frame;
@@ -224,10 +241,12 @@ export function useLiveTurn(key: string | undefined, onStale: () => void): LiveT
     }
 
     return () => {
+      releasing = true;
+      if (retry !== undefined) window.clearTimeout(retry);
       window.clearInterval(keepalive);
       socket.close();
     };
-  }, [key, reset]);
+  }, [key, reset, attempt]);
 
   const parts = useMemo<MessagePart[]>(() => {
     // `tick` is the publication signal for the mutable refs above.

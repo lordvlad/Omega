@@ -23,6 +23,7 @@ const HOST = process.env.OMEGA_HOST ?? "0.0.0.0";
 interface SocketData {
   key: string;
   detach?: () => void;
+  detachClose?: () => void;
 }
 
 /** Run a handler, mapping thrown `HttpError`s onto the documented `Problem`. */
@@ -133,6 +134,10 @@ const server = serve({
       socket.data.detach = live.subscribe((frame: AguiFrame) => {
         socket.send(JSON.stringify(frame));
       });
+      // An idle sweep can dispose this session while the tab is still open;
+      // close the socket deliberately so the client stops rather than
+      // streaming from a disposed agent.
+      socket.data.detachClose = live.onClosed(() => socket.close(1001, "session idle"));
     },
     message(socket: ServerWebSocket<SocketData>, raw) {
       // The only client→server frame is a keepalive; prompts and aborts are
@@ -140,7 +145,11 @@ const server = serve({
       if (raw === "ping") socket.send(JSON.stringify({ type: "CUSTOM", name: "omp.pong", value: null }));
     },
     close(socket: ServerWebSocket<SocketData>) {
+      // Detach only. A disconnect is never forwarded to omp: the agent keeps
+      // running so a locked phone or closed laptop does not abort a turn, and
+      // the idle sweep is what eventually reclaims an abandoned session.
       socket.data.detach?.();
+      socket.data.detachClose?.();
     },
   },
 
@@ -157,6 +166,10 @@ for (const signal of ["SIGINT", "SIGTERM"] as const) {
     })();
   });
 }
+
+registry.startSweeping((key, idleMinutes) => {
+  console.log(`[omega] released session ${key} after ${idleMinutes}m idle`);
+});
 
 console.log(`omega listening on:`);
 console.log(`  Local:   http://localhost:${PORT}`);
@@ -178,3 +191,8 @@ if (HOST === "0.0.0.0" || HOST === "::" || HOST === "") {
 } else if (HOST !== "127.0.0.1" && HOST !== "localhost") {
   console.log(`  Network:   http://${HOST}:${PORT}`);
 }
+console.log(
+  registry.idleMinutes > 0
+    ? `  Sessions survive disconnects; released after ${registry.idleMinutes}m idle (OMEGA_IDLE_MINUTES)`
+    : "  Sessions survive disconnects and are never released (OMEGA_IDLE_MINUTES=0)",
+);
