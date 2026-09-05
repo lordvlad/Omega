@@ -25,11 +25,12 @@ import {
   Text,
   Tooltip,
 } from "@mantine/core";
-import { useDisclosure, useLocalStorage, useMediaQuery } from "@mantine/hooks";
+import { useDisclosure, useMediaQuery } from "@mantine/hooks";
 import { notifications } from "@mantine/notifications";
 import { IconChecklist, IconListCheck, IconPlugConnected, IconRoute } from "@tabler/icons-react";
 import { useQueryClient } from "@tanstack/react-query";
-import { useCallback, useEffect, useState } from "react";
+import { useNavigate, useParams } from "@tanstack/react-router";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 import type { PlanAction, SessionSummary } from "./api/model.ts";
 import {
@@ -59,13 +60,15 @@ import { Transcript } from "./components/Transcript.tsx";
 import { useLiveTurn } from "./lib/stream.ts";
 
 export function App() {
-  // The open session survives a reload, so a phone that drops the tab comes
-  // back to the same conversation.
-  const [sessionKey, setSessionKey] = useLocalStorage<string | undefined>({
-    key: "omega.session",
-    defaultValue: undefined,
-    getInitialValueInEffect: false,
-  });
+  // `project` (workspace cwd) and `session` (omp session id) are path params,
+  // so a conversation is linkable and the browser's own back/forward moves
+  // between sessions. `strict: false` reads whichever of the three routes
+  // matched without the shell having to know which one.
+  const params = useParams({ strict: false });
+  const sessionKey = params.session;
+  const project = params.project;
+  const navigate = useNavigate();
+
   const [planOpen, setPlanOpen] = useState(false);
   const [navOpen, { toggle: toggleNav, close: closeNav }] = useDisclosure(false);
   const [todoOpen, setTodoOpen] = useState(false);
@@ -74,6 +77,32 @@ export function App() {
   // disagree about whether this is a phone.
   const narrow = useMediaQuery("(max-width: 62em)") ?? false;
   const queryClient = useQueryClient();
+
+  /**
+   * Point the URL at a workspace and/or session.
+   *
+   * Each combination is its own route rather than an optional segment, so a
+   * URL never carries an empty `/s/` tail.
+   */
+  const navigateTo = useCallback(
+    (next: { project?: string; session?: string }, options?: { replace?: boolean }) => {
+      const replace = options?.replace === true;
+      if (next.project && next.session) {
+        void navigate({
+          to: "/w/$project/s/$session",
+          params: { project: next.project, session: next.session },
+          replace,
+        });
+      } else if (next.project) {
+        void navigate({ to: "/w/$project", params: { project: next.project }, replace });
+      } else if (next.session) {
+        void navigate({ to: "/s/$session", params: { session: next.session }, replace });
+      } else {
+        void navigate({ to: "/", replace });
+      }
+    },
+    [navigate],
+  );
 
   const workspaces = useListWorkspaces(undefined, { staleTime: 15_000 });
   const models = useListModels(undefined, { staleTime: 5 * 60_000 });
@@ -121,12 +150,35 @@ export function App() {
     });
   }, [live.planAwaiting]);
 
+  // A URL outlives the process that served it: a shared link, a reload, or a
+  // server restart all arrive with a session id the registry has never
+  // opened, so `getState` 404s. The workspace listing already carries every
+  // session's id and file, so resolve the id there and load it once.
+  const reopened = useRef<string | undefined>(undefined);
+  useEffect(() => {
+    if (!sessionKey || !state.isError || !workspaces.data) return;
+    if (reopened.current === sessionKey) return;
+    const summary = workspaces.data
+      .flatMap(workspace => workspace.sessions)
+      .find(session => session.id === sessionKey);
+    if (!summary) return;
+    reopened.current = sessionKey;
+    // Reopening the same file yields the same session id, so the URL stays valid.
+    openSession.mutate(
+      { body: { sessionPath: summary.path } },
+      {
+        onSuccess: () => void queryClient.invalidateQueries(),
+        onError: fail,
+      },
+    );
+  }, [sessionKey, state.isError, workspaces.data]);
+
   const handleOpen = (session: SessionSummary): void => {
     openSession.mutate(
       { body: { sessionPath: session.path } },
       {
         onSuccess: result => {
-          setSessionKey(result.key);
+          navigateTo({ project: result.cwd, session: result.key });
           closeNav();
           void queryClient.invalidateQueries();
         },
@@ -140,7 +192,7 @@ export function App() {
       { body: { cwd } },
       {
         onSuccess: result => {
-          setSessionKey(result.key);
+          navigateTo({ project: result.cwd, session: result.key });
           closeNav();
           void queryClient.invalidateQueries();
         },
@@ -168,7 +220,7 @@ export function App() {
         onSuccess: result => {
           notifications.show({ color: "cyan", title: "Plan", message: result.detail ?? "Done." });
           // `execute` runs the approved plan in a fresh session; follow it.
-          if (result.sessionKey) setSessionKey(result.sessionKey);
+          if (result.sessionKey) navigateTo({ project: state.data?.cwd, session: result.sessionKey });
           if (action !== "refine") setPlanOpen(false);
           void queryClient.invalidateQueries();
         },
@@ -345,6 +397,8 @@ export function App() {
           workspaces={workspaces.data ?? []}
           loading={workspaces.isFetching}
           activeSessionId={sessionKey}
+          activeProject={project}
+          onSelectProject={cwd => navigateTo({ project: cwd ?? undefined, session: sessionKey })}
           onOpenSession={handleOpen}
           onNewSession={handleNew}
           onAddWorkspace={handleAddWorkspace}
@@ -358,6 +412,8 @@ export function App() {
             workspaces={workspaces.data ?? []}
             loading={workspaces.isFetching}
             activeSessionId={sessionKey}
+            activeProject={project}
+            onSelectProject={cwd => navigateTo({ project: cwd ?? undefined, session: sessionKey })}
             onOpenSession={handleOpen}
             onNewSession={handleNew}
             onAddWorkspace={handleAddWorkspace}

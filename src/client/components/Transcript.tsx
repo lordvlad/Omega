@@ -214,37 +214,42 @@ export function Transcript({ messages, liveParts, running, error, notices }: Tra
     },
   });
 
-  // Grace threshold in pixels: if within 35px of the bottom, user is considered pinned.
-  const BOTTOM_GRACE_PX = 35;
+  /**
+   * Distance from the bottom, in pixels, still counted as "at the bottom".
+   *
+   * Sub-pixel scroll heights and the resize that lands with each streamed
+   * chunk mean an exact comparison never holds, so tailing needs a grace band
+   * rather than equality.
+   */
+  const BOTTOM_GRACE_PX = 48;
+
+  /** Pin to the bottom on the next frame. */
+  const tail = useCallback(() => {
+    // Deferred to a frame rather than run inline: the virtualizer measures
+    // elements from a ResizeObserver, and writing scrollTop back inside that
+    // callback is what produces "ResizeObserver loop completed with
+    // undelivered notifications". `scrollToIndex` is avoided for the same
+    // reason — it flushes synchronously from inside the lifecycle.
+    requestAnimationFrame(() => {
+      const el = scrollRef.current;
+      if (!el || !pinned.current) return;
+      el.scrollTop = el.scrollHeight;
+    });
+  }, []);
 
   const handleScroll = useCallback(() => {
     const el = scrollRef.current;
     if (!el) return;
     const distance = el.scrollHeight - el.scrollTop - el.clientHeight;
-    // Scrolling up even slightly unlocks auto-scroll. Scrolling back down locks it again.
+    // Scrolling up unlocks tailing; scrolling back into the band re-locks it.
     pinned.current = distance <= BOTTOM_GRACE_PX;
   }, []);
 
-  // When new messages or streaming tokens arrive, tail if currently pinned.
-  useEffect(() => {
-    if (!pinned.current) return;
-    const el = scrollRef.current;
-    if (!el || items.length === 0) return;
-    virtualizer.scrollToIndex(items.length - 1, { align: "end" });
-    requestAnimationFrame(() => {
-      if (pinned.current && scrollRef.current) {
-        scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
-      }
-    });
-  }, [items.length, liveParts, virtualizer]);
-
-  // When element heights change (markdown renders, thinking toggles), keep pinned if at bottom.
+  // New messages, streamed tokens, and height changes from markdown rendering
+  // or a toggled thinking block all re-tail — but only while pinned, so a user
+  // reading scrollback is never yanked to the end.
   const totalSize = virtualizer.getTotalSize();
-  useEffect(() => {
-    if (pinned.current && scrollRef.current) {
-      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
-    }
-  }, [totalSize]);
+  useEffect(tail, [items.length, liveParts, totalSize, tail]);
 
   return (
     <Box

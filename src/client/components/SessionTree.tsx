@@ -48,6 +48,10 @@ export interface SessionTreeProps {
   loading: boolean;
   /** Session UUID currently open, if any. */
   activeSessionId?: string;
+  /** Workspace cwd from the URL; the expanded item. */
+  activeProject?: string;
+  /** Expanding a workspace writes it to the URL; `null` collapses. */
+  onSelectProject: (cwd: string | null) => void;
   onOpenSession: (session: SessionSummary) => void;
   onNewSession: (cwd: string) => void;
   onAddWorkspace: () => void;
@@ -58,16 +62,17 @@ export function SessionTree({
   workspaces,
   loading,
   activeSessionId,
+  activeProject,
+  onSelectProject,
   onOpenSession,
   onNewSession,
   onAddWorkspace,
   onRefresh,
 }: SessionTreeProps) {
-  // Open the workspace containing the active session, so switching sessions
-  // does not collapse the list you are working in.
-  const activeWorkspace = workspaces.find(workspace =>
-    workspace.sessions.some(session => session.id === activeSessionId),
-  );
+  // The expanded workspace is exactly the `project` path param. No fallback to
+  // the open session's workspace: that would silently re-expand the branch the
+  // user just collapsed, since collapsing is what clears the param.
+  const expanded = activeProject ?? null;
 
   return (
     <Stack gap="xs" h="100%">
@@ -96,12 +101,7 @@ export function SessionTree({
           </Text>
         ) : null}
 
-        <Accordion
-          multiple
-          defaultValue={activeWorkspace ? [activeWorkspace.cwd] : []}
-          variant="filled"
-          chevronPosition="left"
-        >
+        <Accordion value={expanded} onChange={onSelectProject} variant="filled" chevronPosition="left">
           {workspaces.map(workspace => (
             <Accordion.Item key={workspace.cwd} value={workspace.cwd}>
               <Accordion.Control>

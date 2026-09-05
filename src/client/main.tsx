@@ -12,12 +12,13 @@ import { CodeHighlightAdapterProvider, createShikiAdapter } from "@mantine/code-
 import { MantineProvider } from "@mantine/core";
 import { Notifications } from "@mantine/notifications";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { RouterProvider } from "@tanstack/react-router";
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import { createHighlighter } from "shiki";
 
 import { configure } from "./api/api.ts";
-import { App } from "./App.tsx";
+import { router } from "./router.tsx";
 import { theme } from "./theme.ts";
 
 // The generated client defaults to same-origin, which is what we serve from.
@@ -77,7 +78,9 @@ createRoot(container).render(
       <CodeHighlightAdapterProvider adapter={shikiAdapter}>
         <QueryClientProvider client={queryClient}>
           <Notifications position="top-right" limit={3} />
-          <App />
+          {/* The server serves the SPA on every path, so `/w/…/s/…` history
+              routing needs no hash and no server-side route table. */}
+          <RouterProvider router={router} />
         </QueryClientProvider>
       </CodeHighlightAdapterProvider>
     </MantineProvider>
