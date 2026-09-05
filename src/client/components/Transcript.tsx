@@ -152,6 +152,11 @@ export interface TranscriptProps {
   messages: TranscriptMessage[];
   /** Parts of the turn currently streaming, if any. */
   liveParts: MessagePart[];
+  /**
+   * Messages the user just sent that the server transcript has not returned
+   * yet, shown so typing is never answered by a blank screen.
+   */
+  pendingUser: string[];
   running: boolean;
   error?: string;
   notices: string[];
@@ -163,7 +168,7 @@ type TranscriptItem =
   | { kind: "notice"; index: number; notice: string }
   | { kind: "error"; error: string };
 
-export function Transcript({ messages, liveParts, running, error, notices }: TranscriptProps) {
+export function Transcript({ messages, liveParts, pendingUser, running, error, notices }: TranscriptProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const pinned = useRef(true);
 
@@ -175,6 +180,17 @@ export function Transcript({ messages, liveParts, running, error, notices }: Tra
       message: msg,
       streaming: false,
     }));
+
+    // Echoes sit after the persisted history and before the reply they
+    // provoked, which is where the server will place them once it catches up.
+    for (const [index, text] of pendingUser.entries()) {
+      result.push({
+        kind: "message",
+        id: `pending-${index}`,
+        message: { id: `pending-${index}`, role: "user", parts: [{ kind: "text", text }] },
+        streaming: false,
+      });
+    }
 
     if (liveParts.length > 0) {
       result.push({
@@ -196,7 +212,7 @@ export function Transcript({ messages, liveParts, running, error, notices }: Tra
     }
 
     return result;
-  }, [messages, liveParts, running, notices, error]);
+  }, [messages, liveParts, pendingUser, running, notices, error]);
 
   // Virtualizer dynamically measures element heights via ResizeObserver (measureElement).
   // Handles variable heights from one-line chats to long code blocks and expanded thinking.

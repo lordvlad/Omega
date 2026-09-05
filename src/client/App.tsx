@@ -72,6 +72,8 @@ export function App() {
   const [planOpen, setPlanOpen] = useState(false);
   const [navOpen, { toggle: toggleNav, close: closeNav }] = useDisclosure(false);
   const [todoOpen, setTodoOpen] = useState(false);
+  /** Sent messages not yet echoed back by the server transcript. */
+  const [pendingUser, setPendingUser] = useState<string[]>([]);
 
   // One breakpoint drives every layout decision, so the surfaces cannot
   // disagree about whether this is a phone.
@@ -150,6 +152,28 @@ export function App() {
     });
   }, [live.planAwaiting]);
 
+  // Retire each echo as soon as the fetched transcript contains it, matching on
+  // text rather than position so a steer landing out of order still clears and
+  // no message is ever rendered twice.
+  useEffect(() => {
+    const persisted = transcript.data?.messages;
+    if (!persisted) return;
+    const sent = new Set(
+      persisted
+        .filter(message => message.role === "user")
+        .map(message => message.parts.map(part => part.text).join("\n")),
+    );
+    if (sent.size === 0) return;
+    setPendingUser(current =>
+      current.some(text => sent.has(text)) ? current.filter(text => !sent.has(text)) : current,
+    );
+  }, [transcript.data]);
+
+  // Echoes belong to the conversation they were typed into.
+  useEffect(() => {
+    setPendingUser([]);
+  }, [sessionKey]);
+
   // A URL outlives the process that served it: a shared link, a reload, or a
   // server restart all arrive with a session id the registry has never
   // opened, so `getState` 404s. The workspace listing already carries every
@@ -207,9 +231,33 @@ export function App() {
     if (cwd?.trim()) handleNew(cwd.trim());
   };
 
+  /**
+   * Send a message, echoing it locally at once.
+   *
+   * The persisted user message only arrives with the next transcript fetch,
+   * and the turn that triggers one can take minutes — or fail outright, which
+   * emits `RUN_ERROR` rather than `agent_end`. Without the echo the message a
+   * user just typed could stay invisible indefinitely.
+   */
   const handleSend = (message: string, deliverAs: "steer" | "followUp" | undefined): void => {
     if (!sessionKey) return;
-    prompt.mutate({ path: { key: sessionKey }, body: { message, deliverAs } }, { onError: fail });
+    setPendingUser(current => [...current, message]);
+    prompt.mutate(
+      { path: { key: sessionKey }, body: { message, deliverAs } },
+      {
+        // Pull the persisted copy in immediately rather than waiting for the
+        // turn to settle.
+        onSuccess: refresh,
+        onError: error => {
+          setPendingUser(current => {
+            const at = current.indexOf(message);
+            if (at < 0) return current;
+            return [...current.slice(0, at), ...current.slice(at + 1)];
+          });
+          fail(error);
+        },
+      },
+    );
   };
 
   const handlePlanAction = (action: PlanAction, feedback: string, tier: string | undefined): void => {
@@ -455,6 +503,7 @@ export function App() {
             <Transcript
               messages={transcript.data?.messages ?? []}
               liveParts={live.parts}
+              pendingUser={pendingUser}
               running={live.running}
               error={live.error}
               notices={live.notices}

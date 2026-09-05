@@ -164,6 +164,9 @@ export function useLiveTurn(key: string | undefined, onStale: () => void): LiveT
         case EventType.RUN_ERROR:
           setRunning(false);
           setError(typeof frame.message === "string" ? frame.message : "The turn failed.");
+          // A failed turn never reaches `agent_end`, so nothing else would
+          // refetch the transcript — and the user's own message is in it.
+          stale.current();
           break;
 
         case EventType.TEXT_MESSAGE_START:
