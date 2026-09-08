@@ -13,6 +13,10 @@
   --omega-surface: var(--mantine-color-dark-7);
   --omega-surface-raised: var(--mantine-color-dark-6);
   --omega-line: var(--mantine-color-dark-4);
+  /* Reading measure for the conversation. Wider than this and lines get hard
+     to track, so the transcript and the composer's controls stay centred in
+     one column while their surfaces still span the window. */
+  --omega-measure: 800px;
 }
 
 html,
@@ -42,6 +46,13 @@ body {
   min-height: 0;
 }
 
+/* The conversation column: full width until it hits the reading measure. */
+.omega-measure {
+  width: 100%;
+  max-width: var(--omega-measure);
+  margin-inline: auto;
+}
+
 .omega-composer {
   background: var(--omega-surface);
   border-color: var(--omega-line);
@@ -54,47 +65,10 @@ body {
 
 /* ---- landing (no session open) ---- */
 
-/* The tree is the only content, so it gets a readable measure and scrolls
-   inside the viewport rather than growing the page. */
+/* The palette launchers are the only content, so the page just needs to scroll
+   inside the viewport rather than grow. */
 .omega-landing {
   overflow-y: auto;
-}
-
-.omega-landing-tree {
-  width: 100%;
-  max-width: 46rem;
-  margin: 0 auto;
-  flex: 1;
-  min-height: 0;
-}
-
-/* Roomier rows: a landing list is thumb-driven, not a dense sidebar. */
-.omega-session-row[data-framing="page"] {
-  padding: 10px 12px;
-}
-
-/* ---- session tree ---- */
-
-.omega-session-row {
-  display: block;
-  width: 100%;
-  text-align: left;
-  background: transparent;
-  border: 1px solid transparent;
-  border-radius: var(--mantine-radius-sm);
-  padding: 6px 8px;
-  cursor: pointer;
-  color: inherit;
-  font: inherit;
-}
-
-.omega-session-row:hover {
-  background: var(--omega-surface-raised);
-}
-
-.omega-session-row[data-active] {
-  background: color-mix(in srgb, var(--mantine-color-plum-9) 55%, transparent);
-  border-color: var(--mantine-color-plum-6);
 }
 
 /* ---- messages ---- */
@@ -103,10 +77,6 @@ body {
   background: color-mix(in srgb, var(--mantine-color-plum-9) 60%, var(--omega-surface));
   border: 1px solid var(--mantine-color-plum-7);
   max-width: min(46rem, 88%);
-}
-
-.omega-assistant {
-  max-width: 62rem;
 }
 
 .omega-avatar {
@@ -200,6 +170,20 @@ body {
 .omega-markdown-raw {
   white-space: pre-wrap;
   word-break: break-word;
+}
+
+/* Mantine parks the copy control at half opacity, which reads as decoration
+   rather than a button. Every code block here is something you want in a
+   terminal, so the control stays legible and only brightens on hover. Scoped
+   through the block class for the second class Mantine's own single-class
+   module rule loses to. */
+.mantine-CodeHighlight-codeHighlight .mantine-CodeHighlight-control {
+  opacity: 0.75;
+}
+
+.mantine-CodeHighlight-codeHighlight .mantine-CodeHighlight-control:hover,
+.mantine-CodeHighlight-codeHighlight .mantine-CodeHighlight-control:focus-visible {
+  opacity: 1;
 }
 
 /* ---- planning ---- */

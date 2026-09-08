@@ -7,8 +7,27 @@ import { CodeHighlight } from "@mantine/code-highlight";
  * the thing you came for. A thinking block that is still streaming opens
  * itself, so a long silent reasoning pass shows progress instead of a spinner.
  */
-import { Alert, Badge, Box, Collapse, Group, Paper, Stack, Text, UnstyledButton } from "@mantine/core";
-import { IconAlertTriangle, IconBrain, IconChevronRight, IconTerminal2, IconUser } from "@tabler/icons-react";
+import {
+  ActionIcon,
+  Alert,
+  Badge,
+  Box,
+  Collapse,
+  Group,
+  Paper,
+  Stack,
+  Text,
+  Tooltip,
+  UnstyledButton,
+} from "@mantine/core";
+import {
+  IconAlertTriangle,
+  IconArrowDown,
+  IconBrain,
+  IconChevronRight,
+  IconTerminal2,
+  IconUser,
+} from "@tabler/icons-react";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
@@ -85,8 +104,8 @@ function ToolPart({ part, streaming }: { part: MessagePart; streaming: boolean }
       openInitially={part.isError === true}
     >
       <Stack gap={6}>
-        {args && args !== "{}" ? <CodeHighlight code={args} language="json" withCopyButton={false} /> : null}
-        {part.text ? <CodeHighlight code={part.text} language="text" withCopyButton={false} /> : null}
+        {args && args !== "{}" ? <CodeHighlight code={args} language="json" /> : null}
+        {part.text ? <CodeHighlight code={part.text} language="text" /> : null}
       </Stack>
     </Foldable>
   );
@@ -135,7 +154,7 @@ function Message({ message, streaming }: { message: TranscriptMessage; streaming
   }
 
   return (
-    <Stack gap={6} className="omega-assistant">
+    <Stack gap={6}>
       {message.parts.map((part, index) => (
         <Part
           key={`${message.id}-${index}`}
@@ -171,6 +190,7 @@ type TranscriptItem =
 export function Transcript({ messages, liveParts, pendingUser, running, error, notices }: TranscriptProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const pinned = useRef(true);
+  const [atBottom, setAtBottom] = useState(true);
 
   // Flatten messages, in-flight streaming turn, notices and errors into a unified virtual list.
   const items = useMemo<TranscriptItem[]>(() => {
@@ -258,7 +278,9 @@ export function Transcript({ messages, liveParts, pendingUser, running, error, n
     if (!el) return;
     const distance = el.scrollHeight - el.scrollTop - el.clientHeight;
     // Scrolling up unlocks tailing; scrolling back into the band re-locks it.
-    pinned.current = distance <= BOTTOM_GRACE_PX;
+    const isBottom = distance <= BOTTOM_GRACE_PX;
+    pinned.current = isBottom;
+    setAtBottom(isBottom);
   }, []);
 
   // New messages, streamed tokens, and height changes from markdown rendering
@@ -268,79 +290,110 @@ export function Transcript({ messages, liveParts, pendingUser, running, error, n
   useEffect(tail, [items.length, liveParts, totalSize, tail]);
 
   return (
-    <Box
-      ref={scrollRef}
-      className="omega-scroll"
-      px="sm"
-      pt="sm"
-      onScroll={handleScroll}
-      style={{ flex: 1, minHeight: 0, overflowY: "auto", overflowX: "hidden" }}
-    >
-      {items.length === 0 ? (
-        <Text c="dimmed" ta="center" py="xl" size="sm">
-          No messages yet. Say something below.
-        </Text>
-      ) : (
-        <div
-          style={{
-            height: `${virtualizer.getTotalSize()}px`,
-            width: "100%",
-            position: "relative",
-          }}
-        >
-          {virtualizer.getVirtualItems().map(virtualItem => {
-            const item = items[virtualItem.index];
-            if (!item) return null;
-            return (
-              <div
-                key={virtualItem.key}
-                data-index={virtualItem.index}
-                ref={virtualizer.measureElement}
-                style={{
-                  position: "absolute",
-                  top: 0,
-                  left: 0,
-                  width: "100%",
-                  transform: `translateY(${virtualItem.start}px)`,
-                  paddingBottom: 16,
-                }}
-              >
-                {(() => {
-                  switch (item.kind) {
-                    case "message":
-                      return <Message message={item.message} streaming={item.streaming} />;
-                    case "working":
-                      return (
-                        <Group gap="xs">
-                          <Badge color="plum" variant="light" className="omega-pulse">
-                            working
-                          </Badge>
-                        </Group>
-                      );
-                    case "notice":
-                      return (
-                        <Alert variant="light" color="cyan" title="Notice">
-                          {item.notice}
-                        </Alert>
-                      );
-                    case "error":
-                      return (
-                        <Alert
-                          variant="light"
-                          color="red"
-                          icon={<IconAlertTriangle size={16} />}
-                          title="Turn failed"
-                        >
-                          {item.error}
-                        </Alert>
-                      );
-                  }
-                })()}
-              </div>
-            );
-          })}
-        </div>
-      )}
+    <Box style={{ position: "relative", flex: 1, minHeight: 0, display: "flex", flexDirection: "column" }}>
+      <Box
+        ref={scrollRef}
+        className="omega-scroll"
+        px="sm"
+        pt="sm"
+        onScroll={handleScroll}
+        style={{ flex: 1, minHeight: 0, overflowY: "auto", overflowX: "hidden" }}
+      >
+        {items.length === 0 ? (
+          <Text c="dimmed" ta="center" py="xl" size="sm">
+            No messages yet. Say something below.
+          </Text>
+        ) : (
+          <div
+            className="omega-measure"
+            style={{ height: `${virtualizer.getTotalSize()}px`, position: "relative" }}
+          >
+            {virtualizer.getVirtualItems().map(virtualItem => {
+              const item = items[virtualItem.index];
+              if (!item) return null;
+              return (
+                <div
+                  key={virtualItem.key}
+                  data-index={virtualItem.index}
+                  ref={virtualizer.measureElement}
+                  style={{
+                    position: "absolute",
+                    top: 0,
+                    left: 0,
+                    width: "100%",
+                    transform: `translateY(${virtualItem.start}px)`,
+                    paddingBottom: 16,
+                  }}
+                >
+                  {(() => {
+                    switch (item.kind) {
+                      case "message":
+                        return <Message message={item.message} streaming={item.streaming} />;
+                      case "working":
+                        return (
+                          <Group gap="xs">
+                            <Badge color="plum" variant="light" className="omega-pulse">
+                              working
+                            </Badge>
+                          </Group>
+                        );
+                      case "notice":
+                        return (
+                          <Alert variant="light" color="cyan" title="Notice">
+                            {item.notice}
+                          </Alert>
+                        );
+                      case "error":
+                        return (
+                          <Alert
+                            variant="light"
+                            color="red"
+                            icon={<IconAlertTriangle size={16} />}
+                            title="Turn failed"
+                          >
+                            {item.error}
+                          </Alert>
+                        );
+                    }
+                  })()}
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </Box>
+
+      {!atBottom ? (
+        <Tooltip label="Scroll to bottom" position="left">
+          <ActionIcon
+            variant="filled"
+            color="plum"
+            size="lg"
+            radius="xl"
+            onClick={() => {
+              pinned.current = true;
+              setAtBottom(true);
+              const el = scrollRef.current;
+              if (el) el.scrollTo({ top: el.scrollHeight, behavior: "smooth" });
+            }}
+            style={{
+              position: "absolute",
+              bottom: 16,
+              // Hug the conversation column, not the window: on a wide screen
+              // the gutter is empty page, and a control stranded out there
+              // reads as belonging to nothing. Inline because Mantine's own
+              // `position: relative` on the ActionIcon root would win against
+              // a stylesheet rule of equal specificity.
+              right: "max(20px, calc((100% - var(--omega-measure)) / 2 + 20px))",
+              boxShadow: "0 4px 14px rgba(0, 0, 0, 0.45)",
+              zIndex: 10,
+            }}
+            aria-label="Scroll to bottom"
+          >
+            <IconArrowDown size={20} />
+          </ActionIcon>
+        </Tooltip>
+      ) : null}
     </Box>
   );
 }
