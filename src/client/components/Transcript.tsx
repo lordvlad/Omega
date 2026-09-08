@@ -241,7 +241,7 @@ function Message({ message, streaming }: { message: TranscriptMessage; streaming
   const lastSlot = slots[slots.length - 1];
 
   return (
-    <Stack gap={6}>
+    <Stack gap={12}>
       {slots.map(slot => {
         // The live edge of a streaming message is always the last slot.
         const slotStreaming = streaming && slot === lastSlot;
