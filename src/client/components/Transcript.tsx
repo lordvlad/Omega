@@ -26,6 +26,7 @@ import {
   IconBrain,
   IconChevronRight,
   IconTerminal2,
+  IconTools,
   IconUser,
 } from "@tabler/icons-react";
 import { useVirtualizer } from "@tanstack/react-virtual";
@@ -111,6 +112,54 @@ function ToolPart({ part, streaming }: { part: MessagePart; streaming: boolean }
   );
 }
 
+/**
+ * Two or more consecutive tool parts grouped under one collapsible.
+ *
+ * The outer foldable shows the count (and an error badge when any member
+ * failed) and is collapsed by default once the group is complete. Each
+ * inner ToolPart keeps its own independent open state.
+ */
+function ToolGroup({
+  parts,
+  streaming,
+  messageId,
+  baseIndex,
+}: {
+  parts: MessagePart[];
+  streaming: boolean;
+  messageId: string;
+  baseIndex: number;
+}) {
+  const hasError = parts.some(p => p.isError);
+  // Count calls per tool name (results share their call's name, so every
+  // part contributes). "read ×3, bash ×2" tells more than "5 tool calls".
+  const counts = new Map<string, number>();
+  for (const p of parts) {
+    const name = p.toolName ?? "tool";
+    counts.set(name, (counts.get(name) ?? 0) + 1);
+  }
+  const label = [...counts].map(([name, n]) => (n === 1 ? name : `${name} ×${n}`)).join(", ");
+  return (
+    <Foldable
+      icon={<IconTools size={14} />}
+      label={label}
+      meta={hasError ? "failed" : streaming ? "running…" : undefined}
+      tone={hasError ? "red" : "cyan"}
+      openInitially={streaming}
+    >
+      <Stack gap={4}>
+        {parts.map((part, i) => (
+          <ToolPart
+            key={`${messageId}-${baseIndex + i}`}
+            part={part}
+            streaming={streaming && i === parts.length - 1}
+          />
+        ))}
+      </Stack>
+    </Foldable>
+  );
+}
+
 function Part({ part, streaming }: { part: MessagePart; streaming: boolean }) {
   switch (part.kind) {
     case "text":
@@ -137,6 +186,41 @@ function Part({ part, streaming }: { part: MessagePart; streaming: boolean }) {
   }
 }
 
+function isToolPart(part: MessagePart): boolean {
+  return part.kind === "toolCall" || part.kind === "toolResult";
+}
+
+/**
+ * Collapse consecutive tool parts into groups. A run of two or more gets a
+ * ToolGroup wrapper; a lone tool part renders directly as a ToolPart so no
+ * extra nesting level appears for the common single-call case.
+ */
+type PartSlot =
+  | { kind: "single"; part: MessagePart; index: number }
+  | { kind: "group"; parts: MessagePart[]; baseIndex: number };
+
+function groupParts(parts: MessagePart[]): PartSlot[] {
+  const slots: PartSlot[] = [];
+  let i = 0;
+  while (i < parts.length) {
+    const current = parts[i]!;
+    if (isToolPart(current)) {
+      const start = i;
+      while (i < parts.length && isToolPart(parts[i]!)) i++;
+      const run = parts.slice(start, i);
+      if (run.length === 1) {
+        slots.push({ kind: "single", part: run[0]!, index: start });
+      } else {
+        slots.push({ kind: "group", parts: run, baseIndex: start });
+      }
+    } else {
+      slots.push({ kind: "single", part: current, index: i });
+      i++;
+    }
+  }
+  return slots;
+}
+
 function Message({ message, streaming }: { message: TranscriptMessage; streaming: boolean }) {
   if (message.role === "user") {
     return (
@@ -153,16 +237,27 @@ function Message({ message, streaming }: { message: TranscriptMessage; streaming
     );
   }
 
+  const slots = groupParts(message.parts);
+  const lastSlot = slots[slots.length - 1];
+
   return (
     <Stack gap={6}>
-      {message.parts.map((part, index) => (
-        <Part
-          key={`${message.id}-${index}`}
-          part={part}
-          // Only the last part of a streaming message is the live edge.
-          streaming={streaming && index === message.parts.length - 1}
-        />
-      ))}
+      {slots.map(slot => {
+        // The live edge of a streaming message is always the last slot.
+        const slotStreaming = streaming && slot === lastSlot;
+        if (slot.kind === "group") {
+          return (
+            <ToolGroup
+              key={`${message.id}-group-${slot.baseIndex}`}
+              parts={slot.parts}
+              streaming={slotStreaming}
+              messageId={message.id}
+              baseIndex={slot.baseIndex}
+            />
+          );
+        }
+        return <Part key={`${message.id}-${slot.index}`} part={slot.part} streaming={slotStreaming} />;
+      })}
     </Stack>
   );
 }
