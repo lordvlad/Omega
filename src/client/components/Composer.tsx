@@ -1,51 +1,84 @@
 /**
- * The composer: message entry, model selection, dictation, and the stop
- * control.
+ * The composer: message entry, prompt mode, dictation, and the stop control.
  *
- * While a turn is streaming, sending is not blocked — omp accepts a message
+ * One control decides what the next message does. Plan mode is a property of
+ * the session rather than of a single message, but from the keyboard it is the
+ * same decision — "research and propose" instead of "go and do" — so it sits
+ * with the delivery choices rather than in the status bar.
+ *
+ * While a turn is streaming, sending is not blocked: omp accepts a message
  * mid-turn as either a steer or a follow-up, and both are useful, so the
  * delivery choice is exposed rather than decided for the user.
  */
 import {
   ActionIcon,
-  Box,
   Group,
-  Loader,
   Paper,
   SegmentedControl,
-  Select,
   Stack,
   Text,
   Textarea,
   Tooltip,
+  UnstyledButton,
 } from "@mantine/core";
-import { IconMicrophone, IconMicrophoneOff, IconPlayerStopFilled, IconSend } from "@tabler/icons-react";
-import { memo, useCallback, useMemo, useState } from "react";
+import {
+  IconCpu,
+  IconMicrophone,
+  IconMicrophoneOff,
+  IconPlayerStopFilled,
+  IconSend,
+  IconStack2,
+} from "@tabler/icons-react";
+import { useCallback, useEffect, useState } from "react";
 
-import type { LiveState, ModelOption } from "../api/model.ts";
+import type { LiveState } from "../api/model.ts";
 import { useDictation } from "../lib/speech.ts";
+
+/** How the next message is delivered, and what the agent is allowed to do with it. */
+type PromptMode = "send" | "plan" | "steer" | "followUp";
 
 export interface ComposerProps {
   state: LiveState | undefined;
-  models: ModelOption[];
-  modelsLoading: boolean;
   running: boolean;
+  /** Text to load into the input, e.g. the message a branch was taken from. */
+  draft?: { text: string };
+  /** Plan mode, straight from the session; the mode control reflects it. */
+  planEnabled: boolean;
+  /** True while the plan-mode round trip is in flight. */
+  planPending?: boolean;
   onSend: (message: string, deliverAs: "steer" | "followUp" | undefined) => void;
+  onPlanMode: (enabled: boolean) => void;
+  /** Open the model picker; the model is named here rather than in the header. */
+  onChangeModel: () => void;
   onAbort: () => void;
-  onSelectModel: (ref: string) => void;
+  /** Messages waiting to be delivered; polled, so fresher than `state.queued`. */
+  queued: number;
+  /** Open the queue panel; only reachable while something is queued. */
+  onOpenQueue: () => void;
 }
 
 export function Composer({
   state,
-  models,
-  modelsLoading,
   running,
+  draft,
+  planEnabled,
+  planPending = false,
   onSend,
+  onChangeModel,
+  onPlanMode,
   onAbort,
-  onSelectModel,
+  queued,
+  onOpenQueue,
 }: ComposerProps) {
   const [text, setText] = useState("");
   const [deliverAs, setDeliverAs] = useState<"steer" | "followUp">("steer");
+
+  // A branch hands back the message it branched from; loading it into the
+  // input is the point of branching. Keyed on object identity so the same
+  // text can be re-loaded by a later branch.
+  useEffect(() => {
+    if (draft) setText(draft.text);
+  }, [draft]);
 
   // Stable dictation commit callback avoids re-binding speech recognition listeners.
   const onDictationCommit = useCallback((phrase: string) => {
@@ -64,98 +97,161 @@ export function Composer({
 
   const disabled = state === undefined;
 
+  /**
+   * The mode shown is the session's, not a local guess: plan mode wins because
+   * it changes what the agent may do, and the delivery choice only matters
+   * once a turn is already streaming.
+   */
+  const mode: PromptMode = planEnabled ? "plan" : running ? deliverAs : "send";
+
+  const chooseMode = (next: PromptMode): void => {
+    if (next === "plan") {
+      if (!planEnabled) onPlanMode(true);
+      return;
+    }
+    // Every other mode is the agent acting, so leaving plan mode is implied.
+    if (planEnabled) onPlanMode(false);
+    if (next === "steer" || next === "followUp") setDeliverAs(next);
+  };
+
+  // Steer and queue only mean something against a turn in flight.
+  const modes = running
+    ? [
+        { value: "steer", label: "Steer" },
+        { value: "followUp", label: "Queue" },
+        { value: "plan", label: "Plan" },
+      ]
+    : [
+        { value: "send", label: "Send" },
+        { value: "plan", label: "Plan" },
+      ];
+
+  const MODE_HINT: Record<PromptMode, string> = {
+    send: "A normal turn: the agent answers and may edit code.",
+    plan: "The agent researches and drafts a plan before modifying anything.",
+    steer: "Interrupt the turn in flight and redirect it with this message.",
+    followUp: "Deliver this message after the current turn finishes.",
+  };
+
   return (
     <Paper className="omega-composer" p="sm" radius={0} withBorder>
-      <Stack gap={8}>
+      <Stack gap={8} className="omega-measure">
         <Group gap={8} wrap="nowrap" align="flex-end">
           <Textarea
             flex={1}
             autosize
-            minRows={1}
-            maxRows={8}
+            minRows={3}
+            maxRows={10}
             disabled={disabled}
             placeholder={disabled ? "Open a session to start" : "Message the agent…"}
             value={dictation.interim ? `${text} ${dictation.interim}`.trim() : text}
             onChange={event => setText(event.currentTarget.value)}
             onKeyDown={event => {
-              // Enter sends on a physical keyboard; Shift+Enter makes a
-              // newline. On a phone the on-screen keyboard's return key
-              // inserts a newline, so the send button is the real control.
-              if (event.key === "Enter" && !event.shiftKey && !event.nativeEvent.isComposing) {
-                event.preventDefault();
-                send();
-              }
+              // Enter is a newline, always. Prose for an agent runs to
+              // paragraphs and pasted snippets, and a stray Enter sending
+              // half a thought costs a turn; Ctrl/⌘+Enter sends.
+              if (event.key !== "Enter" || event.nativeEvent.isComposing) return;
+              if (!event.ctrlKey && !event.metaKey) return;
+              event.preventDefault();
+              send();
             }}
           />
 
-          {dictation.supported ? (
-            <Tooltip label={dictation.listening ? "Stop dictation" : "Dictate"}>
+          <Stack gap={4} align="center" style={{ flexShrink: 0 }}>
+            {dictation.supported ? (
+              <Tooltip label={dictation.listening ? "Stop dictation" : "Dictate"} position="left">
+                <ActionIcon
+                  size="md"
+                  variant={dictation.listening ? "filled" : "subtle"}
+                  color={dictation.listening ? "cyan" : "plum"}
+                  disabled={disabled}
+                  onClick={() => (dictation.listening ? dictation.stop() : dictation.start())}
+                  aria-label={dictation.listening ? "Stop dictation" : "Start dictation"}
+                  className={dictation.listening ? "omega-pulse" : undefined}
+                >
+                  {dictation.listening ? <IconMicrophoneOff size={16} /> : <IconMicrophone size={16} />}
+                </ActionIcon>
+              </Tooltip>
+            ) : null}
+
+            <Tooltip label={`${MODE_HINT[mode]} Ctrl+Enter sends.`} position="left" multiline w={240}>
               <ActionIcon
-                variant={dictation.listening ? "filled" : "subtle"}
-                color={dictation.listening ? "cyan" : "plum"}
-                disabled={disabled}
-                onClick={() => (dictation.listening ? dictation.stop() : dictation.start())}
-                aria-label={dictation.listening ? "Stop dictation" : "Start dictation"}
-                className={dictation.listening ? "omega-pulse" : undefined}
+                size="md"
+                variant="filled"
+                color={mode === "plan" ? "cyan" : "plum"}
+                disabled={disabled || !text.trim()}
+                onClick={send}
+                aria-label="Send message"
               >
-                {dictation.listening ? <IconMicrophoneOff size={18} /> : <IconMicrophone size={18} />}
+                <IconSend size={16} />
               </ActionIcon>
             </Tooltip>
-          ) : null}
 
-          {/* Stop is its own control rather than a replacement for Send:
-              swapping them made the steer/queue selector unreachable, because
-              sending mid-turn is exactly how a steer is delivered. */}
-          <Tooltip label={running ? "Interrupt the assistant" : "Nothing to interrupt"}>
-            <ActionIcon
-              variant={running ? "filled" : "subtle"}
-              color="red"
-              disabled={!running}
-              onClick={onAbort}
-              aria-label="Interrupt the assistant"
-            >
-              <IconPlayerStopFilled size={18} />
-            </ActionIcon>
-          </Tooltip>
-
-          <Tooltip label={running ? `Send as ${deliverAs === "steer" ? "steer" : "follow-up"}` : "Send"}>
-            <ActionIcon
-              variant="filled"
-              color="plum"
-              disabled={disabled || !text.trim()}
-              onClick={send}
-              aria-label="Send message"
-            >
-              <IconSend size={18} />
-            </ActionIcon>
-          </Tooltip>
+            <Tooltip label={running ? "Interrupt the assistant" : "Nothing to interrupt"} position="left">
+              <ActionIcon
+                size="md"
+                variant={running ? "filled" : "subtle"}
+                color="red"
+                disabled={!running}
+                onClick={onAbort}
+                aria-label="Interrupt the assistant"
+              >
+                <IconPlayerStopFilled size={16} />
+              </ActionIcon>
+            </Tooltip>
+          </Stack>
         </Group>
 
         <Group gap={8} wrap="wrap" justify="space-between">
-          <ModelSelector
-            model={state?.model ?? null}
-            models={models}
-            modelsLoading={modelsLoading}
-            disabled={disabled}
-            onSelectModel={onSelectModel}
-          />
+          <Group gap={8} wrap="nowrap">
+            <Tooltip label={MODE_HINT[mode]} multiline w={240} position="top-start">
+              <SegmentedControl
+                size="xs"
+                value={mode}
+                onChange={value => chooseMode(value as PromptMode)}
+                disabled={disabled || planPending}
+                data={modes}
+                aria-label="Prompt mode"
+              />
+            </Tooltip>
+            {queued > 0 ? (
+              <Tooltip label="Edit or drop the messages waiting to be delivered" position="top">
+                <UnstyledButton
+                  onClick={onOpenQueue}
+                  aria-label="Open the message queue"
+                  style={{ display: "inline-flex", alignItems: "center", gap: 4, cursor: "pointer" }}
+                >
+                  <IconStack2 size={13} />
+                  <Text
+                    size="xs"
+                    c="dimmed"
+                    style={{ textDecoration: "underline", textUnderlineOffset: "3px" }}
+                  >
+                    {queued} queued
+                  </Text>
+                </UnstyledButton>
+              </Tooltip>
+            ) : null}
+          </Group>
 
-          {running ? (
-            <SegmentedControl
-              size="xs"
-              value={deliverAs}
-              onChange={value => setDeliverAs(value as "steer" | "followUp")}
-              data={[
-                { value: "steer", label: "Steer" },
-                { value: "followUp", label: "Queue" },
-              ]}
-            />
-          ) : null}
-
-          {state?.queued ? (
-            <Text size="xs" c="dimmed">
-              {state.queued} queued
-            </Text>
+          {state ? (
+            <Tooltip label="Change model (/switch)" position="top-end">
+              <UnstyledButton
+                onClick={onChangeModel}
+                aria-label="Change model"
+                style={{ display: "inline-flex", alignItems: "center", gap: 4, cursor: "pointer" }}
+              >
+                <IconCpu size={13} />
+                <Text
+                  size="xs"
+                  c="dimmed"
+                  truncate
+                  style={{ textDecoration: "underline", textUnderlineOffset: "3px" }}
+                >
+                  {state.modelName}
+                </Text>
+              </UnstyledButton>
+            </Tooltip>
           ) : null}
         </Group>
 
@@ -168,56 +264,3 @@ export function Composer({
     </Paper>
   );
 }
-
-interface ModelSelectorProps {
-  model: string | null;
-  models: ModelOption[];
-  modelsLoading: boolean;
-  disabled: boolean;
-  onSelectModel: (ref: string) => void;
-}
-
-/**
- * Isolated and memoized so typing in the composer textarea does NOT re-render
- * the 593-item model dropdown on every keystroke.
- */
-const ModelSelector = memo(function ModelSelector({
-  model,
-  models,
-  modelsLoading,
-  disabled,
-  onSelectModel,
-}: ModelSelectorProps) {
-  // Group by provider and memoize on models catalog changes.
-  const modelData = useMemo(() => {
-    const byProvider = new Map<string, Array<{ value: string; label: string }>>();
-    for (const m of models) {
-      const group = byProvider.get(m.provider);
-      const item = { value: m.ref, label: m.name };
-      if (group) group.push(item);
-      else byProvider.set(m.provider, [item]);
-    }
-    return [...byProvider.entries()]
-      .sort((left, right) => left[0].localeCompare(right[0]))
-      .map(([provider, items]) => ({ group: provider, items }));
-  }, [models]);
-
-  return (
-    <Select
-      size="xs"
-      searchable
-      limit={30}
-      disabled={disabled}
-      data={modelData}
-      value={model}
-      onChange={value => value && onSelectModel(value)}
-      placeholder={modelsLoading ? "Loading models…" : "Select a model"}
-      leftSection={modelsLoading ? <Loader size={12} /> : undefined}
-      nothingFoundMessage="No matching model"
-      maxDropdownHeight={280}
-      comboboxProps={{ withinPortal: true }}
-      style={{ flex: "1 1 200px", minWidth: 160 }}
-      aria-label="Model"
-    />
-  );
-});

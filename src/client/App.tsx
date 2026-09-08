@@ -15,49 +15,105 @@ import {
   AppShell,
   Badge,
   Box,
-  Burger,
+  Button,
   Drawer,
   Group,
   Indicator,
-  ScrollArea,
   Stack,
-  Switch,
   Text,
   Tooltip,
+  UnstyledButton,
 } from "@mantine/core";
-import { useDisclosure, useMediaQuery } from "@mantine/hooks";
+import { useLocalStorage, useMediaQuery } from "@mantine/hooks";
 import { notifications } from "@mantine/notifications";
-import { IconChecklist, IconListCheck, IconPlugConnected, IconRoute } from "@tabler/icons-react";
+import { IconFolder, IconHistory, IconListCheck, IconMessage } from "@tabler/icons-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useNavigate, useParams } from "@tanstack/react-router";
 import { useCallback, useEffect, useRef, useState } from "react";
 
-import type { PlanAction, SessionSummary } from "./api/model.ts";
+import { ApiError } from "./api/api.ts";
+import type {
+  BranchPoint,
+  PlanAction,
+  Problem,
+  QueuedMessage,
+  SessionSummary,
+  ShakeMode,
+  ThinkingLevel,
+} from "./api/model.ts";
 import {
   useAbort,
+  useBranchSession,
+  useCompactSession,
+  useDeleteSession,
+  useDropQueued,
   useEditPlan,
+  useEditQueued,
+  useForkSession,
   useOpenSession,
   usePrompt,
+  useRenameSession,
+  useRenderMarkdown,
   useResolvePlan,
+  useRetryTurn,
   useSelectModel,
   useSetPlanMode,
+  useSetThinkingLevel,
+  useShakeSession,
+  useStopSession,
 } from "./api/mutations.ts";
 import {
   getGetPlanQueryOptions,
   getGetStateQueryOptions,
   getGetTranscriptQueryOptions,
+  getListQueueQueryOptions,
   useGetPlan,
   useGetState,
   useGetTranscript,
+  useListBranchPoints,
+  useListQueue,
   useListModels,
   useListWorkspaces,
 } from "./api/queries.ts";
+import {
+  CommandPalette,
+  type CompactMode,
+  openPalette,
+  PALETTE_COMMAND,
+} from "./components/CommandPalette.tsx";
 import { Composer } from "./components/Composer.tsx";
 import { Planning } from "./components/Planning.tsx";
-import { SessionTree } from "./components/SessionTree.tsx";
+import { QueuePanel, queueSummary } from "./components/QueuePanel.tsx";
 import { TodoPanel } from "./components/TodoPanel.tsx";
 import { Transcript } from "./components/Transcript.tsx";
 import { useLiveTurn } from "./lib/stream.ts";
+
+/**
+ * Header hyperlinks. Every piece of session identity in the header — session
+ * title, model, workspace — is a link into the command palette, so the thing
+ * shown and the way to change it are the same control.
+ */
+const HEADER_LINK = {
+  cursor: "pointer",
+  display: "inline-flex",
+  alignItems: "center",
+  maxWidth: "100%",
+  // Without this the intrinsic width of the label wins over the flex
+  // container and `truncate` never engages, so a long title pushes the
+  // header's right-hand controls off their own edge.
+  minWidth: 0,
+} as const;
+const HEADER_UNDERLINE = { textDecoration: "underline", textUnderlineOffset: "3px" } as const;
+/** Separators are punctuation: they never absorb the shrinking. */
+const HEADER_SEPARATOR = { flexShrink: 0 } as const;
+
+/**
+ * One id for the connection toast, so the warning and the all-clear are the
+ * same notification rather than two.
+ */
+const CONNECTION_TOAST = "omega-connection";
+/** How long a stream may be down before it is worth interrupting the user. */
+const CONNECTION_GRACE_MS = 3_000;
 
 export function App() {
   // `project` (workspace cwd) and `session` (omp session id) are path params,
@@ -70,10 +126,21 @@ export function App() {
   const navigate = useNavigate();
 
   const [planOpen, setPlanOpen] = useState(false);
-  const [navOpen, { toggle: toggleNav, close: closeNav }] = useDisclosure(false);
+  /** Controlled palette query; a header hyperlink prefills the command. */
+  const [paletteQuery, setPaletteQuery] = useState("");
   const [todoOpen, setTodoOpen] = useState(false);
+  /** The queue panel, opened from the composer's queued-message hint. */
+  const [queueOpen, setQueueOpen] = useState(false);
   /** Sent messages not yet echoed back by the server transcript. */
   const [pendingUser, setPendingUser] = useState<string[]>([]);
+  /** Message text a branch handed back, for the composer to pick up. */
+  const [draft, setDraft] = useState<{ text: string } | undefined>(undefined);
+
+  // Up to 5 most recently used models, listed first under `/switch`.
+  const [recentModels, setRecentModels] = useLocalStorage<string[]>({
+    key: "omega.recent-models",
+    defaultValue: [],
+  });
 
   // One breakpoint drives every layout decision, so the surfaces cannot
   // disagree about whether this is a phone.
@@ -112,7 +179,10 @@ export function App() {
   const state = useGetState({ path: { key: sessionKey ?? "" } }, { enabled: Boolean(sessionKey) });
   const transcript = useGetTranscript({ path: { key: sessionKey ?? "" } }, { enabled: Boolean(sessionKey) });
   const plan = useGetPlan({ path: { key: sessionKey ?? "" } }, { enabled: Boolean(sessionKey) });
-
+  const branchPoints = useListBranchPoints(
+    { path: { key: sessionKey ?? "" } },
+    { enabled: Boolean(sessionKey), staleTime: 5_000 },
+  );
   // The stream tells us when snapshot state went stale; refetching beats
   // mirroring omp's whole state machine in the client.
   const refresh = useCallback(() => {
@@ -122,9 +192,6 @@ export function App() {
     void queryClient.invalidateQueries({ queryKey: getGetTranscriptQueryOptions(path).queryKey });
     void queryClient.invalidateQueries({ queryKey: getGetPlanQueryOptions(path).queryKey });
   }, [queryClient, sessionKey]);
-
-  const live = useLiveTurn(sessionKey, refresh);
-
   const openSession = useOpenSession();
   const prompt = usePrompt();
   const abort = useAbort();
@@ -132,14 +199,64 @@ export function App() {
   const setPlanMode = useSetPlanMode();
   const resolvePlan = useResolvePlan();
   const editPlan = useEditPlan();
+  const stopSession = useStopSession();
+  const deleteSession = useDeleteSession();
+  const compactSession = useCompactSession();
+  const shakeSession = useShakeSession();
+  const setThinking = useSetThinkingLevel();
+  const renameSession = useRenameSession();
+  const retryTurn = useRetryTurn();
+  const forkSession = useForkSession();
+  const branchSession = useBranchSession();
+  const editQueued = useEditQueued();
+  const dropQueued = useDropQueued();
 
+  // A non-2xx response arrives as `ApiError`, whose `message` is only
+  // `HTTP 409 for <url>`; the server's own explanation is the `Problem` body,
+  // and every session command refuses with one worth reading.
   const fail = (error: unknown): void => {
+    const problem = error instanceof ApiError ? (error.body as Problem | undefined) : undefined;
     notifications.show({
       color: "red",
       title: "Request failed",
-      message: error instanceof Error ? error.message : String(error),
+      message: problem?.detail ?? (error instanceof Error ? error.message : String(error)),
     });
   };
+
+  // Keep recent models updated when active model changes
+  useEffect(() => {
+    if (!state.data?.model) return;
+    const current = state.data.model;
+    setRecentModels(prev => [current, ...prev.filter(m => m !== current)].slice(0, 5));
+  }, [state.data?.model, setRecentModels]);
+
+  const handleSelectModel = useCallback(
+    (ref: string) => {
+      if (!sessionKey) return;
+      setRecentModels(prev => [ref, ...prev.filter(m => m !== ref)].slice(0, 5));
+      selectModel.mutate({ path: { key: sessionKey }, body: { ref } }, { onSuccess: refresh, onError: fail });
+    },
+    [sessionKey, selectModel, refresh, setRecentModels],
+  );
+
+  const live = useLiveTurn(sessionKey, refresh);
+  /**
+   * The queue is polled, not cached.
+   *
+   * It only exists while a turn is in flight, the agent drains it as it goes,
+   * and a second browser (or omp's own TUI) can add to it — so `queued` on the
+   * session snapshot goes stale the moment anything but this tab touches it.
+   * The list is the count as well as the contents: it counts only the user
+   * prompts the panel can actually edit, where the snapshot's `queued` also
+   * counts agent-authored entries nobody can act on.
+   */
+  const streaming = live.running || state.data?.streaming === true;
+  const queueLive = Boolean(sessionKey) && (queueOpen || streaming);
+  const queue = useListQueue(
+    { path: { key: sessionKey ?? "" } },
+    { enabled: queueLive, refetchInterval: queueLive ? 2_000 : false },
+  );
+  const queued = queue.data?.length ?? 0;
 
   // A plan arriving for review is the one event worth interrupting for.
   useEffect(() => {
@@ -151,6 +268,98 @@ export function App() {
       message: "The agent submitted a plan and is waiting on your decision.",
     });
   }, [live.planAwaiting]);
+
+  /**
+   * The plan shows itself.
+   *
+   * There is no plan button any more: a panel with nothing in it does not earn
+   * a control, and a plan the agent has just written is worth reading now. So
+   * the drawer opens the first time a plan has text, and again whenever that
+   * text changes — a revision is news. A plan already shown never reopens
+   * itself, so closing it stays closed, and a session whose plan is empty
+   * cannot leave a blank drawer on screen.
+   */
+  const shownPlan = useRef<string | undefined>(undefined);
+  useEffect(() => {
+    const content = plan.data?.content?.trim() ?? "";
+    if (!content) {
+      shownPlan.current = undefined;
+      setPlanOpen(false);
+      return;
+    }
+    if (shownPlan.current === content) return;
+    shownPlan.current = content;
+    setPlanOpen(true);
+  }, [plan.data?.content]);
+
+  // A different conversation's plan is news again.
+  useEffect(() => {
+    shownPlan.current = undefined;
+  }, [sessionKey]);
+
+  /**
+   * The header no longer carries a connection badge, so a dropped stream has
+   * to announce itself.
+   *
+   * A brief outage is routine — the socket is remade on every wake, tab
+   * switch and navigation — so the warning waits out a grace period. The
+   * timer is armed once for a whole outage rather than restarted on each
+   * `closed → connecting` retry, or a stream that flaps every second would
+   * stay silent forever. One notification id throughout, so the warning
+   * becomes the all-clear instead of stacking a second toast on it.
+   */
+  const warned = useRef(false);
+  const graceTimer = useRef<number | undefined>(undefined);
+  useEffect(() => {
+    const clearWarning = (): void => {
+      if (graceTimer.current !== undefined) {
+        window.clearTimeout(graceTimer.current);
+        graceTimer.current = undefined;
+      }
+    };
+
+    if (!sessionKey) {
+      clearWarning();
+      if (warned.current) {
+        warned.current = false;
+        notifications.hide(CONNECTION_TOAST);
+      }
+      return;
+    }
+
+    if (live.status === "open") {
+      clearWarning();
+      if (!warned.current) return;
+      warned.current = false;
+      notifications.update({
+        id: CONNECTION_TOAST,
+        position: "top-center",
+        color: "cyan",
+        loading: false,
+        withCloseButton: true,
+        autoClose: 2_500,
+        title: "Reconnected",
+        message: "Live updates are flowing again.",
+      });
+      return;
+    }
+
+    if (warned.current || graceTimer.current !== undefined) return;
+    graceTimer.current = window.setTimeout(() => {
+      graceTimer.current = undefined;
+      warned.current = true;
+      notifications.show({
+        id: CONNECTION_TOAST,
+        position: "top-center",
+        color: "yellow",
+        loading: true,
+        withCloseButton: false,
+        autoClose: false,
+        title: "Connection lost",
+        message: "Reconnecting. Messages still send, but replies will not stream until it is back.",
+      });
+    }, CONNECTION_GRACE_MS);
+  }, [sessionKey, live.status]);
 
   // Retire each echo as soon as the fetched transcript contains it, matching on
   // text rather than position so a steer landing out of order still clears and
@@ -197,13 +406,35 @@ export function App() {
     );
   }, [sessionKey, state.isError, workspaces.data]);
 
+  /**
+   * The bare root has nothing on it to act on, so the palette is the page:
+   * open it on arrival rather than asking for a click first.
+   *
+   * Only the root route. `/w/$project` is a destination the user navigated
+   * to on purpose — greeting there would reopen the palette on top of every
+   * workspace they pick, which is navigation being hijacked, not helped.
+   *
+   * Once per arrival, and only after the workspace listing has landed, so it
+   * never opens onto an empty list. Dismissing it leaves the landing buttons
+   * to reopen it — the effect will not fight a user who closed it.
+   */
+  const greeted = useRef(false);
+  useEffect(() => {
+    if (project || sessionKey) {
+      greeted.current = false;
+      return;
+    }
+    if (greeted.current || !workspaces.data) return;
+    greeted.current = true;
+    openPalette(PALETTE_COMMAND.project, setPaletteQuery);
+  }, [project, sessionKey, workspaces.data]);
+
   const handleOpen = (session: SessionSummary): void => {
     openSession.mutate(
       { body: { sessionPath: session.path } },
       {
         onSuccess: result => {
           navigateTo({ project: result.cwd, session: result.key });
-          closeNav();
           void queryClient.invalidateQueries();
         },
         onError: fail,
@@ -217,7 +448,6 @@ export function App() {
       {
         onSuccess: result => {
           navigateTo({ project: result.cwd, session: result.key });
-          closeNav();
           void queryClient.invalidateQueries();
         },
         onError: fail,
@@ -232,6 +462,239 @@ export function App() {
   };
 
   /**
+   * Release a live session from the server's memory.
+   *
+   * The file stays on disk, so this is reversible by opening it again. When it
+   * is the session on screen, leave the conversation first: its `getState`
+   * would 404 the moment the agent is disposed, and the stale-URL recovery
+   * effect would helpfully reopen the very session just stopped.
+   */
+  const handleStopSession = (session: SessionSummary): void => {
+    if (session.id === sessionKey) navigateTo({ project: session.cwd });
+    stopSession.mutate(
+      { path: { key: session.id } },
+      {
+        onSuccess: result => {
+          notifications.show({
+            color: "cyan",
+            title: "Session stopped",
+            message: result.detail ?? "The live agent was released.",
+          });
+          void queryClient.invalidateQueries();
+        },
+        onError: fail,
+      },
+    );
+  };
+
+  /** Erase a session and its artifacts from disk, after an explicit confirm. */
+  const handleDeleteSession = (session: SessionSummary): void => {
+    const label = session.title || session.firstMessage || "Untitled session";
+    if (!window.confirm(`Delete "${label}" and its artifacts from disk? This cannot be undone.`)) {
+      return;
+    }
+    if (session.id === sessionKey) navigateTo({ project: session.cwd });
+    deleteSession.mutate(
+      { path: { key: session.id } },
+      {
+        onSuccess: result => {
+          notifications.show({
+            color: "orange",
+            title: "Session deleted",
+            message: result.detail ?? label,
+          });
+          void queryClient.invalidateQueries();
+        },
+        onError: fail,
+      },
+    );
+  };
+
+  const handleCompact = (mode: CompactMode | undefined, focus: string): void => {
+    if (!sessionKey) return;
+    compactSession.mutate(
+      { path: { key: sessionKey }, body: { mode, focus: focus.trim() || undefined } },
+      {
+        onSuccess: result => {
+          notifications.show({
+            color: "cyan",
+            title: "Context compacted",
+            message: result.detail ?? "Done.",
+          });
+          refresh();
+        },
+        onError: fail,
+      },
+    );
+  };
+
+  /**
+   * Edit or drop a queued message.
+   *
+   * Both send the text the row was showing as `expected`, so the server can
+   * refuse the write if the agent took that message while the panel was open,
+   * and both write the returned queue straight into the cache — it is the
+   * authoritative answer to "what is still waiting", fresher than a refetch.
+   */
+  const applyQueue = (next: QueuedMessage[]): void => {
+    if (!sessionKey) return;
+    queryClient.setQueryData(getListQueueQueryOptions({ path: { key: sessionKey } }).queryKey, next);
+    // `queued` on the session state is a count of the same thing.
+    void queryClient.invalidateQueries({
+      queryKey: getGetStateQueryOptions({ path: { key: sessionKey } }).queryKey,
+    });
+  };
+
+  const handleQueueEdit = (message: QueuedMessage, text: string): void => {
+    if (!sessionKey) return;
+    editQueued.mutate(
+      {
+        path: { key: sessionKey },
+        body: { lane: message.lane, index: message.index, expected: message.text, text },
+      },
+      { onSuccess: applyQueue, onError: fail },
+    );
+  };
+
+  const handleQueueDrop = (message: QueuedMessage): void => {
+    if (!sessionKey) return;
+    dropQueued.mutate(
+      {
+        path: { key: sessionKey },
+        body: { lane: message.lane, index: message.index, expected: message.text },
+      },
+      { onSuccess: applyQueue, onError: fail },
+    );
+  };
+
+  const handleShake = (mode: ShakeMode): void => {
+    if (!sessionKey) return;
+    shakeSession.mutate(
+      { path: { key: sessionKey }, body: { mode } },
+      {
+        onSuccess: result => {
+          notifications.show({ color: "cyan", title: "Context shaken", message: result.detail ?? "Done." });
+          refresh();
+        },
+        onError: fail,
+      },
+    );
+  };
+
+  const handleSetThinking = (level: ThinkingLevel): void => {
+    if (!sessionKey) return;
+    setThinking.mutate(
+      { path: { key: sessionKey }, body: { level } },
+      {
+        onSuccess: () => {
+          notifications.show({ color: "cyan", title: "Thinking level", message: level });
+          refresh();
+        },
+        onError: fail,
+      },
+    );
+  };
+
+  /** A new title changes the session listing too, so everything is refetched. */
+  const handleRename = (title: string): void => {
+    if (!sessionKey) return;
+    renameSession.mutate(
+      { path: { key: sessionKey }, body: { title } },
+      {
+        onSuccess: () => void queryClient.invalidateQueries(),
+        onError: fail,
+      },
+    );
+  };
+
+  const handleRetry = (): void => {
+    if (!sessionKey) return;
+    // The retried turn arrives as AG-UI frames, so the stream has to be up
+    // before it starts — the same reason `handleSend` reconnects.
+    if (live.status !== "open") live.reconnect();
+    retryTurn.mutate(
+      { path: { key: sessionKey } },
+      {
+        onSuccess: result => {
+          notifications.show({
+            color: result.ok ? "cyan" : "yellow",
+            title: "Retry",
+            message: result.detail ?? "",
+          });
+          refresh();
+        },
+        onError: fail,
+      },
+    );
+  };
+
+  const handleAbort = (): void => {
+    if (!sessionKey) return;
+    abort.mutate({ path: { key: sessionKey } }, { onError: fail });
+  };
+
+  /**
+   * Toggle plan mode. Shared by the header switch and `/plan`, so the two
+   * controls cannot drift apart.
+   */
+  const handleSetPlanMode = (enabled: boolean): void => {
+    if (!sessionKey) return;
+    setPlanMode.mutate(
+      { path: { key: sessionKey }, body: { enabled } },
+      {
+        // Turning plan mode on does not create a plan; the drawer opens by
+        // itself once the agent has actually written one.
+        onSuccess: refresh,
+        onError: fail,
+      },
+    );
+  };
+
+  /**
+   * Fork: omp moves this live agent onto a fresh session file with a new id,
+   * so the URL has to follow the key the server reports back.
+   */
+  const handleFork = (): void => {
+    if (!sessionKey) return;
+    forkSession.mutate(
+      { path: { key: sessionKey } },
+      {
+        onSuccess: next => {
+          notifications.show({
+            color: "cyan",
+            title: "Session forked",
+            message: "Continuing in the copy; the original stays on disk.",
+          });
+          navigateTo({ project: next.cwd, session: next.key });
+          void queryClient.invalidateQueries();
+        },
+        onError: fail,
+      },
+    );
+  };
+
+  /** Branch: same re-keying as a fork, plus the message text to re-edit. */
+  const handleBranch = (point: BranchPoint): void => {
+    if (!sessionKey) return;
+    branchSession.mutate(
+      { path: { key: sessionKey }, body: { entryId: point.entryId } },
+      {
+        onSuccess: result => {
+          navigateTo({ project: result.state.cwd, session: result.state.key });
+          setDraft({ text: result.draft });
+          notifications.show({
+            color: "cyan",
+            title: "Branched",
+            message: "That message is back in the composer, ready to edit.",
+          });
+          void queryClient.invalidateQueries();
+        },
+        onError: fail,
+      },
+    );
+  };
+
+  /**
    * Send a message, echoing it locally at once.
    *
    * The persisted user message only arrives with the next transcript fetch,
@@ -241,6 +704,7 @@ export function App() {
    */
   const handleSend = (message: string, deliverAs: "steer" | "followUp" | undefined): void => {
     if (!sessionKey) return;
+    if (live.status !== "open") live.reconnect();
     setPendingUser(current => [...current, message]);
     prompt.mutate(
       { path: { key: sessionKey }, body: { message, deliverAs } },
@@ -296,7 +760,6 @@ export function App() {
   return (
     <AppShell
       header={{ height: 56 }}
-      navbar={{ width: 300, breakpoint: "62em", collapsed: { mobile: true, desktop: false } }}
       aside={{
         width: 340,
         breakpoint: "62em",
@@ -306,105 +769,62 @@ export function App() {
     >
       <AppShell.Header>
         <Group h="100%" px="sm" justify="space-between" wrap="nowrap">
-          <Group gap="xs" wrap="nowrap" style={{ minWidth: 0 }}>
-            {narrow ? <Burger opened={navOpen} onClick={toggleNav} size="sm" /> : null}
-            <Box style={{ minWidth: 0 }}>
-              <Text fw={700} size="sm" truncate>
-                {state.data?.title ?? "omega"}
-              </Text>
-              {state.data ? (
-                <Group gap={6} wrap="nowrap" align="center">
-                  <Text size="xs" c="dimmed" truncate style={{ minWidth: 0 }}>
-                    {state.data.modelName} · {state.data.cwd}
+          <Group gap={6} wrap="nowrap" align="center" style={{ flex: 1, minWidth: 0 }}>
+            {/* The status bar gave back the space the connection badge and the
+                plan switch were using, so the workspace survives on a phone. */}
+            <Group gap={6} wrap="nowrap" style={{ minWidth: 0 }}>
+              <Tooltip label="Switch workspace or open any session (/cd)" position="bottom-start">
+                <UnstyledButton
+                  onClick={() => openPalette(PALETTE_COMMAND.project, setPaletteQuery)}
+                  aria-label="Switch workspace"
+                  style={HEADER_LINK}
+                >
+                  <IconFolder size={13} style={{ flexShrink: 0, marginRight: 4 }} />
+                  <Text size="xs" c="dimmed" truncate style={HEADER_UNDERLINE}>
+                    {state.data?.cwd
+                      ? state.data.cwd.split("/").pop()
+                      : (project?.split("/").pop() ?? "choose a workspace")}
                   </Text>
-                  {state.data.contextUsage && state.data.contextUsage.percent >= 60 ? (
-                    <Badge
-                      size="xs"
-                      variant="filled"
-                      color={state.data.contextUsage.percent >= 85 ? "red" : "orange"}
-                      style={{ flexShrink: 0 }}
-                    >
-                      {Math.round(state.data.contextUsage.percent)}%
-                    </Badge>
-                  ) : null}
-                </Group>
-              ) : (
-                <Text size="xs" c="dimmed">
-                  no session open
+                </UnstyledButton>
+              </Tooltip>
+              {state.data ? (
+                <Text size="xs" c="dimmed" style={HEADER_SEPARATOR}>
+                  ·
                 </Text>
-              )}
-            </Box>
-          </Group>
-
-          <Group gap="xs" wrap="nowrap" display={sessionKey ? undefined : "none"}>
-            <Tooltip
-              label={
-                live.status === "open"
-                  ? "Streaming"
-                  : live.status === "connecting"
-                    ? "Connecting"
-                    : "Disconnected"
-              }
-            >
+              ) : null}
+            </Group>
+            {state.data ? (
+              <>
+                <Tooltip label="Resume another session in this workspace (/resume)" position="bottom-start">
+                  <UnstyledButton
+                    onClick={() => openPalette(PALETTE_COMMAND.session, setPaletteQuery)}
+                    aria-label="Resume another session"
+                    style={HEADER_LINK}
+                  >
+                    <IconMessage size={13} style={{ flexShrink: 0, marginRight: 4 }} />
+                    <Text size="xs" c="dimmed" truncate style={HEADER_UNDERLINE}>
+                      {state.data.title ?? "Untitled session"}
+                    </Text>
+                  </UnstyledButton>
+                </Tooltip>
+              </>
+            ) : null}
+            {state.data?.contextUsage && state.data.contextUsage.percent >= 60 ? (
               <Badge
-                size="sm"
-                variant="light"
-                color={live.status === "open" ? "cyan" : live.status === "connecting" ? "yellow" : "red"}
-                leftSection={<IconPlugConnected size={12} />}
+                size="xs"
+                variant="filled"
+                color={state.data.contextUsage.percent >= 85 ? "red" : "orange"}
+                style={{ flexShrink: 0 }}
               >
-                {live.running ? "running" : live.status}
+                {Math.round(state.data.contextUsage.percent)}%
               </Badge>
-            </Tooltip>
-
-            <Tooltip
-              label="Plan mode: agent researches and drafts a plan before modifying code"
-              withinPortal
-              multiline
-              w={220}
-            >
-              <Group gap={6} wrap="nowrap" style={{ cursor: "pointer" }}>
-                <Text size="xs" fw={600} c={planEnabled ? "cyan" : "dimmed"}>
-                  Plan
-                </Text>
-                <Switch
-                  size="sm"
-                  color="cyan"
-                  checked={planEnabled}
-                  disabled={!sessionKey || setPlanMode.isPending}
-                  onChange={event => {
-                    if (!sessionKey) return;
-                    const enabled = event.currentTarget.checked;
-                    setPlanMode.mutate(
-                      { path: { key: sessionKey }, body: { enabled } },
-                      {
-                        onSuccess: () => {
-                          if (enabled) setPlanOpen(true);
-                          refresh();
-                        },
-                        onError: fail,
-                      },
-                    );
-                  }}
-                  aria-label="Toggle plan mode"
-                />
-              </Group>
-            </Tooltip>
-
-            <Tooltip label={planOpen ? "Hide the plan" : "Show the plan"}>
-              <ActionIcon
-                onClick={() => setPlanOpen(value => !value)}
-                disabled={!sessionKey}
-                color={planOpen ? "cyan" : "plum"}
-                aria-label="Toggle the planning panel"
-              >
-                <IconRoute size={18} />
-              </ActionIcon>
-            </Tooltip>
-
+            ) : null}
+          </Group>
+          <Group gap="xs" wrap="nowrap" display={sessionKey ? undefined : "none"} style={{ flexShrink: 0 }}>
             {(() => {
-              const all = (state.data?.todos ?? []).flatMap(p => p.tasks);
+              const all = (state.data?.todos ?? []).flatMap(phase => phase.tasks);
               const total = all.length;
-              const done = all.filter(t => t.status === "completed").length;
+              const done = all.filter(task => task.status === "completed").length;
               return (
                 <Tooltip label={todoOpen ? "Hide tasks" : "Show tasks"}>
                   <Indicator
@@ -440,35 +860,6 @@ export function App() {
         </Group>
       </AppShell.Header>
 
-      <AppShell.Navbar p={0}>
-        <SessionTree
-          workspaces={workspaces.data ?? []}
-          loading={workspaces.isFetching}
-          activeSessionId={sessionKey}
-          activeProject={project}
-          onSelectProject={cwd => navigateTo({ project: cwd ?? undefined, session: sessionKey })}
-          onOpenSession={handleOpen}
-          onNewSession={handleNew}
-          onAddWorkspace={handleAddWorkspace}
-          onRefresh={() => void workspaces.refetch()}
-        />
-      </AppShell.Navbar>
-
-      {narrow ? (
-        <Drawer opened={navOpen} onClose={closeNav} size="85%" title="Sessions" padding={0}>
-          <SessionTree
-            workspaces={workspaces.data ?? []}
-            loading={workspaces.isFetching}
-            activeSessionId={sessionKey}
-            activeProject={project}
-            onSelectProject={cwd => navigateTo({ project: cwd ?? undefined, session: sessionKey })}
-            onOpenSession={handleOpen}
-            onNewSession={handleNew}
-            onAddWorkspace={handleAddWorkspace}
-            onRefresh={() => void workspaces.refetch()}
-          />
-        </Drawer>
-      ) : null}
       <AppShell.Aside p={0}>
         <TodoPanel phases={state.data?.todos} onClose={() => setTodoOpen(false)} />
       </AppShell.Aside>
@@ -497,6 +888,22 @@ export function App() {
         </Drawer>
       ) : null}
 
+      <Drawer
+        opened={queueOpen}
+        onClose={() => setQueueOpen(false)}
+        position={narrow ? "bottom" : "right"}
+        size={narrow ? "80%" : 460}
+        title={queue.data && queue.data.length > 0 ? `Queue — ${queueSummary(queue.data)}` : "Queue"}
+        padding={0}
+      >
+        <QueuePanel
+          messages={queue.data ?? []}
+          busy={editQueued.isPending || dropQueued.isPending}
+          onEdit={handleQueueEdit}
+          onDrop={handleQueueDrop}
+        />
+      </Drawer>
+
       <AppShell.Main>
         {sessionKey ? (
           <Stack gap={0} className="omega-main">
@@ -510,52 +917,93 @@ export function App() {
             />
             <Composer
               state={state.data}
-              models={models.data ?? []}
-              modelsLoading={models.isLoading}
-              running={live.running || state.data?.streaming === true}
+              running={streaming}
+              draft={draft}
+              planEnabled={planEnabled}
+              planPending={setPlanMode.isPending}
               onSend={handleSend}
-              onAbort={() => {
-                if (sessionKey) abort.mutate({ path: { key: sessionKey } }, { onError: fail });
-              }}
-              onSelectModel={ref => {
-                if (!sessionKey) return;
-                selectModel.mutate(
-                  { path: { key: sessionKey }, body: { ref } },
-                  { onSuccess: refresh, onError: fail },
-                );
-              }}
+              onPlanMode={handleSetPlanMode}
+              onChangeModel={() => openPalette(PALETTE_COMMAND.model, setPaletteQuery)}
+              onAbort={handleAbort}
+              queued={queued}
+              onOpenQueue={() => setQueueOpen(true)}
             />
           </Stack>
         ) : (
-          // Landing: the same session tree as the nav, framed as a page. An
-          // empty composer over an empty transcript offered nothing to do; the
-          // one useful action here is choosing where to work.
-          <Stack className="omega-main omega-landing" gap="lg" px="md" py="xl">
+          // Landing: nothing is open, so the only useful action is choosing
+          // where to work — which the palette already does, over every
+          // workspace and every session on disk. A workspace in the URL is
+          // already half that choice, so say so and lead with its sessions
+          // rather than repeating the root page.
+          <Stack className="omega-main omega-landing" gap="lg" px="md" py="xl" align="center">
             <Stack gap={4} align="center">
               <Text fw={700} size="xl">
-                omega
+                {project ? (project.split("/").pop() ?? project) : "omega"}
               </Text>
               <Text size="sm" c="dimmed" ta="center">
-                Pick a workspace to resume a conversation, or start a new one.
+                {project
+                  ? `Resume a conversation in ${project}, or start a new one.`
+                  : "Pick a workspace to resume a conversation, or start a new one."}
               </Text>
             </Stack>
-            <Box className="omega-landing-tree">
-              <SessionTree
-                framing="page"
-                workspaces={workspaces.data ?? []}
-                loading={workspaces.isFetching}
-                activeSessionId={sessionKey}
-                activeProject={project}
-                onSelectProject={cwd => navigateTo({ project: cwd ?? undefined })}
-                onOpenSession={handleOpen}
-                onNewSession={handleNew}
-                onAddWorkspace={handleAddWorkspace}
-                onRefresh={() => void workspaces.refetch()}
-              />
-            </Box>
+            <Group gap="sm" justify="center">
+              <Button
+                size="md"
+                color="cyan"
+                leftSection={project ? <IconHistory size={18} /> : <IconFolder size={18} />}
+                onClick={() =>
+                  openPalette(project ? PALETTE_COMMAND.session : PALETTE_COMMAND.project, setPaletteQuery)
+                }
+              >
+                {project ? "Sessions here" : "Workspaces and sessions"}
+              </Button>
+              {project ? (
+                <Button
+                  size="md"
+                  variant="light"
+                  color="plum"
+                  leftSection={<IconFolder size={18} />}
+                  onClick={() => openPalette(PALETTE_COMMAND.project, setPaletteQuery)}
+                >
+                  Another workspace
+                </Button>
+              ) : null}
+            </Group>
+            <Text size="xs" c="dimmed" ta="center">
+              ⌘⇧K / Ctrl+Shift+K reopens the palette; type / there to see every command.
+            </Text>
           </Stack>
         )}
       </AppShell.Main>
+
+      <CommandPalette
+        query={paletteQuery}
+        onQueryChange={setPaletteQuery}
+        models={models.data ?? []}
+        recentModels={recentModels}
+        workspaces={workspaces.data ?? []}
+        activeProject={project}
+        sessionKey={sessionKey}
+        state={state.data}
+        branchPoints={branchPoints.data ?? []}
+        onSelectModel={handleSelectModel}
+        onSelectProject={cwd => navigateTo({ project: cwd, session: sessionKey })}
+        onOpenSession={handleOpen}
+        onNewSession={handleNew}
+        onAddWorkspace={handleAddWorkspace}
+        onCompact={handleCompact}
+        onShake={handleShake}
+        onSetThinking={handleSetThinking}
+        onRename={handleRename}
+        onRetry={handleRetry}
+        onAbort={handleAbort}
+        onTogglePlanMode={handleSetPlanMode}
+        onFork={handleFork}
+        onBranch={handleBranch}
+        onStopSession={handleStopSession}
+        onDeleteSession={handleDeleteSession}
+        onRefreshWorkspaces={() => void workspaces.refetch()}
+      />
     </AppShell>
   );
 }
