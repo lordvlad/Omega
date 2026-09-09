@@ -223,6 +223,16 @@ body {
   background: color-mix(in srgb, var(--mantine-color-dark-8) 55%, transparent);
 }
 
+/* ---- turn separators ---- */
+
+.omega-separator {
+  padding: 2px 0;
+}
+
+.omega-separator-line {
+  background: var(--omega-line);
+}
+
 /* ---- misc ---- */
 
 @keyframes omega-pulse {

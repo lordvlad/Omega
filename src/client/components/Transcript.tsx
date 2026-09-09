@@ -278,9 +278,45 @@ export interface TranscriptProps {
 
 type TranscriptItem =
   | { kind: "message"; id: string; message: TranscriptMessage; streaming: boolean }
+  | { kind: "separator"; id: string; label: string }
   | { kind: "working" }
   | { kind: "notice"; index: number; notice: string }
   | { kind: "error"; error: string };
+
+/**
+ * Format a timestamp for a turn separator.
+ *
+ * - <1 h ago  → relative ("3m ago", "just now")
+ * - today, ≥1 h → time only ("2:45 PM")
+ * - older     → date + time ("Sep 7, 3:12 PM")
+ */
+function formatTurnTime(iso: string, now: Date): string {
+  const date = new Date(iso);
+  if (!Number.isFinite(date.getTime())) return "";
+  const diffMs = now.getTime() - date.getTime();
+  // Floored, not rounded: 45 s is still "just now", not a minute that has
+  // not elapsed. A negative diff (server clock slightly ahead) reads the same.
+  const diffMin = Math.floor(diffMs / 60_000);
+
+  if (diffMin < 1) return "just now";
+  if (diffMin < 60) return `${diffMin}m ago`;
+
+  const sameDay =
+    date.getFullYear() === now.getFullYear() &&
+    date.getMonth() === now.getMonth() &&
+    date.getDate() === now.getDate();
+
+  if (sameDay) {
+    return date.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" });
+  }
+
+  return date.toLocaleDateString(undefined, {
+    month: "short",
+    day: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+  });
+}
 
 export function Transcript({ messages, liveParts, pendingUser, running, error, notices }: TranscriptProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -289,12 +325,22 @@ export function Transcript({ messages, liveParts, pendingUser, running, error, n
 
   // Flatten messages, in-flight streaming turn, notices and errors into a unified virtual list.
   const items = useMemo<TranscriptItem[]>(() => {
-    const result: TranscriptItem[] = messages.map(msg => ({
-      kind: "message",
-      id: msg.id,
-      message: msg,
-      streaming: false,
-    }));
+    const now = new Date();
+    const result: TranscriptItem[] = [];
+
+    for (const msg of messages) {
+      // Insert a separator before each message that carries a timestamp,
+      // except when the previous separator would show the same label
+      // (back-to-back messages in the same minute).
+      if (msg.timestamp) {
+        const label = formatTurnTime(msg.timestamp, now);
+        const prev = result.findLast(r => r.kind === "separator");
+        if (label && (!prev || prev.label !== label)) {
+          result.push({ kind: "separator", id: `sep-${msg.id}`, label });
+        }
+      }
+      result.push({ kind: "message", id: msg.id, message: msg, streaming: false });
+    }
 
     // Echoes sit after the persisted history and before the reply they
     // provoked, which is where the server will place them once it catches up.
@@ -340,6 +386,7 @@ export function Transcript({ messages, liveParts, pendingUser, running, error, n
       const item = items[index];
       if (!item) return index;
       if (item.kind === "message") return item.id;
+      if (item.kind === "separator") return item.id;
       if (item.kind === "notice") return `notice-${item.index}`;
       return item.kind;
     },
@@ -424,6 +471,16 @@ export function Transcript({ messages, liveParts, pendingUser, running, error, n
                     switch (item.kind) {
                       case "message":
                         return <Message message={item.message} streaming={item.streaming} />;
+                      case "separator":
+                        return (
+                          <Group gap="sm" align="center" wrap="nowrap" className="omega-separator">
+                            <Box style={{ flex: 1, height: 1 }} className="omega-separator-line" />
+                            <Text size="xs" c="dimmed" style={{ flexShrink: 0 }}>
+                              {item.label}
+                            </Text>
+                            <Box style={{ flex: 1, height: 1 }} className="omega-separator-line" />
+                          </Group>
+                        );
                       case "working":
                         return (
                           <Group gap="xs">
