@@ -1,15 +1,14 @@
 /**
- * The planning surface: table of contents on the left, plan document on the
- * right, actions along the bottom.
+ * The planning surface: table of contents, plan document, and actions.
+ *
+ * On wide screens all three sit side-by-side in a top-aligned row.
+ * On mobile the TOC is hidden and the actions move below the plan.
  *
  * The three regions are one payload from `GET /api/sessions/:key/plan`, so
  * they never disagree about which draft is under review. The actions panel
  * offers exactly the four decisions omp's own plan review offers, with the
  * same role-tier selection and the same keep-context restriction, because a
  * fifth option here would be one omp cannot carry out.
- *
- * On a phone the three regions become one column with a segmented switch: a
- * side-by-side plan document is unreadable at 390px.
  */
 import {
   ActionIcon,
@@ -22,7 +21,6 @@ import {
   NavLink,
   Paper,
   ScrollArea,
-  SegmentedControl,
   Select,
   SimpleGrid,
   Stack,
@@ -98,7 +96,6 @@ export function Planning({ plan, loading, busy, compact, onAction, onSave }: Pla
   const [tier, setTier] = useState<string | null>(null);
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState("");
-  const [pane, setPane] = useState<"toc" | "document" | "actions">("document");
   const [active, setActive] = useState<string | undefined>(undefined);
 
   const rendered = useRenderedHtml(plan?.html ?? "");
@@ -123,10 +120,14 @@ export function Planning({ plan, loading, busy, compact, onAction, onSave }: Pla
     );
   }
 
-  if (!plan?.enabled) {
+  // A written plan outlives the mode that produced it: approving one turns
+  // plan mode off, and the document is still the thing worth reading. Only an
+  // empty panel — no plan, no mode — has nothing to show.
+  if (!plan?.content && plan?.enabled !== true) {
     return (
-      <Alert variant="light" color="plum" title="Plan mode is off" m="sm">
-        Turn plan mode on to have the agent research first and propose a plan before it edits anything.
+      <Alert variant="light" color="plum" title="No plan yet" m="sm">
+        Switch the composer to Plan mode to have the agent research first and propose a plan before it edits
+        anything.
       </Alert>
     );
   }
@@ -136,7 +137,6 @@ export function Planning({ plan, loading, busy, compact, onAction, onSave }: Pla
     // The rendered document carries the same ids the server put in the
     // heading tags, so the TOC scrolls without a second parse.
     window.document.getElementById(id)?.scrollIntoView({ behavior: "smooth", block: "start" });
-    if (compact) setPane("document");
   };
 
   const toc = (
@@ -300,38 +300,29 @@ export function Planning({ plan, loading, busy, compact, onAction, onSave }: Pla
   );
 
   if (compact) {
+    // Mobile: plan above actions, no TOC.
     return (
       <Stack gap={0} h="100%">
-        <SegmentedControl
-          value={pane}
-          onChange={value => setPane(value as typeof pane)}
-          data={[
-            { value: "toc", label: "Contents" },
-            { value: "document", label: "Plan" },
-            { value: "actions", label: "Actions" },
-          ]}
-          m="xs"
-        />
-        <Box style={{ flex: 1, minHeight: 0, overflow: "auto" }}>
-          {pane === "toc" ? toc : pane === "document" ? documentPane : actions}
-        </Box>
-      </Stack>
-    );
-  }
-
-  return (
-    <Group gap={0} align="stretch" h="100%" wrap="nowrap">
-      <Paper className="omega-plan-toc" withBorder radius={0}>
-        <ScrollArea h="100%" type="auto">
-          {toc}
-        </ScrollArea>
-      </Paper>
-      <Stack gap={0} style={{ flex: 1, minWidth: 0 }}>
         <Box style={{ flex: 1, minHeight: 0 }}>{documentPane}</Box>
         <Paper className="omega-plan-actions" withBorder radius={0}>
           {actions}
         </Paper>
       </Stack>
+    );
+  }
+
+  // Wide: TOC | Plan | Actions, all top-aligned.
+  return (
+    <Group gap={0} align="flex-start" h="100%" wrap="nowrap">
+      <Paper className="omega-plan-toc" withBorder radius={0}>
+        <ScrollArea h="100%" type="auto">
+          {toc}
+        </ScrollArea>
+      </Paper>
+      <Box style={{ flex: 1, minWidth: 0, minHeight: 0, alignSelf: "stretch" }}>{documentPane}</Box>
+      <Paper className="omega-plan-actions" withBorder radius={0}>
+        {actions}
+      </Paper>
     </Group>
   );
 }

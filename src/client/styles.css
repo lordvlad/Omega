@@ -189,7 +189,7 @@ body {
 /* ---- planning ---- */
 
 .omega-plan-toc {
-  width: 220px;
+  width: 200px;
   flex: none;
   background: color-mix(in srgb, var(--omega-surface) 85%, transparent);
   border-top: 0;
@@ -198,11 +198,25 @@ body {
 }
 
 .omega-plan-actions {
+  width: 280px;
+  flex: none;
   background: var(--omega-surface);
-  border-left: 0;
-  border-right: 0;
+  border-top: 0;
   border-bottom: 0;
+  border-right: 0;
   padding-bottom: max(0px, env(safe-area-inset-bottom));
+}
+
+/* Mobile: actions below the plan, full width. */
+@media (max-width: 768px) {
+  .omega-plan-actions {
+    width: auto;
+    flex: initial;
+    border-left: 0;
+    border-right: 0;
+    border-bottom: 0;
+    border-top: 1px solid var(--omega-line);
+  }
 }
 
 .omega-plan-scroll {

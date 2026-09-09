@@ -868,7 +868,7 @@ export function App() {
         opened={planOpen}
         onClose={() => setPlanOpen(false)}
         position={narrow ? "bottom" : "right"}
-        size={narrow ? "92%" : 520}
+        size={narrow ? "92%" : "min(85%, 960px)"}
         title="Planning"
         padding={0}
       >
