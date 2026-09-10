@@ -55,6 +55,8 @@ export interface ComposerProps {
   queued: number;
   /** Open the queue panel; only reachable while something is queued. */
   onOpenQueue: () => void;
+  /** True on a phone viewport: dictation is hidden, the OS keyboard has its own. */
+  compact?: boolean;
 }
 
 export function Composer({
@@ -69,6 +71,7 @@ export function Composer({
   onAbort,
   queued,
   onOpenQueue,
+  compact = false,
 }: ComposerProps) {
   const [text, setText] = useState("");
   const [deliverAs, setDeliverAs] = useState<"steer" | "followUp">("steer");
@@ -157,11 +160,12 @@ export function Composer({
             }}
           />
 
-          <Stack gap={4} align="center" style={{ flexShrink: 0 }}>
-            {dictation.supported ? (
+          <Stack gap={6} align="center" style={{ flexShrink: 0 }}>
+            {dictation.supported && !compact ? (
               <Tooltip label={dictation.listening ? "Stop dictation" : "Dictate"} position="left">
                 <ActionIcon
-                  size="md"
+                  size="xl"
+                  radius="md"
                   variant={dictation.listening ? "filled" : "subtle"}
                   color={dictation.listening ? "cyan" : "plum"}
                   disabled={disabled}
@@ -169,36 +173,45 @@ export function Composer({
                   aria-label={dictation.listening ? "Stop dictation" : "Start dictation"}
                   className={dictation.listening ? "omega-pulse" : undefined}
                 >
-                  {dictation.listening ? <IconMicrophoneOff size={16} /> : <IconMicrophone size={16} />}
+                  {dictation.listening ? <IconMicrophoneOff size={22} /> : <IconMicrophone size={22} />}
                 </ActionIcon>
               </Tooltip>
             ) : null}
 
-            <Tooltip label={`${MODE_HINT[mode]} Ctrl+Enter sends.`} position="left" multiline w={240}>
-              <ActionIcon
-                size="md"
-                variant="filled"
-                color={mode === "plan" ? "cyan" : "plum"}
-                disabled={disabled || !text.trim()}
-                onClick={send}
-                aria-label="Send message"
-              >
-                <IconSend size={16} />
-              </ActionIcon>
-            </Tooltip>
-
-            <Tooltip label={running ? "Interrupt the assistant" : "Nothing to interrupt"} position="left">
-              <ActionIcon
-                size="md"
-                variant={running ? "filled" : "subtle"}
-                color="red"
-                disabled={!running}
-                onClick={onAbort}
-                aria-label="Interrupt the assistant"
-              >
-                <IconPlayerStopFilled size={16} />
-              </ActionIcon>
-            </Tooltip>
+            {/*
+             * One primary control, never two: while a turn is in flight the
+             * useful action is stopping it, so stop takes send's place rather
+             * than sitting beside it permanently greyed out. Ctrl+Enter still
+             * sends mid-turn, delivered as whatever the mode control says.
+             */}
+            {running ? (
+              <Tooltip label="Interrupt the assistant" position="left">
+                <ActionIcon
+                  size="xl"
+                  radius="md"
+                  variant="filled"
+                  color="red"
+                  onClick={onAbort}
+                  aria-label="Interrupt the assistant"
+                >
+                  <IconPlayerStopFilled size={22} />
+                </ActionIcon>
+              </Tooltip>
+            ) : (
+              <Tooltip label={`${MODE_HINT[mode]} Ctrl+Enter sends.`} position="left" multiline w={240}>
+                <ActionIcon
+                  size="xl"
+                  radius="md"
+                  variant="filled"
+                  color={mode === "plan" ? "cyan" : "plum"}
+                  disabled={disabled || !text.trim()}
+                  onClick={send}
+                  aria-label="Send message"
+                >
+                  <IconSend size={22} />
+                </ActionIcon>
+              </Tooltip>
+            )}
           </Stack>
         </Group>
 

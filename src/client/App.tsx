@@ -914,6 +914,7 @@ export function App() {
               running={live.running}
               error={live.error}
               notices={live.notices}
+              loading={transcript.isPending}
             />
             <Composer
               state={state.data}
@@ -927,6 +928,7 @@ export function App() {
               onAbort={handleAbort}
               queued={queued}
               onOpenQueue={() => setQueueOpen(true)}
+              compact={narrow}
             />
           </Stack>
         ) : (

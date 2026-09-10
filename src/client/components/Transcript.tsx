@@ -14,6 +14,7 @@ import {
   Box,
   Collapse,
   Group,
+  Loader,
   Paper,
   Stack,
   Text,
@@ -274,6 +275,8 @@ export interface TranscriptProps {
   running: boolean;
   error?: string;
   notices: string[];
+  /** True while the transcript for an open session is still being fetched. */
+  loading?: boolean;
 }
 
 type TranscriptItem =
@@ -318,7 +321,15 @@ function formatTurnTime(iso: string, now: Date): string {
   });
 }
 
-export function Transcript({ messages, liveParts, pendingUser, running, error, notices }: TranscriptProps) {
+export function Transcript({
+  messages,
+  liveParts,
+  pendingUser,
+  running,
+  error,
+  notices,
+  loading = false,
+}: TranscriptProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const pinned = useRef(true);
   const [atBottom, setAtBottom] = useState(true);
@@ -441,7 +452,16 @@ export function Transcript({ messages, liveParts, pendingUser, running, error, n
         onScroll={handleScroll}
         style={{ flex: 1, minHeight: 0, overflowY: "auto", overflowX: "hidden" }}
       >
-        {items.length === 0 ? (
+        {items.length === 0 && loading ? (
+          // A session in the URL always has history behind it; "no messages"
+          // would be a lie told for as long as the fetch takes.
+          <Stack align="center" justify="center" gap="sm" py="xl">
+            <Loader size="sm" color="plum" />
+            <Text c="dimmed" size="sm">
+              Loading conversation…
+            </Text>
+          </Stack>
+        ) : items.length === 0 ? (
           <Text c="dimmed" ta="center" py="xl" size="sm">
             No messages yet. Say something below.
           </Text>
