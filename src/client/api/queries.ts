@@ -2,7 +2,7 @@
 // React Query options getters and hooks for query operations. Edit the document, not this file.
 
 import { useQuery, type UseQueryOptions } from "@tanstack/react-query";
-import { defaultClient, type Client } from "./api.ts";
+import { defaultClient, type Client, type GetPlanOptions, type GetPlanResult, type GetStateOptions, type GetStateResult, type GetTranscriptOptions, type GetTranscriptResult, type ListBranchPointsOptions, type ListBranchPointsResult, type ListModelsOptions, type ListModelsResult, type ListQueueOptions, type ListQueueResult, type ListWorkspacesOptions, type ListWorkspacesResult } from "./api.ts";
 import { createMutations } from "./mutations.ts";
 
 /**
@@ -11,11 +11,11 @@ import { createMutations } from "./mutations.ts";
  * Every directory with sessions on disk, each with its sessions nested.
  */
 export function getListWorkspacesQueryOptions<
-  TData = Awaited<ReturnType<Client["listWorkspaces"]>>,
+  TData = ListWorkspacesResult,
   TError = unknown
 >(
-  options?: Parameters<Client["listWorkspaces"]>[0],
-  queryOptions?: Omit<UseQueryOptions<Awaited<ReturnType<Client["listWorkspaces"]>>, TError, TData>, "queryKey" | "queryFn">,
+  options?: ListWorkspacesOptions,
+  queryOptions?: Omit<UseQueryOptions<ListWorkspacesResult, TError, TData>, "queryKey" | "queryFn">,
   client: Client = defaultClient()
 ) {
   return {
@@ -28,11 +28,11 @@ export function getListWorkspacesQueryOptions<
 
 /** React Query hook for `listWorkspaces`. */
 export function useListWorkspaces<
-  TData = Awaited<ReturnType<Client["listWorkspaces"]>>,
+  TData = ListWorkspacesResult,
   TError = unknown
 >(
-  options?: Parameters<Client["listWorkspaces"]>[0],
-  queryOptions?: Omit<UseQueryOptions<Awaited<ReturnType<Client["listWorkspaces"]>>, TError, TData>, "queryKey" | "queryFn">,
+  options?: ListWorkspacesOptions,
+  queryOptions?: Omit<UseQueryOptions<ListWorkspacesResult, TError, TData>, "queryKey" | "queryFn">,
   client: Client = defaultClient()
 ) {
   return useQuery(getListWorkspacesQueryOptions(options!, queryOptions, client));
@@ -44,11 +44,11 @@ export function useListWorkspaces<
  * Models the local omp install is authenticated for.
  */
 export function getListModelsQueryOptions<
-  TData = Awaited<ReturnType<Client["listModels"]>>,
+  TData = ListModelsResult,
   TError = unknown
 >(
-  options?: Parameters<Client["listModels"]>[0],
-  queryOptions?: Omit<UseQueryOptions<Awaited<ReturnType<Client["listModels"]>>, TError, TData>, "queryKey" | "queryFn">,
+  options?: ListModelsOptions,
+  queryOptions?: Omit<UseQueryOptions<ListModelsResult, TError, TData>, "queryKey" | "queryFn">,
   client: Client = defaultClient()
 ) {
   return {
@@ -61,11 +61,11 @@ export function getListModelsQueryOptions<
 
 /** React Query hook for `listModels`. */
 export function useListModels<
-  TData = Awaited<ReturnType<Client["listModels"]>>,
+  TData = ListModelsResult,
   TError = unknown
 >(
-  options?: Parameters<Client["listModels"]>[0],
-  queryOptions?: Omit<UseQueryOptions<Awaited<ReturnType<Client["listModels"]>>, TError, TData>, "queryKey" | "queryFn">,
+  options?: ListModelsOptions,
+  queryOptions?: Omit<UseQueryOptions<ListModelsResult, TError, TData>, "queryKey" | "queryFn">,
   client: Client = defaultClient()
 ) {
   return useQuery(getListModelsQueryOptions(options!, queryOptions, client));
@@ -77,11 +77,11 @@ export function useListModels<
  * Current model, thinking level, streaming status and plan state.
  */
 export function getGetStateQueryOptions<
-  TData = Awaited<ReturnType<Client["getState"]>>,
+  TData = GetStateResult,
   TError = unknown
 >(
-  options: Parameters<Client["getState"]>[0],
-  queryOptions?: Omit<UseQueryOptions<Awaited<ReturnType<Client["getState"]>>, TError, TData>, "queryKey" | "queryFn">,
+  options: GetStateOptions,
+  queryOptions?: Omit<UseQueryOptions<GetStateResult, TError, TData>, "queryKey" | "queryFn">,
   client: Client = defaultClient()
 ) {
   return {
@@ -94,11 +94,11 @@ export function getGetStateQueryOptions<
 
 /** React Query hook for `getState`. */
 export function useGetState<
-  TData = Awaited<ReturnType<Client["getState"]>>,
+  TData = GetStateResult,
   TError = unknown
 >(
-  options: Parameters<Client["getState"]>[0],
-  queryOptions?: Omit<UseQueryOptions<Awaited<ReturnType<Client["getState"]>>, TError, TData>, "queryKey" | "queryFn">,
+  options: GetStateOptions,
+  queryOptions?: Omit<UseQueryOptions<GetStateResult, TError, TData>, "queryKey" | "queryFn">,
   client: Client = defaultClient()
 ) {
   return useQuery(getGetStateQueryOptions(options, queryOptions, client));
@@ -110,11 +110,11 @@ export function useGetState<
  * The session transcript, flattened into renderable parts.
  */
 export function getGetTranscriptQueryOptions<
-  TData = Awaited<ReturnType<Client["getTranscript"]>>,
+  TData = GetTranscriptResult,
   TError = unknown
 >(
-  options: Parameters<Client["getTranscript"]>[0],
-  queryOptions?: Omit<UseQueryOptions<Awaited<ReturnType<Client["getTranscript"]>>, TError, TData>, "queryKey" | "queryFn">,
+  options: GetTranscriptOptions,
+  queryOptions?: Omit<UseQueryOptions<GetTranscriptResult, TError, TData>, "queryKey" | "queryFn">,
   client: Client = defaultClient()
 ) {
   return {
@@ -127,14 +127,83 @@ export function getGetTranscriptQueryOptions<
 
 /** React Query hook for `getTranscript`. */
 export function useGetTranscript<
-  TData = Awaited<ReturnType<Client["getTranscript"]>>,
+  TData = GetTranscriptResult,
   TError = unknown
 >(
-  options: Parameters<Client["getTranscript"]>[0],
-  queryOptions?: Omit<UseQueryOptions<Awaited<ReturnType<Client["getTranscript"]>>, TError, TData>, "queryKey" | "queryFn">,
+  options: GetTranscriptOptions,
+  queryOptions?: Omit<UseQueryOptions<GetTranscriptResult, TError, TData>, "queryKey" | "queryFn">,
   client: Client = defaultClient()
 ) {
   return useQuery(getGetTranscriptQueryOptions(options, queryOptions, client));
+}
+
+/**
+ * List queued messages
+ * 
+ * The user messages waiting to be delivered, steering lane first.
+ * 
+ * Empty whenever the session is idle: a queue only exists while a turn is
+ * in flight to queue behind.
+ */
+export function getListQueueQueryOptions<
+  TData = ListQueueResult,
+  TError = unknown
+>(
+  options: ListQueueOptions,
+  queryOptions?: Omit<UseQueryOptions<ListQueueResult, TError, TData>, "queryKey" | "queryFn">,
+  client: Client = defaultClient()
+) {
+  return {
+    queryKey: ["/api/sessions/{key}/queue", options] as const,
+    queryFn: ({ signal }: { signal?: AbortSignal }) =>
+      client.listQueue(options as any, { signal }),
+    ...queryOptions,
+  };
+}
+
+/** React Query hook for `listQueue`. */
+export function useListQueue<
+  TData = ListQueueResult,
+  TError = unknown
+>(
+  options: ListQueueOptions,
+  queryOptions?: Omit<UseQueryOptions<ListQueueResult, TError, TData>, "queryKey" | "queryFn">,
+  client: Client = defaultClient()
+) {
+  return useQuery(getListQueueQueryOptions(options, queryOptions, client));
+}
+
+/**
+ * List branch points
+ * 
+ * The user messages this session can branch from, oldest first.
+ */
+export function getListBranchPointsQueryOptions<
+  TData = ListBranchPointsResult,
+  TError = unknown
+>(
+  options: ListBranchPointsOptions,
+  queryOptions?: Omit<UseQueryOptions<ListBranchPointsResult, TError, TData>, "queryKey" | "queryFn">,
+  client: Client = defaultClient()
+) {
+  return {
+    queryKey: ["/api/sessions/{key}/branch-points", options] as const,
+    queryFn: ({ signal }: { signal?: AbortSignal }) =>
+      client.listBranchPoints(options as any, { signal }),
+    ...queryOptions,
+  };
+}
+
+/** React Query hook for `listBranchPoints`. */
+export function useListBranchPoints<
+  TData = ListBranchPointsResult,
+  TError = unknown
+>(
+  options: ListBranchPointsOptions,
+  queryOptions?: Omit<UseQueryOptions<ListBranchPointsResult, TError, TData>, "queryKey" | "queryFn">,
+  client: Client = defaultClient()
+) {
+  return useQuery(getListBranchPointsQueryOptions(options, queryOptions, client));
 }
 
 /**
@@ -144,11 +213,11 @@ export function useGetTranscript<
  * planning panes in one payload.
  */
 export function getGetPlanQueryOptions<
-  TData = Awaited<ReturnType<Client["getPlan"]>>,
+  TData = GetPlanResult,
   TError = unknown
 >(
-  options: Parameters<Client["getPlan"]>[0],
-  queryOptions?: Omit<UseQueryOptions<Awaited<ReturnType<Client["getPlan"]>>, TError, TData>, "queryKey" | "queryFn">,
+  options: GetPlanOptions,
+  queryOptions?: Omit<UseQueryOptions<GetPlanResult, TError, TData>, "queryKey" | "queryFn">,
   client: Client = defaultClient()
 ) {
   return {
@@ -161,11 +230,11 @@ export function getGetPlanQueryOptions<
 
 /** React Query hook for `getPlan`. */
 export function useGetPlan<
-  TData = Awaited<ReturnType<Client["getPlan"]>>,
+  TData = GetPlanResult,
   TError = unknown
 >(
-  options: Parameters<Client["getPlan"]>[0],
-  queryOptions?: Omit<UseQueryOptions<Awaited<ReturnType<Client["getPlan"]>>, TError, TData>, "queryKey" | "queryFn">,
+  options: GetPlanOptions,
+  queryOptions?: Omit<UseQueryOptions<GetPlanResult, TError, TData>, "queryKey" | "queryFn">,
   client: Client = defaultClient()
 ) {
   return useQuery(getGetPlanQueryOptions(options, queryOptions, client));
@@ -174,45 +243,61 @@ export function useGetPlan<
 /** Factory binding all query options getters and query hooks to a custom client instance. */
 export function createQueries(client: Client = defaultClient()) {
   return {
-    getListWorkspacesQueryOptions: <TData = Awaited<ReturnType<Client["listWorkspaces"]>>, TError = unknown>(
-      options?: Parameters<Client["listWorkspaces"]>[0],
-      queryOptions?: Omit<UseQueryOptions<Awaited<ReturnType<Client["listWorkspaces"]>>, TError, TData>, "queryKey" | "queryFn">
+    getListWorkspacesQueryOptions: <TData = ListWorkspacesResult, TError = unknown>(
+      options?: ListWorkspacesOptions,
+      queryOptions?: Omit<UseQueryOptions<ListWorkspacesResult, TError, TData>, "queryKey" | "queryFn">
     ) => getListWorkspacesQueryOptions<TData, TError>(options!, queryOptions, client),
-    useListWorkspaces: <TData = Awaited<ReturnType<Client["listWorkspaces"]>>, TError = unknown>(
-      options?: Parameters<Client["listWorkspaces"]>[0],
-      queryOptions?: Omit<UseQueryOptions<Awaited<ReturnType<Client["listWorkspaces"]>>, TError, TData>, "queryKey" | "queryFn">
+    useListWorkspaces: <TData = ListWorkspacesResult, TError = unknown>(
+      options?: ListWorkspacesOptions,
+      queryOptions?: Omit<UseQueryOptions<ListWorkspacesResult, TError, TData>, "queryKey" | "queryFn">
     ) => useListWorkspaces<TData, TError>(options!, queryOptions, client),
-    getListModelsQueryOptions: <TData = Awaited<ReturnType<Client["listModels"]>>, TError = unknown>(
-      options?: Parameters<Client["listModels"]>[0],
-      queryOptions?: Omit<UseQueryOptions<Awaited<ReturnType<Client["listModels"]>>, TError, TData>, "queryKey" | "queryFn">
+    getListModelsQueryOptions: <TData = ListModelsResult, TError = unknown>(
+      options?: ListModelsOptions,
+      queryOptions?: Omit<UseQueryOptions<ListModelsResult, TError, TData>, "queryKey" | "queryFn">
     ) => getListModelsQueryOptions<TData, TError>(options!, queryOptions, client),
-    useListModels: <TData = Awaited<ReturnType<Client["listModels"]>>, TError = unknown>(
-      options?: Parameters<Client["listModels"]>[0],
-      queryOptions?: Omit<UseQueryOptions<Awaited<ReturnType<Client["listModels"]>>, TError, TData>, "queryKey" | "queryFn">
+    useListModels: <TData = ListModelsResult, TError = unknown>(
+      options?: ListModelsOptions,
+      queryOptions?: Omit<UseQueryOptions<ListModelsResult, TError, TData>, "queryKey" | "queryFn">
     ) => useListModels<TData, TError>(options!, queryOptions, client),
-    getGetStateQueryOptions: <TData = Awaited<ReturnType<Client["getState"]>>, TError = unknown>(
-      options: Parameters<Client["getState"]>[0],
-      queryOptions?: Omit<UseQueryOptions<Awaited<ReturnType<Client["getState"]>>, TError, TData>, "queryKey" | "queryFn">
+    getGetStateQueryOptions: <TData = GetStateResult, TError = unknown>(
+      options: GetStateOptions,
+      queryOptions?: Omit<UseQueryOptions<GetStateResult, TError, TData>, "queryKey" | "queryFn">
     ) => getGetStateQueryOptions<TData, TError>(options, queryOptions, client),
-    useGetState: <TData = Awaited<ReturnType<Client["getState"]>>, TError = unknown>(
-      options: Parameters<Client["getState"]>[0],
-      queryOptions?: Omit<UseQueryOptions<Awaited<ReturnType<Client["getState"]>>, TError, TData>, "queryKey" | "queryFn">
+    useGetState: <TData = GetStateResult, TError = unknown>(
+      options: GetStateOptions,
+      queryOptions?: Omit<UseQueryOptions<GetStateResult, TError, TData>, "queryKey" | "queryFn">
     ) => useGetState<TData, TError>(options, queryOptions, client),
-    getGetTranscriptQueryOptions: <TData = Awaited<ReturnType<Client["getTranscript"]>>, TError = unknown>(
-      options: Parameters<Client["getTranscript"]>[0],
-      queryOptions?: Omit<UseQueryOptions<Awaited<ReturnType<Client["getTranscript"]>>, TError, TData>, "queryKey" | "queryFn">
+    getGetTranscriptQueryOptions: <TData = GetTranscriptResult, TError = unknown>(
+      options: GetTranscriptOptions,
+      queryOptions?: Omit<UseQueryOptions<GetTranscriptResult, TError, TData>, "queryKey" | "queryFn">
     ) => getGetTranscriptQueryOptions<TData, TError>(options, queryOptions, client),
-    useGetTranscript: <TData = Awaited<ReturnType<Client["getTranscript"]>>, TError = unknown>(
-      options: Parameters<Client["getTranscript"]>[0],
-      queryOptions?: Omit<UseQueryOptions<Awaited<ReturnType<Client["getTranscript"]>>, TError, TData>, "queryKey" | "queryFn">
+    useGetTranscript: <TData = GetTranscriptResult, TError = unknown>(
+      options: GetTranscriptOptions,
+      queryOptions?: Omit<UseQueryOptions<GetTranscriptResult, TError, TData>, "queryKey" | "queryFn">
     ) => useGetTranscript<TData, TError>(options, queryOptions, client),
-    getGetPlanQueryOptions: <TData = Awaited<ReturnType<Client["getPlan"]>>, TError = unknown>(
-      options: Parameters<Client["getPlan"]>[0],
-      queryOptions?: Omit<UseQueryOptions<Awaited<ReturnType<Client["getPlan"]>>, TError, TData>, "queryKey" | "queryFn">
+    getListQueueQueryOptions: <TData = ListQueueResult, TError = unknown>(
+      options: ListQueueOptions,
+      queryOptions?: Omit<UseQueryOptions<ListQueueResult, TError, TData>, "queryKey" | "queryFn">
+    ) => getListQueueQueryOptions<TData, TError>(options, queryOptions, client),
+    useListQueue: <TData = ListQueueResult, TError = unknown>(
+      options: ListQueueOptions,
+      queryOptions?: Omit<UseQueryOptions<ListQueueResult, TError, TData>, "queryKey" | "queryFn">
+    ) => useListQueue<TData, TError>(options, queryOptions, client),
+    getListBranchPointsQueryOptions: <TData = ListBranchPointsResult, TError = unknown>(
+      options: ListBranchPointsOptions,
+      queryOptions?: Omit<UseQueryOptions<ListBranchPointsResult, TError, TData>, "queryKey" | "queryFn">
+    ) => getListBranchPointsQueryOptions<TData, TError>(options, queryOptions, client),
+    useListBranchPoints: <TData = ListBranchPointsResult, TError = unknown>(
+      options: ListBranchPointsOptions,
+      queryOptions?: Omit<UseQueryOptions<ListBranchPointsResult, TError, TData>, "queryKey" | "queryFn">
+    ) => useListBranchPoints<TData, TError>(options, queryOptions, client),
+    getGetPlanQueryOptions: <TData = GetPlanResult, TError = unknown>(
+      options: GetPlanOptions,
+      queryOptions?: Omit<UseQueryOptions<GetPlanResult, TError, TData>, "queryKey" | "queryFn">
     ) => getGetPlanQueryOptions<TData, TError>(options, queryOptions, client),
-    useGetPlan: <TData = Awaited<ReturnType<Client["getPlan"]>>, TError = unknown>(
-      options: Parameters<Client["getPlan"]>[0],
-      queryOptions?: Omit<UseQueryOptions<Awaited<ReturnType<Client["getPlan"]>>, TError, TData>, "queryKey" | "queryFn">
+    useGetPlan: <TData = GetPlanResult, TError = unknown>(
+      options: GetPlanOptions,
+      queryOptions?: Omit<UseQueryOptions<GetPlanResult, TError, TData>, "queryKey" | "queryFn">
     ) => useGetPlan<TData, TError>(options, queryOptions, client),
   };
 }

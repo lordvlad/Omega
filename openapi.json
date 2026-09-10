@@ -288,6 +288,290 @@
         }
       }
     },
+    "/api/sessions/{key}/queue": {
+      "get": {
+        "operationId": "listQueue",
+        "x-service": "OmpApi",
+        "tags": [
+          "OmpApi"
+        ],
+        "summary": "List queued messages",
+        "description": "The user messages waiting to be delivered, steering lane first.\n\nEmpty whenever the session is idle: a queue only exists while a turn is\nin flight to queue behind.",
+        "parameters": [
+          {
+            "name": "key",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/QueuedMessage"
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/sessions/{key}/queue/edit": {
+      "post": {
+        "operationId": "editQueued",
+        "x-service": "OmpApi",
+        "tags": [
+          "OmpApi"
+        ],
+        "summary": "Edit a queued message",
+        "description": "Rewrite a queued message in place, keeping its lane and position.\n\nReturns the queue as it stands afterwards, so the caller never has to\nguess what the agent drained in the meantime.",
+        "parameters": [
+          {
+            "name": "key",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/QueueEditRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/QueuedMessage"
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/sessions/{key}/queue/drop": {
+      "post": {
+        "operationId": "dropQueued",
+        "x-service": "OmpApi",
+        "tags": [
+          "OmpApi"
+        ],
+        "summary": "Drop a queued message",
+        "description": "Drop a queued message before it is delivered.",
+        "parameters": [
+          {
+            "name": "key",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/QueueDropRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/QueuedMessage"
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/sessions/{key}/stop": {
+      "post": {
+        "operationId": "stopSession",
+        "x-service": "OmpApi",
+        "tags": [
+          "OmpApi"
+        ],
+        "summary": "Stop a live session",
+        "description": "Stop and release a live agent session from memory.",
+        "parameters": [
+          {
+            "name": "key",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Ack"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/sessions/{key}": {
+      "delete": {
+        "operationId": "deleteSession",
+        "x-service": "OmpApi",
+        "tags": [
+          "OmpApi"
+        ],
+        "summary": "Delete a session from disk",
+        "description": "Delete a session file and its artifacts from disk, disposing it first if live.",
+        "parameters": [
+          {
+            "name": "key",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Ack"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/sessions/{key}/model": {
       "post": {
         "operationId": "selectModel",
@@ -339,6 +623,473 @@
             }
           },
           "404": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/sessions/{key}/compact": {
+      "post": {
+        "operationId": "compactSession",
+        "x-service": "OmpApi",
+        "tags": [
+          "OmpApi"
+        ],
+        "summary": "Compact the session context",
+        "description": "Compact the session context now, mirroring omp's `/compact`.",
+        "parameters": [
+          {
+            "name": "key",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CompactRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Ack"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/sessions/{key}/shake": {
+      "post": {
+        "operationId": "shakeSession",
+        "x-service": "OmpApi",
+        "tags": [
+          "OmpApi"
+        ],
+        "summary": "Shake heavy content out of context",
+        "description": "Drop heavy content (tool results, large blocks, or images) from context.",
+        "parameters": [
+          {
+            "name": "key",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ShakeRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Ack"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/sessions/{key}/thinking": {
+      "post": {
+        "operationId": "setThinkingLevel",
+        "x-service": "OmpApi",
+        "tags": [
+          "OmpApi"
+        ],
+        "summary": "Set the thinking level",
+        "description": "Set the session's thinking level without changing the model.",
+        "parameters": [
+          {
+            "name": "key",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ThinkingRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LiveState"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/sessions/{key}/title": {
+      "post": {
+        "operationId": "renameSession",
+        "x-service": "OmpApi",
+        "tags": [
+          "OmpApi"
+        ],
+        "summary": "Rename the session",
+        "description": "Rename the session, as omp's `/rename` does.",
+        "parameters": [
+          {
+            "name": "key",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RenameRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LiveState"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/sessions/{key}/retry": {
+      "post": {
+        "operationId": "retryTurn",
+        "x-service": "OmpApi",
+        "tags": [
+          "OmpApi"
+        ],
+        "summary": "Retry the last failed turn",
+        "description": "Re-run the last failed or aborted turn. The retried turn streams over the\nsession's WebSocket, so this returns as soon as it is scheduled.",
+        "parameters": [
+          {
+            "name": "key",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Ack"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/sessions/{key}/fork": {
+      "post": {
+        "operationId": "forkSession",
+        "x-service": "OmpApi",
+        "tags": [
+          "OmpApi"
+        ],
+        "summary": "Fork the session",
+        "description": "Copy this session, transcript and artifacts included, into a new one and\ncontinue in the copy. The original file stays on disk untouched.",
+        "parameters": [
+          {
+            "name": "key",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LiveState"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/sessions/{key}/branch-points": {
+      "get": {
+        "operationId": "listBranchPoints",
+        "x-service": "OmpApi",
+        "tags": [
+          "OmpApi"
+        ],
+        "summary": "List branch points",
+        "description": "The user messages this session can branch from, oldest first.",
+        "parameters": [
+          {
+            "name": "key",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/BranchPoint"
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/sessions/{key}/branch": {
+      "post": {
+        "operationId": "branchSession",
+        "x-service": "OmpApi",
+        "tags": [
+          "OmpApi"
+        ],
+        "summary": "Branch from an earlier message",
+        "description": "Restart the conversation from an earlier user message: omp writes a new\nsession containing everything up to that message's parent and continues\nthere, returning the message text so the composer can be pre-filled.",
+        "parameters": [
+          {
+            "name": "key",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BranchRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BranchResult"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "409": {
             "description": "Successful response",
             "content": {
               "application/json": {
@@ -1108,10 +1859,39 @@
               }
             ],
             "description": "How to deliver while a turn is already streaming. `steer` interrupts,\n`followUp` queues for after the turn. Ignored when the session is idle."
+          },
+          "attachments": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Attachment"
+            },
+            "description": "Files sent with this message."
           }
         },
         "required": [
           "message"
+        ]
+      },
+      "Attachment": {
+        "description": "A file sent along with a message.\n\nomp takes images as a first-class attachment, so those reach the model as\nimages. It has no channel for anything else, so a text file is inlined into\nthe message instead, and a binary one is refused rather than turned into a\nwall of base64 nobody can read.",
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "mimeType": {
+            "type": "string",
+            "description": "IANA type as the browser reported it, e.g. `image/png`, `text/plain`."
+          },
+          "data": {
+            "type": "string",
+            "description": "File bytes, base64, without a `data:` prefix."
+          }
+        },
+        "required": [
+          "name",
+          "mimeType",
+          "data"
         ]
       },
       "Ack": {
@@ -1132,6 +1912,82 @@
         },
         "required": [
           "ok"
+        ]
+      },
+      "QueuedMessage": {
+        "description": "A user message waiting its turn.",
+        "type": "object",
+        "properties": {
+          "lane": {
+            "$ref": "#/components/schemas/QueueLane"
+          },
+          "index": {
+            "type": "number",
+            "description": "Position among the user messages of its lane, oldest first."
+          },
+          "text": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "lane",
+          "index",
+          "text"
+        ]
+      },
+      "QueueLane": {
+        "description": "Which queue a message waits in.\n\n`steer` messages interrupt the turn at its next step; `followUp` messages\nwait for it to finish. omp keeps them as two ordered lanes, and a message\ncannot move between them without being re-sent.",
+        "anyOf": [
+          {
+            "const": "steer"
+          },
+          {
+            "const": "followUp"
+          }
+        ]
+      },
+      "QueueEditRequest": {
+        "description": "Rewrite one queued message.\n\n`expected` is the text the client last saw at this position. The agent\ndrains the queue on its own schedule, so a position alone is not a safe\nhandle: if the text no longer matches, the queue moved and the edit is\nrefused rather than applied to whatever slid into the slot.",
+        "type": "object",
+        "properties": {
+          "lane": {
+            "$ref": "#/components/schemas/QueueLane"
+          },
+          "index": {
+            "type": "number"
+          },
+          "expected": {
+            "type": "string"
+          },
+          "text": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "lane",
+          "index",
+          "expected",
+          "text"
+        ]
+      },
+      "QueueDropRequest": {
+        "description": "Drop one queued message before it is ever delivered.",
+        "type": "object",
+        "properties": {
+          "lane": {
+            "$ref": "#/components/schemas/QueueLane"
+          },
+          "index": {
+            "type": "number"
+          },
+          "expected": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "lane",
+          "index",
+          "expected"
         ]
       },
       "SelectModelRequest": {
@@ -1170,6 +2026,124 @@
         },
         "required": [
           "ref"
+        ]
+      },
+      "CompactRequest": {
+        "description": "A manual context compaction.",
+        "type": "object",
+        "properties": {
+          "mode": {
+            "anyOf": [
+              {
+                "const": "soft"
+              },
+              {
+                "const": "remote"
+              },
+              {
+                "const": "snapcompact"
+              }
+            ],
+            "description": "Omitted uses the session's configured method order."
+          },
+          "focus": {
+            "type": "string",
+            "description": "Free-text focus for the summary. Rejected with `snapcompact`, which writes no summary."
+          }
+        }
+      },
+      "ShakeRequest": {
+        "description": "A context shake.",
+        "type": "object",
+        "properties": {
+          "mode": {
+            "$ref": "#/components/schemas/ShakeMode"
+          }
+        },
+        "required": [
+          "mode"
+        ]
+      },
+      "ShakeMode": {
+        "description": "Which heavy content to drop from context.",
+        "anyOf": [
+          {
+            "const": "elide"
+          },
+          {
+            "const": "images"
+          }
+        ]
+      },
+      "ThinkingRequest": {
+        "description": "Thinking level for the live session.",
+        "type": "object",
+        "properties": {
+          "level": {
+            "$ref": "#/components/schemas/ThinkingLevel"
+          }
+        },
+        "required": [
+          "level"
+        ]
+      },
+      "RenameRequest": {
+        "description": "A new display name for the session.",
+        "type": "object",
+        "properties": {
+          "title": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "title"
+        ]
+      },
+      "BranchPoint": {
+        "description": "A user message a branch can start from.",
+        "type": "object",
+        "properties": {
+          "entryId": {
+            "type": "string",
+            "description": "omp entry id of the user message."
+          },
+          "text": {
+            "type": "string",
+            "description": "Message preview, truncated for the picker."
+          }
+        },
+        "required": [
+          "entryId",
+          "text"
+        ]
+      },
+      "BranchRequest": {
+        "description": "Which message to branch from.",
+        "type": "object",
+        "properties": {
+          "entryId": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "entryId"
+        ]
+      },
+      "BranchResult": {
+        "description": "A branch: the re-keyed session plus the message text to re-edit.",
+        "type": "object",
+        "properties": {
+          "state": {
+            "$ref": "#/components/schemas/LiveState"
+          },
+          "draft": {
+            "type": "string",
+            "description": "Full text of the message branched from, for pre-filling the composer."
+          }
+        },
+        "required": [
+          "state",
+          "draft"
         ]
       },
       "PlanDocument": {

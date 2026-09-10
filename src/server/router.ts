@@ -1,7 +1,13 @@
 import type { ThinkingLevel as OmpThinkingLevel } from "@oh-my-pi/pi-agent-core";
+import type { ImageContent } from "@oh-my-pi/pi-ai";
 
 import type {
   Ack,
+  Attachment,
+  BranchPoint,
+  BranchRequest,
+  BranchResult,
+  CompactRequest,
   LiveState,
   MarkdownRequest,
   ModelOption,
@@ -11,8 +17,14 @@ import type {
   PlanEditRequest,
   PlanModeRequest,
   PromptRequest,
+  QueueDropRequest,
+  QueueEditRequest,
+  QueuedMessage,
+  RenameRequest,
   RenderedMarkdown,
   SelectModelRequest,
+  ShakeRequest,
+  ThinkingRequest,
   Transcript,
   Workspace,
 } from "../shared/model.ts";
@@ -25,6 +37,7 @@ import type {
  */
 import type { OmpApi } from "../shared/service.ts";
 import { planDocument, resolvePlan, writePlan } from "./plan.ts";
+import { dropQueued, editQueued, listQueue } from "./queue.ts";
 import { type LiveSession, registry } from "./registry.ts";
 import { flattenMessages } from "./transcript.ts";
 import { listWorkspaces } from "./workspaces.ts";
@@ -41,6 +54,89 @@ export class HttpError extends Error {
 
 /** The default plan file a session uses until the agent names its own. */
 const DEFAULT_PLAN_FILE = "local:" + "//PLAN.md";
+
+/**
+ * Largest text attachment that will be inlined, in decoded bytes.
+ *
+ * Inlining spends context that the conversation then carries for the rest of
+ * its life, so a whole logfile is refused rather than quietly truncated: a
+ * half a log is worse than a clear refusal, because nobody can see where it
+ * was cut.
+ */
+const MAX_INLINE_TEXT_BYTES = 256 * 1024;
+
+/** Types omp can hand to a model as an image. */
+const IMAGE_TYPES = new Set(["image/png", "image/jpeg", "image/gif", "image/webp"]);
+
+/** True for types whose bytes are meaningfully readable as text. */
+function isTextual(mimeType: string, name: string): boolean {
+  if (mimeType.startsWith("text/")) return true;
+  if (/^application\/(json|xml|x-yaml|yaml|javascript|typescript|sql|toml)$/.test(mimeType)) return true;
+  if (mimeType === "application/octet-stream" || mimeType === "") {
+    // Browsers report an empty or generic type for plenty of ordinary source
+    // files, so fall back to the extension rather than refusing a .ts file.
+    return /\.(txt|md|markdown|json|jsonl|ya?ml|toml|ini|cfg|conf|csv|tsv|log|diff|patch|ts|tsx|js|jsx|mjs|cjs|py|rb|go|rs|java|kt|c|h|cc|cpp|hpp|cs|sh|bash|zsh|sql|html|css|scss|xml|svg)$/i.test(
+      name,
+    );
+  }
+  return false;
+}
+
+/**
+ * Fold attachments into what omp can actually accept.
+ *
+ * Images become native attachments, so the model sees the pixels. Everything
+ * textual is appended to the message in a fenced block labelled with its
+ * filename, because omp has no second channel for it and a path would only
+ * work for files that already exist in the workspace. Anything else is a
+ * `400`: base64 in the prompt would burn context and tell the model nothing.
+ */
+function composeAttachments(
+  message: string,
+  attachments: Attachment[] | undefined,
+): { text: string; images: ImageContent[] | undefined } {
+  if (!attachments?.length) return { text: message, images: undefined };
+
+  const images: ImageContent[] = [];
+  const blocks: string[] = [];
+
+  for (const file of attachments) {
+    const type = file.mimeType.toLowerCase();
+    if (IMAGE_TYPES.has(type)) {
+      images.push({ type: "image", data: file.data, mimeType: type });
+      continue;
+    }
+    if (!isTextual(type, file.name)) {
+      throw new HttpError(
+        415,
+        `${file.name}: omega can attach images and text files. ${file.mimeType || "This type"} is neither.`,
+      );
+    }
+
+    const bytes = Buffer.from(file.data, "base64");
+    if (bytes.byteLength > MAX_INLINE_TEXT_BYTES) {
+      throw new HttpError(
+        413,
+        `${file.name} is ${Math.round(bytes.byteLength / 1024)} KB. Text attachments are inlined into the message, so they are capped at ${MAX_INLINE_TEXT_BYTES / 1024} KB.`,
+      );
+    }
+
+    // A fence long enough that fences inside the file cannot end the block.
+    const content = bytes.toString("utf8");
+    const fence = "`".repeat(Math.max(3, longestBacktickRun(content) + 1));
+    blocks.push(`${fence} ${file.name}\n${content}\n${fence}`);
+  }
+
+  const text = blocks.length > 0 ? `${message}\n\n${blocks.join("\n\n")}` : message;
+  return { text, images: images.length > 0 ? images : undefined };
+}
+
+/** Length of the longest run of backticks, so a fence can outgrow it. */
+function longestBacktickRun(text: string): number {
+  let longest = 0;
+  for (const run of text.match(/`+/g) ?? []) longest = Math.max(longest, run.length);
+  return longest;
+}
 
 export class Handlers implements OmpApi {
   listWorkspaces(): Promise<Workspace[]> {
@@ -74,7 +170,7 @@ export class Handlers implements OmpApi {
 
   async prompt(key: string, body: PromptRequest): Promise<Ack> {
     const live = this.#require(key);
-    const message = body.message.trim();
+    const { text: message, images } = composeAttachments(body.message.trim(), body.attachments);
     if (!message) throw new HttpError(400, "Message is empty.");
     // A user message is activity even if the agent never replies, so the idle
     // clock restarts here rather than only on agent events.
@@ -85,14 +181,14 @@ export class Handlers implements OmpApi {
     // typing into a live chat means.
     if (live.session.isStreaming) {
       const deliverAs = body.deliverAs ?? "steer";
-      if (deliverAs === "followUp") await live.session.followUp(message);
-      else await live.session.steer(message);
+      if (deliverAs === "followUp") await live.session.followUp(message, images);
+      else await live.session.steer(message, images);
       return { ok: true, detail: `Queued as ${deliverAs}.` };
     }
 
     // Fire-and-forget: `prompt` resolves only when the whole turn ends, and
     // the turn is streamed over the WebSocket instead.
-    void live.session.prompt(message).catch(error => {
+    void live.session.prompt(message, images ? { images } : undefined).catch(error => {
       live.emitCustom({
         type: "RUN_ERROR",
         message: error instanceof Error ? error.message : String(error),
@@ -101,11 +197,40 @@ export class Handlers implements OmpApi {
     return { ok: true, detail: "Turn started." };
   }
 
+  listQueue(key: string): Promise<QueuedMessage[]> {
+    return Promise.resolve(listQueue(this.#require(key)));
+  }
+
+  editQueued(key: string, body: QueueEditRequest): Promise<QueuedMessage[]> {
+    return Promise.resolve(editQueued(this.#require(key), body));
+  }
+
+  dropQueued(key: string, body: QueueDropRequest): Promise<QueuedMessage[]> {
+    return Promise.resolve(dropQueued(this.#require(key), body));
+  }
+
   async abort(key: string): Promise<Ack> {
     const live = this.#require(key);
     if (!live.session.isStreaming) return { ok: true, detail: "Nothing to abort." };
     await live.session.abort({ reason: "user interrupt" });
     return { ok: true, detail: "Turn aborted." };
+  }
+
+  async stopSession(key: string): Promise<Ack> {
+    const stopped = await registry.stop(key);
+    return {
+      ok: true,
+      detail: stopped ? "Session stopped and released from memory." : "Session was not running.",
+    };
+  }
+
+  async deleteSession(key: string): Promise<Ack> {
+    try {
+      await registry.delete(key);
+      return { ok: true, detail: "Session and artifacts deleted from disk." };
+    } catch (error) {
+      throw new HttpError(404, error instanceof Error ? error.message : String(error));
+    }
   }
 
   async selectModel(key: string, body: SelectModelRequest): Promise<LiveState> {
@@ -119,6 +244,110 @@ export class Handlers implements OmpApi {
       throw new HttpError(400, error instanceof Error ? error.message : String(error));
     }
     return live.state();
+  }
+
+  async compactSession(key: string, body: CompactRequest): Promise<Ack> {
+    const live = this.#require(key);
+    if (live.session.isStreaming) throw new HttpError(409, "Cannot compact while a turn is running.");
+    const focus = body.focus?.trim();
+    if (body.mode === "snapcompact" && focus) {
+      throw new HttpError(400, "snapcompact writes no summary, so it takes no focus text.");
+    }
+    live.touch();
+    const before = live.session.getContextUsage()?.tokens;
+    try {
+      await live.session.compact(focus || undefined, body.mode ? { mode: body.mode } : undefined);
+    } catch (error) {
+      throw new HttpError(400, error instanceof Error ? error.message : String(error));
+    }
+    const after = live.session.getContextUsage()?.tokens;
+    return {
+      ok: true,
+      detail:
+        before != null && after != null
+          ? `Compacted: ${before.toLocaleString()} → ${after.toLocaleString()} tokens.`
+          : "Compaction complete.",
+    };
+  }
+
+  async shakeSession(key: string, body: ShakeRequest): Promise<Ack> {
+    const live = this.#require(key);
+    if (live.session.isStreaming) throw new HttpError(409, "Cannot shake context while a turn is running.");
+    live.touch();
+    const result = await live.session.shake(body.mode);
+    const dropped = [
+      result.toolResultsDropped ? `${result.toolResultsDropped} tool results` : "",
+      result.blocksDropped ? `${result.blocksDropped} blocks` : "",
+      result.imagesDropped ? `${result.imagesDropped} images` : "",
+    ].filter(part => part.length > 0);
+    return {
+      ok: true,
+      detail: dropped.length
+        ? `Dropped ${dropped.join(", ")}; freed ~${result.tokensFreed.toLocaleString()} tokens.`
+        : "Nothing heavy left to drop.",
+    };
+  }
+
+  async setThinkingLevel(key: string, body: ThinkingRequest): Promise<LiveState> {
+    const live = this.#require(key);
+    live.session.setThinkingLevel(body.level as OmpThinkingLevel);
+    return live.state();
+  }
+
+  async renameSession(key: string, body: RenameRequest): Promise<LiveState> {
+    const live = this.#require(key);
+    const title = body.title.trim();
+    if (!title) throw new HttpError(400, "Title is empty.");
+    // `source: "user"` is what omp's own `/rename` passes; an auto title never
+    // overwrites a user-set one afterwards.
+    const renamed = await live.manager.setSessionName(title, "user");
+    if (!renamed) throw new HttpError(400, "Session name was not changed.");
+    return live.state();
+  }
+
+  async retryTurn(key: string): Promise<Ack> {
+    const live = this.#require(key);
+    live.touch();
+    const started = await live.session.retry();
+    return {
+      ok: started,
+      detail: started ? "Retrying the last failed turn." : "Nothing to retry.",
+    };
+  }
+
+  async forkSession(key: string): Promise<LiveState> {
+    const live = this.#require(key);
+    if (live.session.isStreaming) throw new HttpError(409, "Cannot fork while a turn is running.");
+    live.touch();
+    const forked = await live.session.fork();
+    // `fork()` returns false when an extension's `session_before_switch`
+    // handler cancels, or when the session does not persist to a file.
+    if (!forked) throw new HttpError(409, "Fork was cancelled.");
+    return registry.rekey(key).state();
+  }
+
+  async listBranchPoints(key: string): Promise<BranchPoint[]> {
+    const live = this.#require(key);
+    return live.session.getUserMessagesForBranching().map(point => ({
+      entryId: point.entryId,
+      text: point.text.replace(/\s+/gu, " ").trim().slice(0, 160),
+    }));
+  }
+
+  async branchSession(key: string, body: BranchRequest): Promise<BranchResult> {
+    const live = this.#require(key);
+    if (live.session.isStreaming) throw new HttpError(409, "Cannot branch while a turn is running.");
+    live.touch();
+    let branched: { selectedText: string; cancelled: boolean };
+    try {
+      // omp throws "Invalid entry ID for branching" for any entry that is not
+      // a user message, including an id from an already-branched transcript.
+      branched = await live.session.branch(body.entryId);
+    } catch (error) {
+      throw new HttpError(400, error instanceof Error ? error.message : String(error));
+    }
+    if (branched.cancelled) throw new HttpError(409, "Branch was cancelled.");
+    return { state: registry.rekey(key).state(), draft: branched.selectedText };
   }
 
   getPlan(key: string): Promise<PlanDocument> {

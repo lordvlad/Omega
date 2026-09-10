@@ -134,6 +134,21 @@ export interface MessagePart {
 export interface PromptRequest {
   message: string;
   deliverAs?: "steer" | "followUp";
+  attachments?: Attachment[];
+}
+
+/**
+ * A file sent along with a message.
+ * 
+ * omp takes images as a first-class attachment, so those reach the model as
+ * images. It has no channel for anything else, so a text file is inlined into
+ * the message instead, and a binary one is refused rather than turned into a
+ * wall of base64 nobody can read.
+ */
+export interface Attachment {
+  name: string;
+  mimeType: string;
+  data: string;
 }
 
 /** An operation that reports only success. */
@@ -143,10 +158,89 @@ export interface Ack {
   sessionKey?: string;
 }
 
+/** A user message waiting its turn. */
+export interface QueuedMessage {
+  lane: QueueLane;
+  index: number;
+  text: string;
+}
+
+/**
+ * Which queue a message waits in.
+ * 
+ * `steer` messages interrupt the turn at its next step; `followUp` messages
+ * wait for it to finish. omp keeps them as two ordered lanes, and a message
+ * cannot move between them without being re-sent.
+ */
+export type QueueLane = "steer" | "followUp";
+
+/**
+ * Rewrite one queued message.
+ * 
+ * `expected` is the text the client last saw at this position. The agent
+ * drains the queue on its own schedule, so a position alone is not a safe
+ * handle: if the text no longer matches, the queue moved and the edit is
+ * refused rather than applied to whatever slid into the slot.
+ */
+export interface QueueEditRequest {
+  lane: QueueLane;
+  index: number;
+  expected: string;
+  text: string;
+}
+
+/** Drop one queued message before it is ever delivered. */
+export interface QueueDropRequest {
+  lane: QueueLane;
+  index: number;
+  expected: string;
+}
+
 /** Model to switch the live session to. */
 export interface SelectModelRequest {
   ref: string;
   thinkingLevel?: "off" | "minimal" | "low" | "medium" | "high" | "xhigh" | "max";
+}
+
+/** A manual context compaction. */
+export interface CompactRequest {
+  mode?: "soft" | "remote" | "snapcompact";
+  focus?: string;
+}
+
+/** A context shake. */
+export interface ShakeRequest {
+  mode: ShakeMode;
+}
+
+/** Which heavy content to drop from context. */
+export type ShakeMode = "elide" | "images";
+
+/** Thinking level for the live session. */
+export interface ThinkingRequest {
+  level: ThinkingLevel;
+}
+
+/** A new display name for the session. */
+export interface RenameRequest {
+  title: string;
+}
+
+/** A user message a branch can start from. */
+export interface BranchPoint {
+  entryId: string;
+  text: string;
+}
+
+/** Which message to branch from. */
+export interface BranchRequest {
+  entryId: string;
+}
+
+/** A branch: the re-keyed session plus the message text to re-edit. */
+export interface BranchResult {
+  state: LiveState;
+  draft: string;
 }
 
 /** The plan document plus everything the three planning panes render. */

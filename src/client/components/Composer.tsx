@@ -14,6 +14,7 @@ import {
   ActionIcon,
   Group,
   Paper,
+  Pill,
   SegmentedControl,
   Stack,
   Text,
@@ -25,17 +26,60 @@ import {
   IconCpu,
   IconMicrophone,
   IconMicrophoneOff,
+  IconPaperclip,
   IconPlayerStopFilled,
   IconSend,
   IconStack2,
 } from "@tabler/icons-react";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
-import type { LiveState } from "../api/model.ts";
+import type { Attachment, LiveState } from "../api/model.ts";
 import { useDictation } from "../lib/speech.ts";
 
 /** How the next message is delivered, and what the agent is allowed to do with it. */
 type PromptMode = "send" | "plan" | "steer" | "followUp";
+
+/**
+ * Largest single file that will be sent.
+ *
+ * The whole attachment travels as base64 inside the JSON prompt body, so this
+ * is a ceiling on request size as much as on file size. Well above a phone
+ * screenshot and well below anything that would stall a LAN request.
+ */
+const MAX_ATTACHMENT_BYTES = 8 * 1024 * 1024;
+
+/** A picked file, held until the message it belongs to is sent. */
+interface Attached {
+  /** Name, size and mtime: enough to notice the same file picked twice. */
+  id: string;
+  file: File;
+}
+
+function formatSize(bytes: number): string {
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${Math.round(bytes / 1024)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+/** Read one file as base64, without the `data:` prefix the server does not want. */
+function encode(file: File): Promise<Attachment> {
+  const { promise, resolve, reject } = Promise.withResolvers<Attachment>();
+  const reader = new FileReader();
+  reader.onerror = () => reject(new Error(`Could not read ${file.name}.`));
+  reader.onload = () => {
+    const result = String(reader.result);
+    const comma = result.indexOf(",");
+    resolve({
+      name: file.name,
+      // Browsers leave this empty for extensions they do not know; the
+      // server falls back to the filename, so send it as-is.
+      mimeType: file.type,
+      data: comma >= 0 ? result.slice(comma + 1) : result,
+    });
+  };
+  reader.readAsDataURL(file);
+  return promise;
+}
 
 export interface ComposerProps {
   state: LiveState | undefined;
@@ -46,7 +90,11 @@ export interface ComposerProps {
   planEnabled: boolean;
   /** True while the plan-mode round trip is in flight. */
   planPending?: boolean;
-  onSend: (message: string, deliverAs: "steer" | "followUp" | undefined) => void;
+  onSend: (
+    message: string,
+    deliverAs: "steer" | "followUp" | undefined,
+    attachments: Attachment[] | undefined,
+  ) => void;
   onPlanMode: (enabled: boolean) => void;
   /** Open the model picker; the model is named here rather than in the header. */
   onChangeModel: () => void;
@@ -82,6 +130,9 @@ export function Composer({
 }: ComposerProps) {
   const [text, setText] = useState("");
   const [deliverAs, setDeliverAs] = useState<"steer" | "followUp">("steer");
+  const [files, setFiles] = useState<Attached[]>([]);
+  const [readError, setReadError] = useState<string | undefined>(undefined);
+  const picker = useRef<HTMLInputElement>(null);
 
   // A branch hands back the message it branched from; loading it into the
   // input is the point of branching. Keyed on object identity so the same
@@ -97,15 +148,49 @@ export function Composer({
   }, []);
   const dictation = useDictation(onDictationCommit);
 
+  /** Read the picked files into memory, refusing the ones too big to send. */
+  const attach = async (picked: FileList | null): Promise<void> => {
+    if (!picked?.length) return;
+    const accepted: Attached[] = [];
+    const refused: string[] = [];
+    for (const file of picked) {
+      if (file.size > MAX_ATTACHMENT_BYTES) {
+        refused.push(`${file.name} (${formatSize(file.size)})`);
+        continue;
+      }
+      accepted.push({ id: `${file.name}:${file.size}:${file.lastModified}`, file });
+    }
+    setReadError(
+      refused.length > 0
+        ? `Too large to attach, ${formatSize(MAX_ATTACHMENT_BYTES)} max: ${refused.join(", ")}`
+        : undefined,
+    );
+    // Same file picked twice is one attachment, not two.
+    setFiles(current => {
+      const seen = new Set(current.map(entry => entry.id));
+      return [...current, ...accepted.filter(entry => !seen.has(entry.id))];
+    });
+  };
+
   const send = (): void => {
     const message = text.trim();
     if (!message || !state) return;
     // Clearing the input is what makes this unsafe offline: the request would
     // fail and take the message with it. Ctrl+Enter lands here too.
     if (offline) return;
-    onSend(message, running ? deliverAs : undefined);
-    setText("");
-    if (dictation.listening) dictation.stop();
+    // Encoding is async, so the input is not cleared until the bytes are in
+    // hand — a read that fails must not take the message with it either.
+    void Promise.all(files.map(entry => encode(entry.file)))
+      .then(attachments => {
+        onSend(message, running ? deliverAs : undefined, attachments.length > 0 ? attachments : undefined);
+        setText("");
+        setFiles([]);
+        setReadError(undefined);
+        if (dictation.listening) dictation.stop();
+      })
+      .catch((error: unknown) => {
+        setReadError(error instanceof Error ? error.message : "Could not read the attached files.");
+      });
   };
 
   const disabled = state === undefined;
@@ -171,6 +256,32 @@ export function Composer({
           />
 
           <Stack gap={6} align="center" style={{ flexShrink: 0 }}>
+            <input
+              ref={picker}
+              type="file"
+              multiple
+              hidden
+              onChange={event => {
+                void attach(event.currentTarget.files);
+                // Reset, so picking the same file after removing its pill
+                // still fires a change event.
+                event.currentTarget.value = "";
+              }}
+            />
+            <Tooltip label="Attach files" position="left">
+              <ActionIcon
+                size="xl"
+                radius="md"
+                variant="subtle"
+                color="plum"
+                disabled={disabled}
+                onClick={() => picker.current?.click()}
+                aria-label="Attach files"
+              >
+                <IconPaperclip size={22} />
+              </ActionIcon>
+            </Tooltip>
+
             {dictation.supported && !compact ? (
               <Tooltip label={dictation.listening ? "Stop dictation" : "Dictate"} position="left">
                 <ActionIcon
@@ -237,6 +348,24 @@ export function Composer({
           </Stack>
         </Group>
 
+        {files.length > 0 ? (
+          <Group gap={6} wrap="wrap">
+            {files.map(entry => (
+              <Pill
+                key={entry.id}
+                withRemoveButton
+                onRemove={() => setFiles(current => current.filter(other => other.id !== entry.id))}
+                size="md"
+              >
+                {entry.file.name}
+                <Text span size="xs" c="dimmed" ml={6}>
+                  {formatSize(entry.file.size)}
+                </Text>
+              </Pill>
+            ))}
+          </Group>
+        ) : null}
+
         <Group gap={8} wrap="wrap" justify="space-between">
           <Group gap={8} wrap="nowrap">
             <Tooltip label={MODE_HINT[mode]} multiline w={240} position="top-start">
@@ -293,6 +422,12 @@ export function Composer({
         {dictation.error ? (
           <Text size="xs" c="red.4">
             {dictation.error}
+          </Text>
+        ) : null}
+
+        {readError ? (
+          <Text size="xs" c="red.4">
+            {readError}
           </Text>
         ) : null}
       </Stack>

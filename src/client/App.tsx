@@ -33,6 +33,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 
 import { ApiError } from "./api/api.ts";
 import type {
+  Attachment,
   BranchPoint,
   PlanAction,
   Problem,
@@ -389,15 +390,16 @@ export function App() {
   useEffect(() => {
     const persisted = transcript.data?.messages;
     if (!persisted) return;
-    const sent = new Set(
-      persisted
-        .filter(message => message.role === "user")
-        .map(message => message.parts.map(part => part.text).join("\n")),
-    );
-    if (sent.size === 0) return;
-    setPendingUser(current =>
-      current.some(text => sent.has(text)) ? current.filter(text => !sent.has(text)) : current,
-    );
+    const sent = persisted
+      .filter(message => message.role === "user")
+      .map(message => message.parts.map(part => part.text).join("\n"));
+    if (sent.length === 0) return;
+    // Prefix, not equality: a message sent with attachments comes back with
+    // the inlined files or an `[image]` marker appended, so the persisted copy
+    // is longer than the echo. Requiring an exact match strands the echo and
+    // the message renders twice, for good.
+    const delivered = (echo: string): boolean => sent.some(text => text.startsWith(echo));
+    setPendingUser(current => (current.some(delivered) ? current.filter(text => !delivered(text)) : current));
   }, [transcript.data]);
 
   // Echoes belong to the conversation they were typed into.
@@ -727,12 +729,16 @@ export function App() {
    * emits `RUN_ERROR` rather than `agent_end`. Without the echo the message a
    * user just typed could stay invisible indefinitely.
    */
-  const handleSend = (message: string, deliverAs: "steer" | "followUp" | undefined): void => {
+  const handleSend = (
+    message: string,
+    deliverAs: "steer" | "followUp" | undefined,
+    attachments: Attachment[] | undefined,
+  ): void => {
     if (!sessionKey) return;
     if (live.status !== "open") live.reconnect();
     setPendingUser(current => [...current, message]);
     prompt.mutate(
-      { path: { key: sessionKey }, body: { message, deliverAs } },
+      { path: { key: sessionKey }, body: { message, deliverAs, attachments } },
       {
         // Pull the persisted copy in immediately rather than waiting for the
         // turn to settle.

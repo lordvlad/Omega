@@ -2,7 +2,7 @@
 // React Query options getters and hooks for mutation operations. Edit the document, not this file.
 
 import { useMutation, type UseMutationOptions } from "@tanstack/react-query";
-import { defaultClient, type Client } from "./api.ts";
+import { defaultClient, type Client, type AbortOptions, type AbortResult, type BranchSessionOptions, type BranchSessionResult, type CompactSessionOptions, type CompactSessionResult, type DeleteSessionOptions, type DeleteSessionResult, type DropQueuedOptions, type DropQueuedResult, type EditPlanOptions, type EditPlanResult, type EditQueuedOptions, type EditQueuedResult, type ForkSessionOptions, type ForkSessionResult, type OpenSessionOptions, type OpenSessionResult, type PromptOptions, type PromptResult, type RenameSessionOptions, type RenameSessionResult, type RenderMarkdownOptions, type RenderMarkdownResult, type ResolvePlanOptions, type ResolvePlanResult, type RetryTurnOptions, type RetryTurnResult, type SelectModelOptions, type SelectModelResult, type SetPlanModeOptions, type SetPlanModeResult, type SetThinkingLevelOptions, type SetThinkingLevelResult, type ShakeSessionOptions, type ShakeSessionResult, type StopSessionOptions, type StopSessionResult } from "./api.ts";
 
 /**
  * Open or create a live session
@@ -13,29 +13,27 @@ import { defaultClient, type Client } from "./api.ts";
  * returned rather than a second one being created for the same file.
  */
 export function getOpenSessionMutationOptions<
-  TData = Awaited<ReturnType<Client["openSession"]>>,
   TError = unknown
 >(
-  mutationOptions?: Omit<UseMutationOptions<TData, TError, Parameters<Client["openSession"]>[0]>, "mutationFn">,
+  mutationOptions?: Omit<UseMutationOptions<OpenSessionResult, TError, OpenSessionOptions>, "mutationFn">,
   client: Client = defaultClient()
 ) {
   return {
     mutationKey: ["/api/sessions", "POST"] as const,
-    mutationFn: (options: Parameters<Client["openSession"]>[0]) =>
-      client.openSession(options as any) as unknown as Promise<TData>,
+    mutationFn: (options: OpenSessionOptions) =>
+      client.openSession(options as any),
     ...mutationOptions,
   };
 }
 
 /** React Query hook for `openSession`. */
 export function useOpenSession<
-  TData = Awaited<ReturnType<Client["openSession"]>>,
   TError = unknown
 >(
-  mutationOptions?: Omit<UseMutationOptions<TData, TError, Parameters<Client["openSession"]>[0]>, "mutationFn">,
+  mutationOptions?: Omit<UseMutationOptions<OpenSessionResult, TError, OpenSessionOptions>, "mutationFn">,
   client: Client = defaultClient()
 ) {
-  return useMutation(getOpenSessionMutationOptions(mutationOptions, client));
+  return useMutation(getOpenSessionMutationOptions<TError>(mutationOptions, client));
 }
 
 /**
@@ -45,29 +43,27 @@ export function useOpenSession<
  * arrives as AG-UI frames on the session's WebSocket.
  */
 export function getPromptMutationOptions<
-  TData = Awaited<ReturnType<Client["prompt"]>>,
   TError = unknown
 >(
-  mutationOptions?: Omit<UseMutationOptions<TData, TError, Parameters<Client["prompt"]>[0]>, "mutationFn">,
+  mutationOptions?: Omit<UseMutationOptions<PromptResult, TError, PromptOptions>, "mutationFn">,
   client: Client = defaultClient()
 ) {
   return {
     mutationKey: ["/api/sessions/{key}/prompt", "POST"] as const,
-    mutationFn: (options: Parameters<Client["prompt"]>[0]) =>
-      client.prompt(options as any) as unknown as Promise<TData>,
+    mutationFn: (options: PromptOptions) =>
+      client.prompt(options as any),
     ...mutationOptions,
   };
 }
 
 /** React Query hook for `prompt`. */
 export function usePrompt<
-  TData = Awaited<ReturnType<Client["prompt"]>>,
   TError = unknown
 >(
-  mutationOptions?: Omit<UseMutationOptions<TData, TError, Parameters<Client["prompt"]>[0]>, "mutationFn">,
+  mutationOptions?: Omit<UseMutationOptions<PromptResult, TError, PromptOptions>, "mutationFn">,
   client: Client = defaultClient()
 ) {
-  return useMutation(getPromptMutationOptions(mutationOptions, client));
+  return useMutation(getPromptMutationOptions<TError>(mutationOptions, client));
 }
 
 /**
@@ -76,29 +72,146 @@ export function usePrompt<
  * Abort the in-flight turn. Succeeds as a no-op when the session is idle.
  */
 export function getAbortMutationOptions<
-  TData = Awaited<ReturnType<Client["abort"]>>,
   TError = unknown
 >(
-  mutationOptions?: Omit<UseMutationOptions<TData, TError, Parameters<Client["abort"]>[0]>, "mutationFn">,
+  mutationOptions?: Omit<UseMutationOptions<AbortResult, TError, AbortOptions>, "mutationFn">,
   client: Client = defaultClient()
 ) {
   return {
     mutationKey: ["/api/sessions/{key}/abort", "POST"] as const,
-    mutationFn: (options: Parameters<Client["abort"]>[0]) =>
-      client.abort(options as any) as unknown as Promise<TData>,
+    mutationFn: (options: AbortOptions) =>
+      client.abort(options as any),
     ...mutationOptions,
   };
 }
 
 /** React Query hook for `abort`. */
 export function useAbort<
-  TData = Awaited<ReturnType<Client["abort"]>>,
   TError = unknown
 >(
-  mutationOptions?: Omit<UseMutationOptions<TData, TError, Parameters<Client["abort"]>[0]>, "mutationFn">,
+  mutationOptions?: Omit<UseMutationOptions<AbortResult, TError, AbortOptions>, "mutationFn">,
   client: Client = defaultClient()
 ) {
-  return useMutation(getAbortMutationOptions(mutationOptions, client));
+  return useMutation(getAbortMutationOptions<TError>(mutationOptions, client));
+}
+
+/**
+ * Edit a queued message
+ * 
+ * Rewrite a queued message in place, keeping its lane and position.
+ * 
+ * Returns the queue as it stands afterwards, so the caller never has to
+ * guess what the agent drained in the meantime.
+ */
+export function getEditQueuedMutationOptions<
+  TError = unknown
+>(
+  mutationOptions?: Omit<UseMutationOptions<EditQueuedResult, TError, EditQueuedOptions>, "mutationFn">,
+  client: Client = defaultClient()
+) {
+  return {
+    mutationKey: ["/api/sessions/{key}/queue/edit", "POST"] as const,
+    mutationFn: (options: EditQueuedOptions) =>
+      client.editQueued(options as any),
+    ...mutationOptions,
+  };
+}
+
+/** React Query hook for `editQueued`. */
+export function useEditQueued<
+  TError = unknown
+>(
+  mutationOptions?: Omit<UseMutationOptions<EditQueuedResult, TError, EditQueuedOptions>, "mutationFn">,
+  client: Client = defaultClient()
+) {
+  return useMutation(getEditQueuedMutationOptions<TError>(mutationOptions, client));
+}
+
+/**
+ * Drop a queued message
+ * 
+ * Drop a queued message before it is delivered.
+ */
+export function getDropQueuedMutationOptions<
+  TError = unknown
+>(
+  mutationOptions?: Omit<UseMutationOptions<DropQueuedResult, TError, DropQueuedOptions>, "mutationFn">,
+  client: Client = defaultClient()
+) {
+  return {
+    mutationKey: ["/api/sessions/{key}/queue/drop", "POST"] as const,
+    mutationFn: (options: DropQueuedOptions) =>
+      client.dropQueued(options as any),
+    ...mutationOptions,
+  };
+}
+
+/** React Query hook for `dropQueued`. */
+export function useDropQueued<
+  TError = unknown
+>(
+  mutationOptions?: Omit<UseMutationOptions<DropQueuedResult, TError, DropQueuedOptions>, "mutationFn">,
+  client: Client = defaultClient()
+) {
+  return useMutation(getDropQueuedMutationOptions<TError>(mutationOptions, client));
+}
+
+/**
+ * Stop a live session
+ * 
+ * Stop and release a live agent session from memory.
+ */
+export function getStopSessionMutationOptions<
+  TError = unknown
+>(
+  mutationOptions?: Omit<UseMutationOptions<StopSessionResult, TError, StopSessionOptions>, "mutationFn">,
+  client: Client = defaultClient()
+) {
+  return {
+    mutationKey: ["/api/sessions/{key}/stop", "POST"] as const,
+    mutationFn: (options: StopSessionOptions) =>
+      client.stopSession(options as any),
+    ...mutationOptions,
+  };
+}
+
+/** React Query hook for `stopSession`. */
+export function useStopSession<
+  TError = unknown
+>(
+  mutationOptions?: Omit<UseMutationOptions<StopSessionResult, TError, StopSessionOptions>, "mutationFn">,
+  client: Client = defaultClient()
+) {
+  return useMutation(getStopSessionMutationOptions<TError>(mutationOptions, client));
+}
+
+/**
+ * Delete a session from disk
+ * 
+ * Delete a session file and its artifacts from disk, disposing it first if live.
+ */
+export function getDeleteSessionMutationOptions<
+  TError = unknown
+>(
+  mutationOptions?: Omit<UseMutationOptions<DeleteSessionResult, TError, DeleteSessionOptions>, "mutationFn">,
+  client: Client = defaultClient()
+) {
+  return {
+    mutationKey: ["/api/sessions/{key}", "DELETE"] as const,
+    mutationFn: (options: DeleteSessionOptions) =>
+      client.deleteSession(options as any),
+    ...mutationOptions,
+  };
+}
+
+/** React Query hook for `deleteSession`. */
+export function useDeleteSession<
+  TError = unknown
+>(
+  mutationOptions?: Omit<UseMutationOptions<DeleteSessionResult, TError, DeleteSessionOptions>, "mutationFn">,
+  client: Client = defaultClient()
+) {
+  return useMutation(getDeleteSessionMutationOptions<TError>(mutationOptions, client));
 }
 
 /**
@@ -107,29 +220,234 @@ export function useAbort<
  * Switch the live session's model, and optionally its thinking level.
  */
 export function getSelectModelMutationOptions<
-  TData = Awaited<ReturnType<Client["selectModel"]>>,
   TError = unknown
 >(
-  mutationOptions?: Omit<UseMutationOptions<TData, TError, Parameters<Client["selectModel"]>[0]>, "mutationFn">,
+  mutationOptions?: Omit<UseMutationOptions<SelectModelResult, TError, SelectModelOptions>, "mutationFn">,
   client: Client = defaultClient()
 ) {
   return {
     mutationKey: ["/api/sessions/{key}/model", "POST"] as const,
-    mutationFn: (options: Parameters<Client["selectModel"]>[0]) =>
-      client.selectModel(options as any) as unknown as Promise<TData>,
+    mutationFn: (options: SelectModelOptions) =>
+      client.selectModel(options as any),
     ...mutationOptions,
   };
 }
 
 /** React Query hook for `selectModel`. */
 export function useSelectModel<
-  TData = Awaited<ReturnType<Client["selectModel"]>>,
   TError = unknown
 >(
-  mutationOptions?: Omit<UseMutationOptions<TData, TError, Parameters<Client["selectModel"]>[0]>, "mutationFn">,
+  mutationOptions?: Omit<UseMutationOptions<SelectModelResult, TError, SelectModelOptions>, "mutationFn">,
   client: Client = defaultClient()
 ) {
-  return useMutation(getSelectModelMutationOptions(mutationOptions, client));
+  return useMutation(getSelectModelMutationOptions<TError>(mutationOptions, client));
+}
+
+/**
+ * Compact the session context
+ * 
+ * Compact the session context now, mirroring omp's `/compact`.
+ */
+export function getCompactSessionMutationOptions<
+  TError = unknown
+>(
+  mutationOptions?: Omit<UseMutationOptions<CompactSessionResult, TError, CompactSessionOptions>, "mutationFn">,
+  client: Client = defaultClient()
+) {
+  return {
+    mutationKey: ["/api/sessions/{key}/compact", "POST"] as const,
+    mutationFn: (options: CompactSessionOptions) =>
+      client.compactSession(options as any),
+    ...mutationOptions,
+  };
+}
+
+/** React Query hook for `compactSession`. */
+export function useCompactSession<
+  TError = unknown
+>(
+  mutationOptions?: Omit<UseMutationOptions<CompactSessionResult, TError, CompactSessionOptions>, "mutationFn">,
+  client: Client = defaultClient()
+) {
+  return useMutation(getCompactSessionMutationOptions<TError>(mutationOptions, client));
+}
+
+/**
+ * Shake heavy content out of context
+ * 
+ * Drop heavy content (tool results, large blocks, or images) from context.
+ */
+export function getShakeSessionMutationOptions<
+  TError = unknown
+>(
+  mutationOptions?: Omit<UseMutationOptions<ShakeSessionResult, TError, ShakeSessionOptions>, "mutationFn">,
+  client: Client = defaultClient()
+) {
+  return {
+    mutationKey: ["/api/sessions/{key}/shake", "POST"] as const,
+    mutationFn: (options: ShakeSessionOptions) =>
+      client.shakeSession(options as any),
+    ...mutationOptions,
+  };
+}
+
+/** React Query hook for `shakeSession`. */
+export function useShakeSession<
+  TError = unknown
+>(
+  mutationOptions?: Omit<UseMutationOptions<ShakeSessionResult, TError, ShakeSessionOptions>, "mutationFn">,
+  client: Client = defaultClient()
+) {
+  return useMutation(getShakeSessionMutationOptions<TError>(mutationOptions, client));
+}
+
+/**
+ * Set the thinking level
+ * 
+ * Set the session's thinking level without changing the model.
+ */
+export function getSetThinkingLevelMutationOptions<
+  TError = unknown
+>(
+  mutationOptions?: Omit<UseMutationOptions<SetThinkingLevelResult, TError, SetThinkingLevelOptions>, "mutationFn">,
+  client: Client = defaultClient()
+) {
+  return {
+    mutationKey: ["/api/sessions/{key}/thinking", "POST"] as const,
+    mutationFn: (options: SetThinkingLevelOptions) =>
+      client.setThinkingLevel(options as any),
+    ...mutationOptions,
+  };
+}
+
+/** React Query hook for `setThinkingLevel`. */
+export function useSetThinkingLevel<
+  TError = unknown
+>(
+  mutationOptions?: Omit<UseMutationOptions<SetThinkingLevelResult, TError, SetThinkingLevelOptions>, "mutationFn">,
+  client: Client = defaultClient()
+) {
+  return useMutation(getSetThinkingLevelMutationOptions<TError>(mutationOptions, client));
+}
+
+/**
+ * Rename the session
+ * 
+ * Rename the session, as omp's `/rename` does.
+ */
+export function getRenameSessionMutationOptions<
+  TError = unknown
+>(
+  mutationOptions?: Omit<UseMutationOptions<RenameSessionResult, TError, RenameSessionOptions>, "mutationFn">,
+  client: Client = defaultClient()
+) {
+  return {
+    mutationKey: ["/api/sessions/{key}/title", "POST"] as const,
+    mutationFn: (options: RenameSessionOptions) =>
+      client.renameSession(options as any),
+    ...mutationOptions,
+  };
+}
+
+/** React Query hook for `renameSession`. */
+export function useRenameSession<
+  TError = unknown
+>(
+  mutationOptions?: Omit<UseMutationOptions<RenameSessionResult, TError, RenameSessionOptions>, "mutationFn">,
+  client: Client = defaultClient()
+) {
+  return useMutation(getRenameSessionMutationOptions<TError>(mutationOptions, client));
+}
+
+/**
+ * Retry the last failed turn
+ * 
+ * Re-run the last failed or aborted turn. The retried turn streams over the
+ * session's WebSocket, so this returns as soon as it is scheduled.
+ */
+export function getRetryTurnMutationOptions<
+  TError = unknown
+>(
+  mutationOptions?: Omit<UseMutationOptions<RetryTurnResult, TError, RetryTurnOptions>, "mutationFn">,
+  client: Client = defaultClient()
+) {
+  return {
+    mutationKey: ["/api/sessions/{key}/retry", "POST"] as const,
+    mutationFn: (options: RetryTurnOptions) =>
+      client.retryTurn(options as any),
+    ...mutationOptions,
+  };
+}
+
+/** React Query hook for `retryTurn`. */
+export function useRetryTurn<
+  TError = unknown
+>(
+  mutationOptions?: Omit<UseMutationOptions<RetryTurnResult, TError, RetryTurnOptions>, "mutationFn">,
+  client: Client = defaultClient()
+) {
+  return useMutation(getRetryTurnMutationOptions<TError>(mutationOptions, client));
+}
+
+/**
+ * Fork the session
+ * 
+ * Copy this session, transcript and artifacts included, into a new one and
+ * continue in the copy. The original file stays on disk untouched.
+ */
+export function getForkSessionMutationOptions<
+  TError = unknown
+>(
+  mutationOptions?: Omit<UseMutationOptions<ForkSessionResult, TError, ForkSessionOptions>, "mutationFn">,
+  client: Client = defaultClient()
+) {
+  return {
+    mutationKey: ["/api/sessions/{key}/fork", "POST"] as const,
+    mutationFn: (options: ForkSessionOptions) =>
+      client.forkSession(options as any),
+    ...mutationOptions,
+  };
+}
+
+/** React Query hook for `forkSession`. */
+export function useForkSession<
+  TError = unknown
+>(
+  mutationOptions?: Omit<UseMutationOptions<ForkSessionResult, TError, ForkSessionOptions>, "mutationFn">,
+  client: Client = defaultClient()
+) {
+  return useMutation(getForkSessionMutationOptions<TError>(mutationOptions, client));
+}
+
+/**
+ * Branch from an earlier message
+ * 
+ * Restart the conversation from an earlier user message: omp writes a new
+ * session containing everything up to that message's parent and continues
+ * there, returning the message text so the composer can be pre-filled.
+ */
+export function getBranchSessionMutationOptions<
+  TError = unknown
+>(
+  mutationOptions?: Omit<UseMutationOptions<BranchSessionResult, TError, BranchSessionOptions>, "mutationFn">,
+  client: Client = defaultClient()
+) {
+  return {
+    mutationKey: ["/api/sessions/{key}/branch", "POST"] as const,
+    mutationFn: (options: BranchSessionOptions) =>
+      client.branchSession(options as any),
+    ...mutationOptions,
+  };
+}
+
+/** React Query hook for `branchSession`. */
+export function useBranchSession<
+  TError = unknown
+>(
+  mutationOptions?: Omit<UseMutationOptions<BranchSessionResult, TError, BranchSessionOptions>, "mutationFn">,
+  client: Client = defaultClient()
+) {
+  return useMutation(getBranchSessionMutationOptions<TError>(mutationOptions, client));
 }
 
 /**
@@ -138,29 +456,27 @@ export function useSelectModel<
  * Turn plan mode on or off for the live session.
  */
 export function getSetPlanModeMutationOptions<
-  TData = Awaited<ReturnType<Client["setPlanMode"]>>,
   TError = unknown
 >(
-  mutationOptions?: Omit<UseMutationOptions<TData, TError, Parameters<Client["setPlanMode"]>[0]>, "mutationFn">,
+  mutationOptions?: Omit<UseMutationOptions<SetPlanModeResult, TError, SetPlanModeOptions>, "mutationFn">,
   client: Client = defaultClient()
 ) {
   return {
     mutationKey: ["/api/sessions/{key}/plan/mode", "POST"] as const,
-    mutationFn: (options: Parameters<Client["setPlanMode"]>[0]) =>
-      client.setPlanMode(options as any) as unknown as Promise<TData>,
+    mutationFn: (options: SetPlanModeOptions) =>
+      client.setPlanMode(options as any),
     ...mutationOptions,
   };
 }
 
 /** React Query hook for `setPlanMode`. */
 export function useSetPlanMode<
-  TData = Awaited<ReturnType<Client["setPlanMode"]>>,
   TError = unknown
 >(
-  mutationOptions?: Omit<UseMutationOptions<TData, TError, Parameters<Client["setPlanMode"]>[0]>, "mutationFn">,
+  mutationOptions?: Omit<UseMutationOptions<SetPlanModeResult, TError, SetPlanModeOptions>, "mutationFn">,
   client: Client = defaultClient()
 ) {
-  return useMutation(getSetPlanModeMutationOptions(mutationOptions, client));
+  return useMutation(getSetPlanModeMutationOptions<TError>(mutationOptions, client));
 }
 
 /**
@@ -169,29 +485,27 @@ export function useSetPlanMode<
  * Persist a hand-edited plan document, mirroring omp's in-overlay edits.
  */
 export function getEditPlanMutationOptions<
-  TData = Awaited<ReturnType<Client["editPlan"]>>,
   TError = unknown
 >(
-  mutationOptions?: Omit<UseMutationOptions<TData, TError, Parameters<Client["editPlan"]>[0]>, "mutationFn">,
+  mutationOptions?: Omit<UseMutationOptions<EditPlanResult, TError, EditPlanOptions>, "mutationFn">,
   client: Client = defaultClient()
 ) {
   return {
     mutationKey: ["/api/sessions/{key}/plan/document", "PUT"] as const,
-    mutationFn: (options: Parameters<Client["editPlan"]>[0]) =>
-      client.editPlan(options as any) as unknown as Promise<TData>,
+    mutationFn: (options: EditPlanOptions) =>
+      client.editPlan(options as any),
     ...mutationOptions,
   };
 }
 
 /** React Query hook for `editPlan`. */
 export function useEditPlan<
-  TData = Awaited<ReturnType<Client["editPlan"]>>,
   TError = unknown
 >(
-  mutationOptions?: Omit<UseMutationOptions<TData, TError, Parameters<Client["editPlan"]>[0]>, "mutationFn">,
+  mutationOptions?: Omit<UseMutationOptions<EditPlanResult, TError, EditPlanOptions>, "mutationFn">,
   client: Client = defaultClient()
 ) {
-  return useMutation(getEditPlanMutationOptions(mutationOptions, client));
+  return useMutation(getEditPlanMutationOptions<TError>(mutationOptions, client));
 }
 
 /**
@@ -201,29 +515,27 @@ export function useEditPlan<
  * approve into a fresh session, or refine with feedback.
  */
 export function getResolvePlanMutationOptions<
-  TData = Awaited<ReturnType<Client["resolvePlan"]>>,
   TError = unknown
 >(
-  mutationOptions?: Omit<UseMutationOptions<TData, TError, Parameters<Client["resolvePlan"]>[0]>, "mutationFn">,
+  mutationOptions?: Omit<UseMutationOptions<ResolvePlanResult, TError, ResolvePlanOptions>, "mutationFn">,
   client: Client = defaultClient()
 ) {
   return {
     mutationKey: ["/api/sessions/{key}/plan/action", "POST"] as const,
-    mutationFn: (options: Parameters<Client["resolvePlan"]>[0]) =>
-      client.resolvePlan(options as any) as unknown as Promise<TData>,
+    mutationFn: (options: ResolvePlanOptions) =>
+      client.resolvePlan(options as any),
     ...mutationOptions,
   };
 }
 
 /** React Query hook for `resolvePlan`. */
 export function useResolvePlan<
-  TData = Awaited<ReturnType<Client["resolvePlan"]>>,
   TError = unknown
 >(
-  mutationOptions?: Omit<UseMutationOptions<TData, TError, Parameters<Client["resolvePlan"]>[0]>, "mutationFn">,
+  mutationOptions?: Omit<UseMutationOptions<ResolvePlanResult, TError, ResolvePlanOptions>, "mutationFn">,
   client: Client = defaultClient()
 ) {
-  return useMutation(getResolvePlanMutationOptions(mutationOptions, client));
+  return useMutation(getResolvePlanMutationOptions<TError>(mutationOptions, client));
 }
 
 /**
@@ -235,81 +547,145 @@ export function useResolvePlan<
  * transcript text, thinking blocks, the plan document — comes from here.
  */
 export function getRenderMarkdownMutationOptions<
-  TData = Awaited<ReturnType<Client["renderMarkdown"]>>,
   TError = unknown
 >(
-  mutationOptions?: Omit<UseMutationOptions<TData, TError, Parameters<Client["renderMarkdown"]>[0]>, "mutationFn">,
+  mutationOptions?: Omit<UseMutationOptions<RenderMarkdownResult, TError, RenderMarkdownOptions>, "mutationFn">,
   client: Client = defaultClient()
 ) {
   return {
     mutationKey: ["/api/markdown", "POST"] as const,
-    mutationFn: (options: Parameters<Client["renderMarkdown"]>[0]) =>
-      client.renderMarkdown(options as any) as unknown as Promise<TData>,
+    mutationFn: (options: RenderMarkdownOptions) =>
+      client.renderMarkdown(options as any),
     ...mutationOptions,
   };
 }
 
 /** React Query hook for `renderMarkdown`. */
 export function useRenderMarkdown<
-  TData = Awaited<ReturnType<Client["renderMarkdown"]>>,
   TError = unknown
 >(
-  mutationOptions?: Omit<UseMutationOptions<TData, TError, Parameters<Client["renderMarkdown"]>[0]>, "mutationFn">,
+  mutationOptions?: Omit<UseMutationOptions<RenderMarkdownResult, TError, RenderMarkdownOptions>, "mutationFn">,
   client: Client = defaultClient()
 ) {
-  return useMutation(getRenderMarkdownMutationOptions(mutationOptions, client));
+  return useMutation(getRenderMarkdownMutationOptions<TError>(mutationOptions, client));
 }
 
 /** Factory binding all mutation options getters and mutation hooks to a custom client instance. */
 export function createMutations(client: Client = defaultClient()) {
   return {
-    getOpenSessionMutationOptions: <TData = Awaited<ReturnType<Client["openSession"]>>, TError = unknown>(
-      mutationOptions?: Omit<UseMutationOptions<TData, TError, Parameters<Client["openSession"]>[0]>, "mutationFn">
-    ) => getOpenSessionMutationOptions<TData, TError>(mutationOptions, client),
-    useOpenSession: <TData = Awaited<ReturnType<Client["openSession"]>>, TError = unknown>(
-      mutationOptions?: Omit<UseMutationOptions<TData, TError, Parameters<Client["openSession"]>[0]>, "mutationFn">
-    ) => useOpenSession<TData, TError>(mutationOptions, client),
-    getPromptMutationOptions: <TData = Awaited<ReturnType<Client["prompt"]>>, TError = unknown>(
-      mutationOptions?: Omit<UseMutationOptions<TData, TError, Parameters<Client["prompt"]>[0]>, "mutationFn">
-    ) => getPromptMutationOptions<TData, TError>(mutationOptions, client),
-    usePrompt: <TData = Awaited<ReturnType<Client["prompt"]>>, TError = unknown>(
-      mutationOptions?: Omit<UseMutationOptions<TData, TError, Parameters<Client["prompt"]>[0]>, "mutationFn">
-    ) => usePrompt<TData, TError>(mutationOptions, client),
-    getAbortMutationOptions: <TData = Awaited<ReturnType<Client["abort"]>>, TError = unknown>(
-      mutationOptions?: Omit<UseMutationOptions<TData, TError, Parameters<Client["abort"]>[0]>, "mutationFn">
-    ) => getAbortMutationOptions<TData, TError>(mutationOptions, client),
-    useAbort: <TData = Awaited<ReturnType<Client["abort"]>>, TError = unknown>(
-      mutationOptions?: Omit<UseMutationOptions<TData, TError, Parameters<Client["abort"]>[0]>, "mutationFn">
-    ) => useAbort<TData, TError>(mutationOptions, client),
-    getSelectModelMutationOptions: <TData = Awaited<ReturnType<Client["selectModel"]>>, TError = unknown>(
-      mutationOptions?: Omit<UseMutationOptions<TData, TError, Parameters<Client["selectModel"]>[0]>, "mutationFn">
-    ) => getSelectModelMutationOptions<TData, TError>(mutationOptions, client),
-    useSelectModel: <TData = Awaited<ReturnType<Client["selectModel"]>>, TError = unknown>(
-      mutationOptions?: Omit<UseMutationOptions<TData, TError, Parameters<Client["selectModel"]>[0]>, "mutationFn">
-    ) => useSelectModel<TData, TError>(mutationOptions, client),
-    getSetPlanModeMutationOptions: <TData = Awaited<ReturnType<Client["setPlanMode"]>>, TError = unknown>(
-      mutationOptions?: Omit<UseMutationOptions<TData, TError, Parameters<Client["setPlanMode"]>[0]>, "mutationFn">
-    ) => getSetPlanModeMutationOptions<TData, TError>(mutationOptions, client),
-    useSetPlanMode: <TData = Awaited<ReturnType<Client["setPlanMode"]>>, TError = unknown>(
-      mutationOptions?: Omit<UseMutationOptions<TData, TError, Parameters<Client["setPlanMode"]>[0]>, "mutationFn">
-    ) => useSetPlanMode<TData, TError>(mutationOptions, client),
-    getEditPlanMutationOptions: <TData = Awaited<ReturnType<Client["editPlan"]>>, TError = unknown>(
-      mutationOptions?: Omit<UseMutationOptions<TData, TError, Parameters<Client["editPlan"]>[0]>, "mutationFn">
-    ) => getEditPlanMutationOptions<TData, TError>(mutationOptions, client),
-    useEditPlan: <TData = Awaited<ReturnType<Client["editPlan"]>>, TError = unknown>(
-      mutationOptions?: Omit<UseMutationOptions<TData, TError, Parameters<Client["editPlan"]>[0]>, "mutationFn">
-    ) => useEditPlan<TData, TError>(mutationOptions, client),
-    getResolvePlanMutationOptions: <TData = Awaited<ReturnType<Client["resolvePlan"]>>, TError = unknown>(
-      mutationOptions?: Omit<UseMutationOptions<TData, TError, Parameters<Client["resolvePlan"]>[0]>, "mutationFn">
-    ) => getResolvePlanMutationOptions<TData, TError>(mutationOptions, client),
-    useResolvePlan: <TData = Awaited<ReturnType<Client["resolvePlan"]>>, TError = unknown>(
-      mutationOptions?: Omit<UseMutationOptions<TData, TError, Parameters<Client["resolvePlan"]>[0]>, "mutationFn">
-    ) => useResolvePlan<TData, TError>(mutationOptions, client),
-    getRenderMarkdownMutationOptions: <TData = Awaited<ReturnType<Client["renderMarkdown"]>>, TError = unknown>(
-      mutationOptions?: Omit<UseMutationOptions<TData, TError, Parameters<Client["renderMarkdown"]>[0]>, "mutationFn">
-    ) => getRenderMarkdownMutationOptions<TData, TError>(mutationOptions, client),
-    useRenderMarkdown: <TData = Awaited<ReturnType<Client["renderMarkdown"]>>, TError = unknown>(
-      mutationOptions?: Omit<UseMutationOptions<TData, TError, Parameters<Client["renderMarkdown"]>[0]>, "mutationFn">
-    ) => useRenderMarkdown<TData, TError>(mutationOptions, client),
+    getOpenSessionMutationOptions: <TError = unknown>(
+      mutationOptions?: Omit<UseMutationOptions<OpenSessionResult, TError, OpenSessionOptions>, "mutationFn">
+    ) => getOpenSessionMutationOptions<TError>(mutationOptions, client),
+    useOpenSession: <TError = unknown>(
+      mutationOptions?: Omit<UseMutationOptions<OpenSessionResult, TError, OpenSessionOptions>, "mutationFn">
+    ) => useOpenSession<TError>(mutationOptions, client),
+    getPromptMutationOptions: <TError = unknown>(
+      mutationOptions?: Omit<UseMutationOptions<PromptResult, TError, PromptOptions>, "mutationFn">
+    ) => getPromptMutationOptions<TError>(mutationOptions, client),
+    usePrompt: <TError = unknown>(
+      mutationOptions?: Omit<UseMutationOptions<PromptResult, TError, PromptOptions>, "mutationFn">
+    ) => usePrompt<TError>(mutationOptions, client),
+    getAbortMutationOptions: <TError = unknown>(
+      mutationOptions?: Omit<UseMutationOptions<AbortResult, TError, AbortOptions>, "mutationFn">
+    ) => getAbortMutationOptions<TError>(mutationOptions, client),
+    useAbort: <TError = unknown>(
+      mutationOptions?: Omit<UseMutationOptions<AbortResult, TError, AbortOptions>, "mutationFn">
+    ) => useAbort<TError>(mutationOptions, client),
+    getEditQueuedMutationOptions: <TError = unknown>(
+      mutationOptions?: Omit<UseMutationOptions<EditQueuedResult, TError, EditQueuedOptions>, "mutationFn">
+    ) => getEditQueuedMutationOptions<TError>(mutationOptions, client),
+    useEditQueued: <TError = unknown>(
+      mutationOptions?: Omit<UseMutationOptions<EditQueuedResult, TError, EditQueuedOptions>, "mutationFn">
+    ) => useEditQueued<TError>(mutationOptions, client),
+    getDropQueuedMutationOptions: <TError = unknown>(
+      mutationOptions?: Omit<UseMutationOptions<DropQueuedResult, TError, DropQueuedOptions>, "mutationFn">
+    ) => getDropQueuedMutationOptions<TError>(mutationOptions, client),
+    useDropQueued: <TError = unknown>(
+      mutationOptions?: Omit<UseMutationOptions<DropQueuedResult, TError, DropQueuedOptions>, "mutationFn">
+    ) => useDropQueued<TError>(mutationOptions, client),
+    getStopSessionMutationOptions: <TError = unknown>(
+      mutationOptions?: Omit<UseMutationOptions<StopSessionResult, TError, StopSessionOptions>, "mutationFn">
+    ) => getStopSessionMutationOptions<TError>(mutationOptions, client),
+    useStopSession: <TError = unknown>(
+      mutationOptions?: Omit<UseMutationOptions<StopSessionResult, TError, StopSessionOptions>, "mutationFn">
+    ) => useStopSession<TError>(mutationOptions, client),
+    getDeleteSessionMutationOptions: <TError = unknown>(
+      mutationOptions?: Omit<UseMutationOptions<DeleteSessionResult, TError, DeleteSessionOptions>, "mutationFn">
+    ) => getDeleteSessionMutationOptions<TError>(mutationOptions, client),
+    useDeleteSession: <TError = unknown>(
+      mutationOptions?: Omit<UseMutationOptions<DeleteSessionResult, TError, DeleteSessionOptions>, "mutationFn">
+    ) => useDeleteSession<TError>(mutationOptions, client),
+    getSelectModelMutationOptions: <TError = unknown>(
+      mutationOptions?: Omit<UseMutationOptions<SelectModelResult, TError, SelectModelOptions>, "mutationFn">
+    ) => getSelectModelMutationOptions<TError>(mutationOptions, client),
+    useSelectModel: <TError = unknown>(
+      mutationOptions?: Omit<UseMutationOptions<SelectModelResult, TError, SelectModelOptions>, "mutationFn">
+    ) => useSelectModel<TError>(mutationOptions, client),
+    getCompactSessionMutationOptions: <TError = unknown>(
+      mutationOptions?: Omit<UseMutationOptions<CompactSessionResult, TError, CompactSessionOptions>, "mutationFn">
+    ) => getCompactSessionMutationOptions<TError>(mutationOptions, client),
+    useCompactSession: <TError = unknown>(
+      mutationOptions?: Omit<UseMutationOptions<CompactSessionResult, TError, CompactSessionOptions>, "mutationFn">
+    ) => useCompactSession<TError>(mutationOptions, client),
+    getShakeSessionMutationOptions: <TError = unknown>(
+      mutationOptions?: Omit<UseMutationOptions<ShakeSessionResult, TError, ShakeSessionOptions>, "mutationFn">
+    ) => getShakeSessionMutationOptions<TError>(mutationOptions, client),
+    useShakeSession: <TError = unknown>(
+      mutationOptions?: Omit<UseMutationOptions<ShakeSessionResult, TError, ShakeSessionOptions>, "mutationFn">
+    ) => useShakeSession<TError>(mutationOptions, client),
+    getSetThinkingLevelMutationOptions: <TError = unknown>(
+      mutationOptions?: Omit<UseMutationOptions<SetThinkingLevelResult, TError, SetThinkingLevelOptions>, "mutationFn">
+    ) => getSetThinkingLevelMutationOptions<TError>(mutationOptions, client),
+    useSetThinkingLevel: <TError = unknown>(
+      mutationOptions?: Omit<UseMutationOptions<SetThinkingLevelResult, TError, SetThinkingLevelOptions>, "mutationFn">
+    ) => useSetThinkingLevel<TError>(mutationOptions, client),
+    getRenameSessionMutationOptions: <TError = unknown>(
+      mutationOptions?: Omit<UseMutationOptions<RenameSessionResult, TError, RenameSessionOptions>, "mutationFn">
+    ) => getRenameSessionMutationOptions<TError>(mutationOptions, client),
+    useRenameSession: <TError = unknown>(
+      mutationOptions?: Omit<UseMutationOptions<RenameSessionResult, TError, RenameSessionOptions>, "mutationFn">
+    ) => useRenameSession<TError>(mutationOptions, client),
+    getRetryTurnMutationOptions: <TError = unknown>(
+      mutationOptions?: Omit<UseMutationOptions<RetryTurnResult, TError, RetryTurnOptions>, "mutationFn">
+    ) => getRetryTurnMutationOptions<TError>(mutationOptions, client),
+    useRetryTurn: <TError = unknown>(
+      mutationOptions?: Omit<UseMutationOptions<RetryTurnResult, TError, RetryTurnOptions>, "mutationFn">
+    ) => useRetryTurn<TError>(mutationOptions, client),
+    getForkSessionMutationOptions: <TError = unknown>(
+      mutationOptions?: Omit<UseMutationOptions<ForkSessionResult, TError, ForkSessionOptions>, "mutationFn">
+    ) => getForkSessionMutationOptions<TError>(mutationOptions, client),
+    useForkSession: <TError = unknown>(
+      mutationOptions?: Omit<UseMutationOptions<ForkSessionResult, TError, ForkSessionOptions>, "mutationFn">
+    ) => useForkSession<TError>(mutationOptions, client),
+    getBranchSessionMutationOptions: <TError = unknown>(
+      mutationOptions?: Omit<UseMutationOptions<BranchSessionResult, TError, BranchSessionOptions>, "mutationFn">
+    ) => getBranchSessionMutationOptions<TError>(mutationOptions, client),
+    useBranchSession: <TError = unknown>(
+      mutationOptions?: Omit<UseMutationOptions<BranchSessionResult, TError, BranchSessionOptions>, "mutationFn">
+    ) => useBranchSession<TError>(mutationOptions, client),
+    getSetPlanModeMutationOptions: <TError = unknown>(
+      mutationOptions?: Omit<UseMutationOptions<SetPlanModeResult, TError, SetPlanModeOptions>, "mutationFn">
+    ) => getSetPlanModeMutationOptions<TError>(mutationOptions, client),
+    useSetPlanMode: <TError = unknown>(
+      mutationOptions?: Omit<UseMutationOptions<SetPlanModeResult, TError, SetPlanModeOptions>, "mutationFn">
+    ) => useSetPlanMode<TError>(mutationOptions, client),
+    getEditPlanMutationOptions: <TError = unknown>(
+      mutationOptions?: Omit<UseMutationOptions<EditPlanResult, TError, EditPlanOptions>, "mutationFn">
+    ) => getEditPlanMutationOptions<TError>(mutationOptions, client),
+    useEditPlan: <TError = unknown>(
+      mutationOptions?: Omit<UseMutationOptions<EditPlanResult, TError, EditPlanOptions>, "mutationFn">
+    ) => useEditPlan<TError>(mutationOptions, client),
+    getResolvePlanMutationOptions: <TError = unknown>(
+      mutationOptions?: Omit<UseMutationOptions<ResolvePlanResult, TError, ResolvePlanOptions>, "mutationFn">
+    ) => getResolvePlanMutationOptions<TError>(mutationOptions, client),
+    useResolvePlan: <TError = unknown>(
+      mutationOptions?: Omit<UseMutationOptions<ResolvePlanResult, TError, ResolvePlanOptions>, "mutationFn">
+    ) => useResolvePlan<TError>(mutationOptions, client),
+    getRenderMarkdownMutationOptions: <TError = unknown>(
+      mutationOptions?: Omit<UseMutationOptions<RenderMarkdownResult, TError, RenderMarkdownOptions>, "mutationFn">
+    ) => getRenderMarkdownMutationOptions<TError>(mutationOptions, client),
+    useRenderMarkdown: <TError = unknown>(
+      mutationOptions?: Omit<UseMutationOptions<RenderMarkdownResult, TError, RenderMarkdownOptions>, "mutationFn">
+    ) => useRenderMarkdown<TError>(mutationOptions, client),
   };
 }

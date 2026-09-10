@@ -239,6 +239,22 @@ export interface OpenSessionRequest {
   cwd?: string;
 }
 
+/**
+ * A file sent along with a message.
+ *
+ * omp takes images as a first-class attachment, so those reach the model as
+ * images. It has no channel for anything else, so a text file is inlined into
+ * the message instead, and a binary one is refused rather than turned into a
+ * wall of base64 nobody can read.
+ */
+export interface Attachment {
+  name: string;
+  /** IANA type as the browser reported it, e.g. `image/png`, `text/plain`. */
+  mimeType: string;
+  /** File bytes, base64, without a `data:` prefix. */
+  data: string;
+}
+
 /** A message to send to the agent. */
 export interface PromptRequest {
   message: string;
@@ -247,6 +263,8 @@ export interface PromptRequest {
    * `followUp` queues for after the turn. Ignored when the session is idle.
    */
   deliverAs?: "steer" | "followUp";
+  /** Files sent with this message. */
+  attachments?: Attachment[];
 }
 
 /** Model to switch the live session to. */
@@ -276,6 +294,94 @@ export interface PlanActionRequest {
 /** A hand-edited plan document. */
 export interface PlanEditRequest {
   content: string;
+}
+
+/** One-off compaction mode, mirroring omp's `/compact` subcommands. */
+export type CompactMode = "soft" | "remote" | "snapcompact";
+
+/** A manual context compaction. */
+export interface CompactRequest {
+  /** Omitted uses the session's configured method order. */
+  mode?: CompactMode;
+  /** Free-text focus for the summary. Rejected with `snapcompact`, which writes no summary. */
+  focus?: string;
+}
+
+/** Which heavy content to drop from context. */
+export type ShakeMode = "elide" | "images";
+
+/** A context shake. */
+export interface ShakeRequest {
+  mode: ShakeMode;
+}
+
+/** Thinking level for the live session. */
+export interface ThinkingRequest {
+  level: ThinkingLevel;
+}
+
+/** A new display name for the session. */
+export interface RenameRequest {
+  title: string;
+}
+
+/** A user message a branch can start from. */
+export interface BranchPoint {
+  /** omp entry id of the user message. */
+  entryId: string;
+  /** Message preview, truncated for the picker. */
+  text: string;
+}
+
+/** Which message to branch from. */
+export interface BranchRequest {
+  entryId: string;
+}
+
+/** A branch: the re-keyed session plus the message text to re-edit. */
+export interface BranchResult {
+  state: LiveState;
+  /** Full text of the message branched from, for pre-filling the composer. */
+  draft: string;
+}
+
+/**
+ * Which queue a message waits in.
+ *
+ * `steer` messages interrupt the turn at its next step; `followUp` messages
+ * wait for it to finish. omp keeps them as two ordered lanes, and a message
+ * cannot move between them without being re-sent.
+ */
+export type QueueLane = "steer" | "followUp";
+
+/** A user message waiting its turn. */
+export interface QueuedMessage {
+  lane: QueueLane;
+  /** Position among the user messages of its lane, oldest first. */
+  index: number;
+  text: string;
+}
+
+/**
+ * Rewrite one queued message.
+ *
+ * `expected` is the text the client last saw at this position. The agent
+ * drains the queue on its own schedule, so a position alone is not a safe
+ * handle: if the text no longer matches, the queue moved and the edit is
+ * refused rather than applied to whatever slid into the slot.
+ */
+export interface QueueEditRequest {
+  lane: QueueLane;
+  index: number;
+  expected: string;
+  text: string;
+}
+
+/** Drop one queued message before it is ever delivered. */
+export interface QueueDropRequest {
+  lane: QueueLane;
+  index: number;
+  expected: string;
 }
 
 /** An operation that reports only success. */
