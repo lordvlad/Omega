@@ -86,6 +86,7 @@ import { Planning } from "./components/Planning.tsx";
 import { QueuePanel, queueSummary } from "./components/QueuePanel.tsx";
 import { TodoPanel } from "./components/TodoPanel.tsx";
 import { Transcript } from "./components/Transcript.tsx";
+import { useOnline } from "./lib/online.ts";
 import { useLiveTurn } from "./lib/stream.ts";
 import { forgetTranscript, usePersistedTranscript } from "./lib/transcript-cache.ts";
 
@@ -147,6 +148,8 @@ export function App() {
   // disagree about whether this is a phone.
   const narrow = useMediaQuery("(max-width: 62em)") ?? false;
   const queryClient = useQueryClient();
+  /** Whether the device has a network, as opposed to whether omega answers. */
+  const online = useOnline();
 
   /**
    * Point the URL at a workspace and/or session.
@@ -348,22 +351,37 @@ export function App() {
       return;
     }
 
-    if (warned.current || graceTimer.current !== undefined) return;
+    // The reason the socket is down can change while the toast is up — the
+    // network drops out from under an already-reported reconnect, or comes
+    // back before the server does. Re-state it rather than leaving the first
+    // guess on screen: "messages still send" is false once the radio is off.
+    const body = (): Parameters<typeof notifications.show>[0] => {
+      const offline = !online;
+      return {
+        id: CONNECTION_TOAST,
+        position: "top-center",
+        color: offline ? "orange" : "yellow",
+        loading: !offline,
+        withCloseButton: false,
+        autoClose: false,
+        title: offline ? "Offline" : "Connection lost",
+        message: offline
+          ? "This device has no network. Conversations you have opened before are still readable; sending waits for the network."
+          : "Reconnecting. Messages still send, but replies will not stream until it is back.",
+      };
+    };
+
+    if (warned.current) {
+      notifications.update(body());
+      return;
+    }
+    if (graceTimer.current !== undefined) return;
     graceTimer.current = window.setTimeout(() => {
       graceTimer.current = undefined;
       warned.current = true;
-      notifications.show({
-        id: CONNECTION_TOAST,
-        position: "top-center",
-        color: "yellow",
-        loading: true,
-        withCloseButton: false,
-        autoClose: false,
-        title: "Connection lost",
-        message: "Reconnecting. Messages still send, but replies will not stream until it is back.",
-      });
+      notifications.show(body());
     }, CONNECTION_GRACE_MS);
-  }, [sessionKey, live.status]);
+  }, [sessionKey, live.status, online]);
 
   // Retire each echo as soon as the fetched transcript contains it, matching on
   // text rather than position so a steer landing out of order still clears and
@@ -925,6 +943,7 @@ export function App() {
             />
             <Composer
               state={state.data}
+              offline={!online}
               running={streaming}
               draft={draft}
               planEnabled={planEnabled}

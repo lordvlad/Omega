@@ -57,6 +57,12 @@ export interface ComposerProps {
   onOpenQueue: () => void;
   /** True on a phone viewport: dictation is hidden, the OS keyboard has its own. */
   compact?: boolean;
+  /**
+   * True when the device has no network. Sending is blocked rather than
+   * attempted: `send` clears the input, so a doomed request would take the
+   * message with it.
+   */
+  offline?: boolean;
 }
 
 export function Composer({
@@ -72,6 +78,7 @@ export function Composer({
   queued,
   onOpenQueue,
   compact = false,
+  offline = false,
 }: ComposerProps) {
   const [text, setText] = useState("");
   const [deliverAs, setDeliverAs] = useState<"steer" | "followUp">("steer");
@@ -93,6 +100,9 @@ export function Composer({
   const send = (): void => {
     const message = text.trim();
     if (!message || !state) return;
+    // Clearing the input is what makes this unsafe offline: the request would
+    // fail and take the message with it. Ctrl+Enter lands here too.
+    if (offline) return;
     onSend(message, running ? deliverAs : undefined);
     setText("");
     if (dictation.listening) dictation.stop();
@@ -186,13 +196,22 @@ export function Composer({
              * leaving Ctrl+Enter as the only way to deliver it.
              */}
             {!running || text.trim() ? (
-              <Tooltip label={`${MODE_HINT[mode]} Ctrl+Enter sends.`} position="left" multiline w={240}>
+              <Tooltip
+                label={
+                  offline
+                    ? "No network. Your message stays in the box until the connection is back."
+                    : `${MODE_HINT[mode]} Ctrl+Enter sends.`
+                }
+                position="left"
+                multiline
+                w={240}
+              >
                 <ActionIcon
                   size="xl"
                   radius="md"
                   variant="filled"
                   color={mode === "plan" ? "cyan" : "plum"}
-                  disabled={disabled || !text.trim()}
+                  disabled={disabled || !text.trim() || offline}
                   onClick={send}
                   aria-label="Send message"
                 >

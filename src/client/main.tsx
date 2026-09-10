@@ -7,6 +7,7 @@
 import "@mantine/core/styles.css";
 import "@mantine/notifications/styles.css";
 import "@mantine/code-highlight/styles.css";
+import "@mantine/spotlight/styles.css";
 import "./styles.css";
 import { CodeHighlightAdapterProvider, createShikiAdapter } from "@mantine/code-highlight";
 import { MantineProvider } from "@mantine/core";
@@ -86,3 +87,48 @@ createRoot(container).render(
     </MantineProvider>
   </StrictMode>,
 );
+
+/**
+ * Attach the manifest and icon links.
+ *
+ * These belong in `index.html`, and cannot live there: Bun's HTML loader
+ * lists `link[rel=manifest]`, `link[rel=icon]` and `link[rel=apple-touch-icon]`
+ * among the tags it treats as bundle entrypoints, so it rewrites each href to
+ * a content-hashed URL. It leaves a href alone only when it is an absolute
+ * http(s) URL, which is no use to a server reached at whatever LAN address
+ * the phone happens to use. Hashing would also break the manifest, whose own
+ * icon entries name `/icon-192.png` and friends by fixed path.
+ *
+ * Attached synchronously here, before first paint, so the manifest is in the
+ * document by the time an install prompt or "Add to Home Screen" looks for it.
+ */
+for (const [rel, href, type] of [
+  ["manifest", "/manifest.webmanifest", undefined],
+  ["icon", "/icon-192.png", "image/png"],
+  // iOS ignores the manifest's icons and installs with this one.
+  ["apple-touch-icon", "/apple-touch-icon.png", undefined],
+] as const) {
+  const link = document.createElement("link");
+  link.rel = rel;
+  link.href = href;
+  if (type) link.type = type;
+  document.head.appendChild(link);
+}
+
+/**
+ * Register the worker that makes the app open without the server.
+ *
+ * Production only: in development Bun serves modules over its own hot-reload
+ * channel, and a cache-first worker in front of that means edits stop
+ * appearing. Registration is deferred to `load` so it never competes with the
+ * first render for bandwidth.
+ */
+if (process.env.NODE_ENV === "production" && "serviceWorker" in navigator) {
+  window.addEventListener("load", () => {
+    void navigator.serviceWorker.register("/sw.js", { scope: "/" }).catch((error: unknown) => {
+      // A failed registration costs offline support, nothing else, so it is
+      // logged rather than surfaced.
+      console.warn("[omega] service worker registration failed:", error);
+    });
+  });
+}

@@ -12,6 +12,14 @@
     <meta name="theme-color" content="#191527" />
     <meta name="mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="omega" />
+    <!-- The manifest and icon links are attached at runtime, not written here.
+         Bun's HTML loader treats link[rel=manifest], link[rel=icon] and
+         link[rel=apple-touch-icon] as bundle entrypoints and rewrites them to
+         hashed URLs, and it only leaves a href alone when it is an absolute
+         http(s) URL — which this cannot be, since omega is reached at whatever
+         LAN address the phone uses. Bundling them would also break the icon
+         paths inside the manifest, which must stay stable. See main.tsx. -->
     <title>omega</title>
   </head>
   <body>

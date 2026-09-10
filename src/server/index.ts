@@ -40,6 +40,24 @@ async function json(run: () => Promise<unknown>, okStatus = 200): Promise<Respon
   }
 }
 
+/**
+ * Route entries serving files from `public/`.
+ *
+ * The icons and the manifest are content-stable and small, so they get a long
+ * immutable max-age; renaming one is how you change it.
+ */
+function staticFiles(entries: Record<string, [file: string, type: string]>): Record<string, () => Response> {
+  const routes: Record<string, () => Response> = {};
+  for (const [path, [file, type]] of Object.entries(entries)) {
+    const url = new URL(`../../public/${file}`, import.meta.url);
+    routes[path] = () =>
+      new Response(Bun.file(url), {
+        headers: { "content-type": type, "cache-control": "public, max-age=31536000, immutable" },
+      });
+  }
+  return routes;
+}
+
 const server = serve({
   port: PORT,
   hostname: HOST,
@@ -70,13 +88,73 @@ const server = serve({
         return json(() => handlers.prompt(request.params.key, body), 202);
       },
     },
+    "/api/sessions/:key/queue": {
+      GET: request => json(() => handlers.listQueue(request.params.key)),
+    },
+    "/api/sessions/:key/queue/edit": {
+      POST: async request => {
+        const body = await request.json();
+        return json(() => handlers.editQueued(request.params.key, body));
+      },
+    },
+    "/api/sessions/:key/queue/drop": {
+      POST: async request => {
+        const body = await request.json();
+        return json(() => handlers.dropQueued(request.params.key, body));
+      },
+    },
     "/api/sessions/:key/abort": {
       POST: request => json(() => handlers.abort(request.params.key)),
+    },
+    "/api/sessions/:key/stop": {
+      POST: request => json(() => handlers.stopSession(request.params.key)),
+    },
+    "/api/sessions/:key": {
+      DELETE: request => json(() => handlers.deleteSession(request.params.key)),
     },
     "/api/sessions/:key/model": {
       POST: async request => {
         const body = await request.json();
         return json(() => handlers.selectModel(request.params.key, body));
+      },
+    },
+    "/api/sessions/:key/compact": {
+      POST: async request => {
+        const body = await request.json();
+        return json(() => handlers.compactSession(request.params.key, body));
+      },
+    },
+    "/api/sessions/:key/shake": {
+      POST: async request => {
+        const body = await request.json();
+        return json(() => handlers.shakeSession(request.params.key, body));
+      },
+    },
+    "/api/sessions/:key/thinking": {
+      POST: async request => {
+        const body = await request.json();
+        return json(() => handlers.setThinkingLevel(request.params.key, body));
+      },
+    },
+    "/api/sessions/:key/title": {
+      POST: async request => {
+        const body = await request.json();
+        return json(() => handlers.renameSession(request.params.key, body));
+      },
+    },
+    "/api/sessions/:key/retry": {
+      POST: request => json(() => handlers.retryTurn(request.params.key)),
+    },
+    "/api/sessions/:key/fork": {
+      POST: request => json(() => handlers.forkSession(request.params.key)),
+    },
+    "/api/sessions/:key/branch-points": {
+      GET: request => json(() => handlers.listBranchPoints(request.params.key)),
+    },
+    "/api/sessions/:key/branch": {
+      POST: async request => {
+        const body = await request.json();
+        return json(() => handlers.branchSession(request.params.key, body));
       },
     },
 
@@ -116,6 +194,34 @@ const server = serve({
       if (server.upgrade(request, { data: { key } })) return undefined as unknown as Response;
       return new Response("Expected a WebSocket upgrade", { status: 426 });
     },
+
+    /**
+     * PWA assets, served from disk ahead of the catch-all.
+     *
+     * Each needs an explicit route: `/*` answers the SPA's HTML, so without
+     * these the browser would fetch `/sw.js` and be handed a document.
+     */
+    ...staticFiles({
+      "/manifest.webmanifest": ["manifest.webmanifest", "application/manifest+json"],
+      "/icon-192.png": ["icon-192.png", "image/png"],
+      "/icon-512.png": ["icon-512.png", "image/png"],
+      "/icon-maskable-512.png": ["icon-maskable-512.png", "image/png"],
+      "/apple-touch-icon.png": ["apple-touch-icon.png", "image/png"],
+    }),
+
+    /**
+     * The worker itself, which must never be served stale: a cached copy is
+     * a cache the user cannot invalidate. `Service-Worker-Allowed` lets it
+     * claim the whole origin regardless of where the file sits.
+     */
+    "/sw.js": () =>
+      new Response(Bun.file(new URL("../../public/sw.js", import.meta.url)), {
+        headers: {
+          "content-type": "text/javascript; charset=utf-8",
+          "cache-control": "no-cache",
+          "service-worker-allowed": "/",
+        },
+      }),
 
     // Everything else is the single-page client.
     "/*": index,
