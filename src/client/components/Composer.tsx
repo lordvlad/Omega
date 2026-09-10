@@ -179,25 +179,13 @@ export function Composer({
             ) : null}
 
             {/*
-             * One primary control, never two: while a turn is in flight the
-             * useful action is stopping it, so stop takes send's place rather
-             * than sitting beside it permanently greyed out. Ctrl+Enter still
-             * sends mid-turn, delivered as whatever the mode control says.
+             * Stop takes send's slot while a turn is in flight, so the primary
+             * control is the useful one. Typing during a turn is a steer or a
+             * queued follow-up though — both real actions — so send returns
+             * beside stop as soon as the input has content, rather than
+             * leaving Ctrl+Enter as the only way to deliver it.
              */}
-            {running ? (
-              <Tooltip label="Interrupt the assistant" position="left">
-                <ActionIcon
-                  size="xl"
-                  radius="md"
-                  variant="filled"
-                  color="red"
-                  onClick={onAbort}
-                  aria-label="Interrupt the assistant"
-                >
-                  <IconPlayerStopFilled size={22} />
-                </ActionIcon>
-              </Tooltip>
-            ) : (
+            {!running || text.trim() ? (
               <Tooltip label={`${MODE_HINT[mode]} Ctrl+Enter sends.`} position="left" multiline w={240}>
                 <ActionIcon
                   size="xl"
@@ -211,7 +199,22 @@ export function Composer({
                   <IconSend size={22} />
                 </ActionIcon>
               </Tooltip>
-            )}
+            ) : null}
+
+            {running ? (
+              <Tooltip label="Interrupt the assistant" position="left">
+                <ActionIcon
+                  size="xl"
+                  radius="md"
+                  variant="filled"
+                  color="red"
+                  onClick={onAbort}
+                  aria-label="Interrupt the assistant"
+                >
+                  <IconPlayerStopFilled size={22} />
+                </ActionIcon>
+              </Tooltip>
+            ) : null}
           </Stack>
         </Group>
 
