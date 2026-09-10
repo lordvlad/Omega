@@ -407,28 +407,62 @@ export function App() {
     setPendingUser([]);
   }, [sessionKey]);
 
-  // A URL outlives the process that served it: a shared link, a reload, or a
-  // server restart all arrive with a session id the registry has never
-  // opened, so `getState` 404s. The workspace listing already carries every
-  // session's id and file, so resolve the id there and load it once.
-  const reopened = useRef<string | undefined>(undefined);
+  /**
+   * Re-open a session the server no longer holds.
+   *
+   * A URL outlives the process that served it: a shared link, a reload, or a
+   * server restart all arrive with a session id the registry has never
+   * opened. So does simply leaving the tab alone — the idle sweep releases a
+   * session after `OMEGA_IDLE_MINUTES`, and `/ws/:key` then answers 404 for
+   * a key that will never come back on its own.
+   *
+   * This used to latch on the session id and never clear, so it re-opened at
+   * most once per page load. The second release of the same session — a tab
+   * left open across two idle periods, which is the normal way to use this —
+   * hit the latch and did nothing, and the socket retried a 404 forever
+   * behind a spinner that never resolved. Reloading the page was the only
+   * way out, because that is what cleared the ref.
+   *
+   * So the guard is now per-attempt rather than permanent: one re-open in
+   * flight at a time, and a short cooldown after each so a session that is
+   * genuinely unopenable backs off instead of spinning. The socket's own
+   * failure count is a trigger alongside the REST error, because after a
+   * release the socket is what notices first — and, once nothing is
+   * refetching on a timer, may be the only thing that notices at all.
+   */
+  const reopening = useRef(false);
+  const reopenedAt = useRef(0);
+  const REOPEN_COOLDOWN_MS = 10_000;
+  const socketGaveUp = live.status === "closed" && live.failures >= 2;
   useEffect(() => {
-    if (!sessionKey || !state.isError || !workspaces.data) return;
-    if (reopened.current === sessionKey) return;
+    if (!sessionKey || !workspaces.data) return;
+    if (!state.isError && !socketGaveUp) return;
+    if (reopening.current) return;
+    if (Date.now() - reopenedAt.current < REOPEN_COOLDOWN_MS) return;
     const summary = workspaces.data
       .flatMap(workspace => workspace.sessions)
       .find(session => session.id === sessionKey);
     if (!summary) return;
-    reopened.current = sessionKey;
+    reopening.current = true;
+    reopenedAt.current = Date.now();
     // Reopening the same file yields the same session id, so the URL stays valid.
     openSession.mutate(
       { body: { sessionPath: summary.path } },
       {
-        onSuccess: () => void queryClient.invalidateQueries(),
-        onError: fail,
+        onSuccess: () => {
+          reopening.current = false;
+          void queryClient.invalidateQueries();
+          // The socket is still retrying a key that only just became valid;
+          // reconnect now rather than waiting out its backoff.
+          live.reconnect();
+        },
+        onError: error => {
+          reopening.current = false;
+          fail(error);
+        },
       },
     );
-  }, [sessionKey, state.isError, workspaces.data]);
+  }, [sessionKey, state.isError, socketGaveUp, workspaces.data]);
 
   /**
    * The bare root has nothing on it to act on, so the palette is the page:

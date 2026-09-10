@@ -21,6 +21,27 @@ interface Frame {
 /** Connection state, surfaced so the UI can say why nothing is moving. */
 export type StreamStatus = "connecting" | "open" | "closed";
 
+/** How often to ping, and the unit the liveness check is measured in. */
+const KEEPALIVE_MS = 25_000;
+
+/**
+ * Delay before the next connection attempt.
+ *
+ * The first retry is quick because the overwhelming case is a server that
+ * just restarted, but an outage that has already failed several times is not
+ * going to be fixed by asking faster — and this runs against a machine on the
+ * user's own desk, so hammering it is rude. Capped rather than unbounded, so
+ * a tab left overnight is still trying on a sane cadence in the morning
+ * instead of having backed off into next week.
+ *
+ * The jitter matters when the server restarts: every open tab saw the same
+ * close at the same instant, and without it they would all retry in lockstep.
+ */
+function backoffMs(failures: number): number {
+  const base = Math.min(1_000 * 1.8 ** failures, 15_000);
+  return Math.round(base * (0.75 + Math.random() * 0.5));
+}
+
 /** A streaming block, keyed by the AG-UI `messageId` that owns it. */
 interface Block {
   id: string;
@@ -49,10 +70,20 @@ export interface LiveTurn {
   /** Notices omp emitted during the turn. */
   notices: string[];
   status: StreamStatus;
+  /**
+   * Consecutive failed connection attempts, reset by a successful open.
+   *
+   * The socket cannot see *why* an upgrade failed — a rejected handshake and
+   * a dropped network look identical from here — so this is what lets the
+   * shell decide that the session itself is the problem and re-open it.
+   */
+  failures: number;
   /** Bumped whenever the server says REST state went stale. */
   revision: number;
   /** True while a plan is awaiting review. */
   planAwaiting: boolean;
+  /** Force an immediate reconnect attempt. */
+  reconnect: () => void;
 }
 
 /**
@@ -88,6 +119,10 @@ export function useLiveTurn(key: string | undefined, onStale: () => void): LiveT
 
   // Bumped to force a fresh socket after an unexpected close.
   const [attempt, setAttempt] = useState(0);
+  // Mirrored into a ref because the backoff is read inside a socket callback,
+  // which closes over whatever the count was when the effect last ran.
+  const [failures, setFailures] = useState(0);
+  const failureCount = useRef(0);
 
   useEffect(() => {
     if (!key) {
@@ -105,27 +140,73 @@ export function useLiveTurn(key: string | undefined, onStale: () => void): LiveT
     url.protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
     const socket = new WebSocket(url);
 
-    // The phone suspends the socket when the screen locks; a periodic ping
-    // keeps the server's idle timer from closing a session mid-turn.
-    const keepalive = window.setInterval(() => {
-      if (socket.readyState === WebSocket.OPEN) socket.send("ping");
-    }, 25_000);
+    /**
+     * When the last frame arrived. A socket that has been suspended — laptop
+     * lid, NAT timeout, a phone that slept — very often stays `OPEN` with
+     * nothing behind it, and no close event ever fires. Silence across two
+     * keepalives means it is dead however healthy it claims to be.
+     */
+    let lastFrame = Date.now();
+    let awaitingPong = false;
 
-    socket.addEventListener("open", () => setStatus("open"));
+    const keepalive = window.setInterval(() => {
+      if (socket.readyState !== WebSocket.OPEN) return;
+      if (awaitingPong && Date.now() - lastFrame > KEEPALIVE_MS * 2) {
+        // Half-open: force the close the transport never reported, which puts
+        // this through the ordinary reconnect path.
+        socket.close();
+        return;
+      }
+      awaitingPong = true;
+      socket.send("ping");
+    }, KEEPALIVE_MS);
+
+    socket.addEventListener("open", () => {
+      setStatus("open");
+      failureCount.current = 0;
+      setFailures(0);
+      lastFrame = Date.now();
+      awaitingPong = false;
+      // Resync on arrival, not on departure: a gap in the stream is exactly
+      // when the REST snapshot may have moved on without us. Refetching on
+      // every failed retry instead would re-request the whole transcript
+      // every backoff tick of an outage.
+      stale.current();
+    });
+
     // An unexpected close means the server restarted, the network dropped, or
-    // the idle sweep released the session. Refetch REST state — a released
-    // session 404s, which is what drives the reopen-from-URL path — and then
-    // dial back in so a recovered session streams again without a reload.
+    // the idle sweep released the session.
     const reconnect = (): void => {
       setStatus("closed");
       if (releasing) return;
-      stale.current();
-      retry = window.setTimeout(() => setAttempt(value => value + 1), 2_000);
+      if (retry !== undefined) return;
+      failureCount.current += 1;
+      setFailures(failureCount.current);
+      retry = window.setTimeout(() => setAttempt(value => value + 1), backoffMs(failureCount.current));
     };
     socket.addEventListener("close", reconnect);
     socket.addEventListener("error", reconnect);
 
+    // On mobile or when switching tabs, browsers pause timers and sockets time out.
+    // When the user returns, reconnect immediately without waiting for a retry timer.
+    const onWake = (): void => {
+      if (socket.readyState === WebSocket.OPEN) return;
+      releasing = true;
+      if (retry !== undefined) window.clearTimeout(retry);
+      socket.close();
+      // Returning to the tab is a deliberate act, so it skips the backoff
+      // rather than inheriting however long the last one had grown to.
+      setAttempt(value => value + 1);
+    };
+    window.addEventListener("focus", onWake);
+    window.addEventListener("online", onWake);
+    const onVisibility = (): void => {
+      if (document.visibilityState === "visible") onWake();
+    };
+    document.addEventListener("visibilitychange", onVisibility);
     socket.addEventListener("message", event => {
+      lastFrame = Date.now();
+      awaitingPong = false;
       let frame: Frame;
       try {
         frame = JSON.parse(String(event.data));
@@ -247,6 +328,9 @@ export function useLiveTurn(key: string | undefined, onStale: () => void): LiveT
       releasing = true;
       if (retry !== undefined) window.clearTimeout(retry);
       window.clearInterval(keepalive);
+      window.removeEventListener("focus", onWake);
+      window.removeEventListener("online", onWake);
+      document.removeEventListener("visibilitychange", onVisibility);
       socket.close();
     };
   }, [key, reset, attempt]);
@@ -275,5 +359,23 @@ export function useLiveTurn(key: string | undefined, onStale: () => void): LiveT
     });
   }, [tick]);
 
-  return { running, parts, error, notices, status, revision, planAwaiting };
+  const reconnectNow = useCallback(() => {
+    // An explicit reconnect is a fresh start, not the next rung of a backoff
+    // the user never asked to be on.
+    failureCount.current = 0;
+    setFailures(0);
+    setAttempt(value => value + 1);
+  }, []);
+
+  return {
+    running,
+    parts,
+    error,
+    notices,
+    status,
+    failures,
+    revision,
+    planAwaiting,
+    reconnect: reconnectNow,
+  };
 }
