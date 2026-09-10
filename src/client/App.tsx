@@ -87,6 +87,7 @@ import { QueuePanel, queueSummary } from "./components/QueuePanel.tsx";
 import { TodoPanel } from "./components/TodoPanel.tsx";
 import { Transcript } from "./components/Transcript.tsx";
 import { useLiveTurn } from "./lib/stream.ts";
+import { forgetTranscript, usePersistedTranscript } from "./lib/transcript-cache.ts";
 
 /**
  * Header hyperlinks. Every piece of session identity in the header — session
@@ -178,6 +179,9 @@ export function App() {
 
   const state = useGetState({ path: { key: sessionKey ?? "" } }, { enabled: Boolean(sessionKey) });
   const transcript = useGetTranscript({ path: { key: sessionKey ?? "" } }, { enabled: Boolean(sessionKey) });
+  // Show the conversation that was on screen last time while the fetch runs,
+  // and while a released session is being re-opened.
+  usePersistedTranscript(sessionKey, transcript.data);
   const plan = useGetPlan({ path: { key: sessionKey ?? "" } }, { enabled: Boolean(sessionKey) });
   const branchPoints = useListBranchPoints(
     { path: { key: sessionKey ?? "" } },
@@ -503,6 +507,9 @@ export function App() {
             title: "Session deleted",
             message: result.detail ?? label,
           });
+          // Erased from disk means erased here too; a cached copy would
+          // otherwise outlive the conversation it belongs to.
+          void forgetTranscript(session.id);
           void queryClient.invalidateQueries();
         },
         onError: fail,

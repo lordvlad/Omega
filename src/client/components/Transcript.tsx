@@ -412,19 +412,42 @@ export function Transcript({
    */
   const BOTTOM_GRACE_PX = 48;
 
-  /** Pin to the bottom on the next frame. */
+  /** Pending tail frame, so a burst of measurements yields one scroll write. */
+  const tailFrame = useRef<number | undefined>(undefined);
+
+  /** Pin to the bottom, once the frame that measured the rows has finished. */
   const tail = useCallback(() => {
-    // Deferred to a frame rather than run inline: the virtualizer measures
-    // elements from a ResizeObserver, and writing scrollTop back inside that
-    // callback is what produces "ResizeObserver loop completed with
-    // undelivered notifications". `scrollToIndex` is avoided for the same
-    // reason — it flushes synchronously from inside the lifecycle.
-    requestAnimationFrame(() => {
-      const el = scrollRef.current;
-      if (!el || !pinned.current) return;
-      el.scrollTop = el.scrollHeight;
+    // Two deferrals, for two different hazards.
+    //
+    // Coalescing, because the effect below runs on every measured row: a
+    // transcript restored from cache mounts twenty rows in one commit, and
+    // twenty queued writes of the same scrollTop is pure waste.
+    //
+    // Then a second frame, because writing scrollTop is what decides which
+    // rows exist: the virtualizer reacts by mounting and unmounting, which
+    // resizes elements its own ResizeObserver is watching. Landing that
+    // inside the observer's delivery cycle is what produces "ResizeObserver
+    // loop completed with undelivered notifications". The first frame lets
+    // measurement and delivery finish; the write goes in the next one.
+    // `scrollToIndex` is avoided for the same reason — it flushes
+    // synchronously from inside the lifecycle.
+    if (tailFrame.current !== undefined) cancelAnimationFrame(tailFrame.current);
+    tailFrame.current = requestAnimationFrame(() => {
+      tailFrame.current = requestAnimationFrame(() => {
+        tailFrame.current = undefined;
+        const el = scrollRef.current;
+        if (!el || !pinned.current) return;
+        el.scrollTop = el.scrollHeight;
+      });
     });
   }, []);
+
+  useEffect(
+    () => () => {
+      if (tailFrame.current !== undefined) cancelAnimationFrame(tailFrame.current);
+    },
+    [],
+  );
 
   const handleScroll = useCallback(() => {
     const el = scrollRef.current;
