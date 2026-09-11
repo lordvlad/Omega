@@ -1,3 +1,5 @@
+import * as fs from "node:fs";
+
 /**
  * The live-session registry.
  *
@@ -45,10 +47,10 @@ interface PendingPlan {
 
 /** One live agent session plus everything the web layer wraps around it. */
 export class LiveSession {
-  readonly key: string;
+  #key: string;
   readonly session: AgentSession;
   readonly manager: SessionManager;
-  readonly #translator: AguiTranslator;
+  #translator: AguiTranslator;
   readonly #sinks = new Set<FrameSink>();
   readonly #closeListeners = new Set<() => void>();
   readonly #replay: AguiFrame[] = [];
@@ -56,12 +58,34 @@ export class LiveSession {
   #unsubscribe: (() => void) | undefined;
   /** Epoch ms of the last user or agent message. Drives idle eviction. */
   #lastActivityAt = Date.now();
+  /** Whether the previous sweep sample saw work in flight. */
+  #wasBusy = false;
 
   constructor(key: string, session: AgentSession, manager: SessionManager) {
-    this.key = key;
+    this.#key = key;
     this.session = session;
     this.manager = manager;
     this.#translator = new AguiTranslator(key);
+  }
+
+  /** omp session UUID this live agent is registered under. */
+  get key(): string {
+    return this.#key;
+  }
+
+  /**
+   * Adopt the session id omp minted for a fork or a branch.
+   *
+   * `fork()` and `branch()` move this agent onto a new session file with a new
+   * id, so the key every URL carries has to move with it. The replay buffer
+   * and the translator describe the transcript just left behind, so both are
+   * reset: replaying those frames into the branched conversation would render
+   * a turn that is no longer part of it.
+   */
+  adoptKey(next: string): void {
+    this.#key = next;
+    this.#translator = new AguiTranslator(next);
+    this.#replay.length = 0;
   }
 
   /**
@@ -130,6 +154,58 @@ export class LiveSession {
 
   get pendingPlan(): PendingPlan | undefined {
     return this.#pendingPlan;
+  }
+
+  /**
+   * Whether the agent is doing work that eviction would destroy.
+   *
+   * "Idle" has to mean the *agent* is idle, not that the user is. Those come
+   * apart exactly when it matters most: you send a long job, lock your phone,
+   * and the only party still working is the one this timer would kill.
+   *
+   * `isStreaming` alone is not that question. omp runs bash and eval kernels
+   * outside the model's stream — its own boundary operations guard on
+   * `isStreaming || isBashRunning || isEvalRunning` for exactly that reason —
+   * so a shell command or a REPL can still be running with nothing streaming.
+   * Disposing then does not merely disconnect a browser: it kills the child
+   * processes, MCP connections and eval kernels the session owns, losing work
+   * that reconnecting cannot recover.
+   *
+   * Only signals that clear on their own belong here, because this predicate
+   * holds the idle clock open. A running process ends; a *pending* one does
+   * not. `hasPendingBashMessages`, `hasPendingPythonMessages` and
+   * `queuedMessageCount` all stay set until some future prompt consumes them
+   * — `queuedMessageCount` counts next-turn messages that may never have a
+   * next turn — so treating them as work in flight would not protect a job,
+   * it would make the session immortal and defeat the sweep entirely.
+   *
+   * `pendingPlan` is the deliberate exception, and predates this: a plan
+   * awaiting review is holding a turn open by design, and the agent is parked
+   * inside it rather than finished.
+   */
+  get busy(): boolean {
+    const session = this.session;
+    return (
+      session.isStreaming || session.isBashRunning || session.isEvalRunning || this.#pendingPlan !== undefined
+    );
+  }
+
+  /**
+   * Sample busyness for the idle sweep, keeping the idle clock honest.
+   *
+   * Sampling rather than reading `busy` directly because the sweep needs the
+   * *edge*, not just the level. While work runs the clock is held at now, so
+   * a job cannot age into eviction while it is the reason nobody is idle. On
+   * the first sample after it finishes the clock restarts, so the window is
+   * measured from the end of the work rather than from the last sweep that
+   * happened to observe it — otherwise a job ending just after a sweep gets
+   * an idle window one sweep-interval short of the configured one.
+   */
+  sampleBusy(): boolean {
+    const busy = this.busy;
+    if (busy || this.#wasBusy) this.touch();
+    this.#wasBusy = busy;
+    return busy;
   }
 
   /**
@@ -274,11 +350,11 @@ export class Registry {
       () => {
         const now = Date.now();
         for (const [key, live] of [...this.#sessions]) {
-          // Never evict mid-turn: a turn that has been thinking for longer than
-          // the idle window is busy, not abandoned.
-          if (live.session.isStreaming) continue;
-          // Nor while a plan is parked waiting on the user's decision.
-          if (live.pendingPlan) continue;
+          // A working agent is not an idle session, whatever the user is
+          // doing. `sampleBusy` both answers that and keeps the idle clock
+          // pinned to the work, so a job is neither evicted while it runs nor
+          // evicted the instant it finishes.
+          if (live.sampleBusy()) continue;
           const idle = live.idleFor(now);
           if (idle < limitMs) continue;
           this.#sessions.delete(key);
@@ -371,7 +447,11 @@ export class Registry {
       hasUI: false,
     });
 
-    const key = session.sessionId;
+    // The key must be the id `SessionManager.listAll()` reports as
+    // `SessionSummary.id` — what the client matches on for stale-URL recovery
+    // and what a fork or a branch mints. `session.sessionId` prefers a
+    // provider-session override, so it is not that id.
+    const key = manager.getSessionId();
     const existing = this.#sessions.get(key);
     if (existing) {
       // Two concurrent opens of the same file: keep the first, discard this.
@@ -384,6 +464,64 @@ export class Registry {
     live.armPlanProposals();
     this.#sessions.set(key, live);
     return live;
+  }
+
+  /**
+   * Move a live session to the id omp minted for it, e.g. after a fork or a
+   * branch, and return it under its new key.
+   */
+  rekey(oldKey: string): LiveSession {
+    const live = this.#sessions.get(oldKey);
+    if (!live) throw new Error(`Session ${oldKey} is not live.`);
+    const next = live.manager.getSessionId();
+    if (next === oldKey) return live;
+    this.#sessions.delete(oldKey);
+    // A fresh id cannot legitimately collide; if it does, two agents would be
+    // writing one file, so the older entry is disposed rather than orphaned.
+    const clash = this.#sessions.get(next);
+    if (clash && clash !== live) {
+      this.#sessions.delete(next);
+      void clash.dispose().catch(() => undefined);
+    }
+    live.adoptKey(next);
+    this.#sessions.set(next, live);
+    return live;
+  }
+
+  /** Stop a live session, disposing its agent and removing it from memory. */
+  async stop(key: string): Promise<boolean> {
+    const live = this.#sessions.get(key);
+    if (!live) return false;
+    this.#sessions.delete(key);
+    await live.dispose();
+    return true;
+  }
+
+  /** Delete a session from disk and dispose it if live. */
+  async delete(key: string): Promise<void> {
+    let filePath: string | undefined;
+
+    const live = this.#sessions.get(key);
+    if (live) {
+      filePath = live.session.sessionFile;
+      this.#sessions.delete(key);
+      await live.dispose();
+    }
+
+    if (!filePath) {
+      const all = await SessionManager.listAll();
+      const match = all.find(s => s.id === key);
+      filePath = match?.path;
+    }
+
+    if (!filePath) throw new Error(`Session ${key} not found on disk.`);
+
+    // Delete session file
+    await fs.promises.unlink(filePath).catch(() => undefined);
+
+    // Delete sibling artifacts directory (e.g. `2026-09-01T..._uuid/`)
+    const artifactsDir = filePath.replace(/\.jsonl$/u, "");
+    await fs.promises.rm(artifactsDir, { recursive: true, force: true }).catch(() => undefined);
   }
 
   async disposeAll(): Promise<void> {

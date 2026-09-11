@@ -16,6 +16,10 @@
  */
 import type {
   Ack,
+  BranchPoint,
+  BranchRequest,
+  BranchResult,
+  CompactRequest,
   LiveState,
   MarkdownRequest,
   ModelOption,
@@ -25,8 +29,14 @@ import type {
   PlanEditRequest,
   PlanModeRequest,
   PromptRequest,
+  QueueDropRequest,
+  QueueEditRequest,
+  QueuedMessage,
+  RenameRequest,
   RenderedMarkdown,
   SelectModelRequest,
+  ShakeRequest,
+  ThinkingRequest,
   Transcript,
   Workspace,
 } from "./model.ts";
@@ -105,6 +115,66 @@ export interface OmpApi {
   abort(key: string): Promise<Ack>;
 
   /**
+   * The user messages waiting to be delivered, steering lane first.
+   *
+   * Empty whenever the session is idle: a queue only exists while a turn is
+   * in flight to queue behind.
+   *
+   * @get /api/sessions/{key}/queue
+   * @summary List queued messages
+   * @response 200 application/json QueuedMessage[]
+   * @response 404 application/json Problem
+   */
+  listQueue(key: string): Promise<QueuedMessage[]>;
+
+  /**
+   * Rewrite a queued message in place, keeping its lane and position.
+   *
+   * Returns the queue as it stands afterwards, so the caller never has to
+   * guess what the agent drained in the meantime.
+   *
+   * @post /api/sessions/{key}/queue/edit
+   * @summary Edit a queued message
+   * @response 200 application/json QueuedMessage[]
+   * @response 400 application/json Problem
+   * @response 404 application/json Problem
+   * @response 409 application/json Problem
+   */
+  editQueued(key: string, body: QueueEditRequest): Promise<QueuedMessage[]>;
+
+  /**
+   * Drop a queued message before it is delivered.
+   *
+   * @post /api/sessions/{key}/queue/drop
+   * @summary Drop a queued message
+   * @response 200 application/json QueuedMessage[]
+   * @response 404 application/json Problem
+   * @response 409 application/json Problem
+   */
+  dropQueued(key: string, body: QueueDropRequest): Promise<QueuedMessage[]>;
+
+  /**
+   * Stop and release a live agent session from memory.
+   *
+   * @post /api/sessions/{key}/stop
+   * @summary Stop a live session
+   * @response 200 application/json Ack
+   * @response 404 application/json Problem
+   */
+  stopSession(key: string): Promise<Ack>;
+
+  /**
+   * Delete a session file and its artifacts from disk, disposing it first if live.
+   *
+   * @delete /api/sessions/{key}
+   * @summary Delete a session from disk
+   * @response 200 application/json Ack
+   * @response 400 application/json Problem
+   * @response 404 application/json Problem
+   */
+  deleteSession(key: string): Promise<Ack>;
+
+  /**
    * Switch the live session's model, and optionally its thinking level.
    *
    * @post /api/sessions/{key}/model
@@ -114,6 +184,97 @@ export interface OmpApi {
    * @response 404 application/json Problem
    */
   selectModel(key: string, body: SelectModelRequest): Promise<LiveState>;
+
+  /**
+   * Compact the session context now, mirroring omp's `/compact`.
+   *
+   * @post /api/sessions/{key}/compact
+   * @summary Compact the session context
+   * @response 200 application/json Ack
+   * @response 400 application/json Problem
+   * @response 404 application/json Problem
+   * @response 409 application/json Problem
+   */
+  compactSession(key: string, body: CompactRequest): Promise<Ack>;
+
+  /**
+   * Drop heavy content (tool results, large blocks, or images) from context.
+   *
+   * @post /api/sessions/{key}/shake
+   * @summary Shake heavy content out of context
+   * @response 200 application/json Ack
+   * @response 404 application/json Problem
+   * @response 409 application/json Problem
+   */
+  shakeSession(key: string, body: ShakeRequest): Promise<Ack>;
+
+  /**
+   * Set the session's thinking level without changing the model.
+   *
+   * @post /api/sessions/{key}/thinking
+   * @summary Set the thinking level
+   * @response 200 application/json LiveState
+   * @response 404 application/json Problem
+   */
+  setThinkingLevel(key: string, body: ThinkingRequest): Promise<LiveState>;
+
+  /**
+   * Rename the session, as omp's `/rename` does.
+   *
+   * @post /api/sessions/{key}/title
+   * @summary Rename the session
+   * @response 200 application/json LiveState
+   * @response 400 application/json Problem
+   * @response 404 application/json Problem
+   */
+  renameSession(key: string, body: RenameRequest): Promise<LiveState>;
+
+  /**
+   * Re-run the last failed or aborted turn. The retried turn streams over the
+   * session's WebSocket, so this returns as soon as it is scheduled.
+   *
+   * @post /api/sessions/{key}/retry
+   * @summary Retry the last failed turn
+   * @response 200 application/json Ack
+   * @response 404 application/json Problem
+   */
+  retryTurn(key: string): Promise<Ack>;
+
+  /**
+   * Copy this session, transcript and artifacts included, into a new one and
+   * continue in the copy. The original file stays on disk untouched.
+   *
+   * @post /api/sessions/{key}/fork
+   * @summary Fork the session
+   * @response 200 application/json LiveState
+   * @response 404 application/json Problem
+   * @response 409 application/json Problem
+   */
+  forkSession(key: string): Promise<LiveState>;
+
+  /**
+   * The user messages this session can branch from, oldest first.
+   *
+   * @get /api/sessions/{key}/branch-points
+   * @summary List branch points
+   * @response 200 application/json BranchPoint[]
+   * @response 404 application/json Problem
+   */
+  listBranchPoints(key: string): Promise<BranchPoint[]>;
+
+  /**
+   * Restart the conversation from an earlier user message: omp writes a new
+   * session containing everything up to that message's parent and continues
+   * there, returning the message text so the composer can be pre-filled.
+   *
+   * @post /api/sessions/{key}/branch
+   * @summary Branch from an earlier message
+   * @response 200 application/json BranchResult
+   * @response 400 application/json Problem
+   * @response 404 application/json Problem
+   * @response 409 application/json Problem
+   */
+  branchSession(key: string, body: BranchRequest): Promise<BranchResult>;
 
   /**
    * The plan document, its headings and the executable role tiers — the three

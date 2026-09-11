@@ -9,6 +9,7 @@
         "@mantine/core": "^9.6.0",
         "@mantine/hooks": "^9.6.0",
         "@mantine/notifications": "^9.6.0",
+        "@mantine/spotlight": "9.6.0",
         "@oh-my-pi/pi-coding-agent": "file:/home/waldemar/.bun/install/global/node_modules/@oh-my-pi/pi-coding-agent",
         "@tabler/icons-react": "^3.46.0",
         "@tanstack/ai": "^0.53.0",
@@ -135,6 +136,8 @@
     "@mantine/hooks": ["@mantine/hooks@9.6.0", "", { "peerDependencies": { "react": "^19.2.0" } }, "sha512-r+1RWxc0F2XK9exKIk3Cxc17eyDTEtRqvomeQMCqI4S2Z3A78ObAGuNS8WXn8aqDGN66MJlO+WV7oCgQn2iQfQ=="],
 
     "@mantine/notifications": ["@mantine/notifications@9.6.0", "", { "dependencies": { "@mantine/store": "9.6.0", "react-transition-group": "4.4.5" }, "peerDependencies": { "@mantine/core": "9.6.0", "@mantine/hooks": "9.6.0", "react": "^19.2.0", "react-dom": "^19.2.0" } }, "sha512-1sTE7EaGpr6LX7ykE8DOwpTNxi3U7AHF7Ve/oBd1VEe2k/5RmEYLTWpexxf7WwNpEmHCi99MvG7qUMQJyqc9Fg=="],
+
+    "@mantine/spotlight": ["@mantine/spotlight@9.6.0", "", { "dependencies": { "@mantine/store": "9.6.0" }, "peerDependencies": { "@mantine/core": "9.6.0", "@mantine/hooks": "9.6.0", "react": "^19.2.0", "react-dom": "^19.2.0" } }, "sha512-ZJgdrMWnhZDWSu6/OHcUkk5cXgLhkBnICCWWnHpuaapAKIa+ya3jj0BXDA8fzb3iY6yKCF06bqpKY5rhiuKaCw=="],
 
     "@mantine/store": ["@mantine/store@9.6.0", "", { "peerDependencies": { "react": "^19.2.0" } }, "sha512-nYt2tfn1/e6CK35a5TWlPbOL3Xwf7OzBmBElV0l+Ae6mswVaMip1WHm0mCaHAbTKgsOnvL/tooDTVxBBrmm87Q=="],
 

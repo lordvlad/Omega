@@ -434,6 +434,45 @@ export function App() {
   const reopenedAt = useRef(0);
   const REOPEN_COOLDOWN_MS = 10_000;
   const socketGaveUp = live.status === "closed" && live.failures >= 2;
+
+  /**
+   * Returning to a backgrounded tab, as its own trigger.
+   *
+   * The failure-driven path above assumes the retry timer is running, and in
+   * a hidden tab it effectively is not: browsers throttle background timers
+   * to about once a minute and freeze them outright on mobile. So the tab
+   * that has been away longest — the one whose session is certainly gone —
+   * is the one least able to notice on its own, and it would sit on a stale
+   * snapshot until a throttled timer happened to fire.
+   *
+   * Coming back is therefore treated as a reason to check, not to wait: the
+   * cooldown is cleared, because a returning user must never inherit a
+   * backoff accrued while they were away, and the state query is refetched
+   * so a released session surfaces as an error the effect below acts on.
+   */
+  const [wake, setWake] = useState(0);
+  useEffect(() => {
+    const onWake = (): void => {
+      if (document.visibilityState !== "visible") return;
+      reopenedAt.current = 0;
+      setWake(value => value + 1);
+    };
+    window.addEventListener("focus", onWake);
+    window.addEventListener("online", onWake);
+    document.addEventListener("visibilitychange", onWake);
+    return () => {
+      window.removeEventListener("focus", onWake);
+      window.removeEventListener("online", onWake);
+      document.removeEventListener("visibilitychange", onWake);
+    };
+  }, []);
+
+  // A wake tells us to look, not what we will find: the snapshot in hand was
+  // taken before the tab went away. Refetch, then let the effect below judge.
+  useEffect(() => {
+    if (wake === 0 || !sessionKey) return;
+    void state.refetch();
+  }, [wake, sessionKey]);
   useEffect(() => {
     if (!sessionKey || !workspaces.data) return;
     if (!state.isError && !socketGaveUp) return;
@@ -462,7 +501,10 @@ export function App() {
         },
       },
     );
-  }, [sessionKey, state.isError, socketGaveUp, workspaces.data]);
+    // `wake` is a dependency because a tab returning to a session that was
+    // already in error changes none of the others: the error was there
+    // before it went away. Without it the check could not re-run at all.
+  }, [sessionKey, state.isError, socketGaveUp, workspaces.data, wake]);
 
   /**
    * The bare root has nothing on it to act on, so the palette is the page:

@@ -17,6 +17,7 @@
     "@mantine/core": "^9.6.0",
     "@mantine/hooks": "^9.6.0",
     "@mantine/notifications": "^9.6.0",
+    "@mantine/spotlight": "9.6.0",
     "@oh-my-pi/pi-coding-agent": "file:/home/waldemar/.bun/install/global/node_modules/@oh-my-pi/pi-coding-agent",
     "@tabler/icons-react": "^3.46.0",
     "@tanstack/ai": "^0.53.0",
