@@ -73,53 +73,35 @@ body {
 
 /* ---- messages ---- */
 
-/* The max-width moves to the wrapper so the wrapper, not the bubble, is the
-   flex item that shrinks to the text — the menu is positioned against it, and
-   an anchor wider than the bubble would strand the control out in the gutter. */
 .omega-user-bubble {
   background: color-mix(in srgb, var(--mantine-color-plum-9) 60%, var(--omega-surface));
   border: 1px solid var(--mantine-color-plum-7);
+  max-width: min(46rem, 88%);
 }
 
 .omega-msg {
   position: relative;
 }
 
-.omega-msg[data-role="user"] {
-  max-width: min(46rem, 88%);
-}
+/* Revealed on click, and absolutely positioned so revealing it reflows
+   nothing: the text under the cursor must not move at the moment of the
+   click. `top` is set inline from the click; the offset here lifts the
+   control onto the line that was actually pointed at.
 
-/* Revealed on click, and absolute so revealing it reflows nothing: the text
-   under the cursor must not move at the moment of the click. `top` is set
-   inline from the click position and pulled up by half the control, so it
-   centres on the line that was actually pointed at. */
+   Both roles sit on the right, so every message's control lands on the same
+   vertical line however wide the message is. On a user row that clears the
+   avatar, which is why it anchors to the row rather than the bubble. */
 .omega-msg-menu {
-  position: absolute;
   z-index: 2;
-  margin-top: -11px;
-  background: var(--omega-surface);
-  border: 1px solid var(--omega-line);
-}
-
-/* Wide: clear of the text entirely, in the margin beside the column. The user
-   side mirrors it, because that row's right edge is the avatar. */
-.omega-msg[data-role="assistant"] .omega-msg-menu {
-  right: -36px;
-}
-
-.omega-msg[data-role="user"] .omega-msg-menu {
-  left: -36px;
+  right: -40px;
+  margin-top: -14px;
 }
 
 /* Narrow: no margin left to sit in, so it overlaps the very edge of the text
    rather than pushing any of it aside. */
 @media (max-width: 900px) {
-  .omega-msg[data-role="assistant"] .omega-msg-menu {
+  .omega-msg-menu {
     right: -4px;
-  }
-
-  .omega-msg[data-role="user"] .omega-msg-menu {
-    left: -4px;
   }
 }
 

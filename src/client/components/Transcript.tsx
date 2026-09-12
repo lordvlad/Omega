@@ -253,11 +253,15 @@ function MessageMenu({
       <Menu.Target>
         <ActionIcon
           className="omega-msg-menu"
-          style={{ top }}
-          variant="subtle"
-          color="gray"
-          size="sm"
-          radius="sm"
+          // Position inline, not in the stylesheet: Mantine sets `position:
+          // relative` on the ActionIcon root, which beats a rule of equal
+          // specificity. `top` is the click offset; the transform lifts the
+          // control onto the line that was actually pointed at.
+          style={{ position: "absolute", top, boxShadow: "0 4px 14px rgba(0, 0, 0, 0.45)" }}
+          variant="filled"
+          color="plum"
+          size="md"
+          radius="xl"
           aria-label="Message actions"
         >
           <IconDots size={16} />
@@ -323,22 +327,22 @@ function Message({
 
   if (message.role === "user") {
     return (
-      <Group justify="flex-end" align="flex-start" gap="xs" wrap="nowrap">
-        {/* The bubble, not the row, anchors the menu: the row spans the whole
-            column, so positioning against it would strand the control far from
-            a short message. */}
-        <div className="omega-msg" data-role="user" onClick={arm}>
+      // The row, not the bubble, anchors the menu, so every message's control
+      // lands on the same vertical line in the margin whatever its width —
+      // and clear of the avatar, which owns the right of this row.
+      <div className="omega-msg" data-role="user" onClick={arm}>
+        <Group justify="flex-end" align="flex-start" gap="xs" wrap="nowrap">
           <Paper className="omega-user-bubble" p="sm" radius="lg">
             {message.parts.map((part, index) => (
               <Markdown key={index} text={part.text} />
             ))}
           </Paper>
-          {menu}
-        </div>
-        <Box className="omega-avatar" data-role="user">
-          <IconUser size={14} />
-        </Box>
-      </Group>
+          <Box className="omega-avatar" data-role="user">
+            <IconUser size={14} />
+          </Box>
+        </Group>
+        {menu}
+      </div>
     );
   }
 
