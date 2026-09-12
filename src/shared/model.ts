@@ -188,13 +188,22 @@ export type PlanAction = "execute" | "compact" | "keep" | "refine";
 
 /** A transcript entry, flattened for rendering. */
 export interface TranscriptMessage {
-  /** Stable id; the omp entry id where one exists. */
+  /** Render key, unique within a transcript. */
   id: string;
   role: "user" | "assistant" | "toolResult" | "custom";
   /** Ordered content parts. */
   parts: MessagePart[];
   /** ISO-8601, when the entry carried one. */
   timestamp?: string;
+  /**
+   * The omp session entry this message was written as.
+   *
+   * Present on persisted user messages, which are the only entries omp will
+   * branch from. Absent on assistant messages, on anything still streaming,
+   * and on the local echo of a message the server has not stored yet — so its
+   * presence is exactly the test for whether a branch can start here.
+   */
+  entryId?: string;
 }
 
 /**

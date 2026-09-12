@@ -115,6 +115,7 @@ export interface TranscriptMessage {
   role: "user" | "assistant" | "toolResult" | "custom";
   parts: MessagePart[];
   timestamp?: string;
+  entryId?: string;
 }
 
 /**

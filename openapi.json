@@ -1753,7 +1753,7 @@
         "properties": {
           "id": {
             "type": "string",
-            "description": "Stable id; the omp entry id where one exists."
+            "description": "Render key, unique within a transcript."
           },
           "role": {
             "anyOf": [
@@ -1781,6 +1781,10 @@
           "timestamp": {
             "type": "string",
             "description": "ISO-8601, when the entry carried one."
+          },
+          "entryId": {
+            "type": "string",
+            "description": "The omp session entry this message was written as.\n\nPresent on persisted user messages, which are the only entries omp will\nbranch from. Absent on assistant messages, on anything still streaming,\nand on the local echo of a message the server has not stored yet — so its\npresence is exactly the test for whether a branch can start here."
           }
         },
         "required": [

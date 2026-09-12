@@ -776,26 +776,35 @@ export function App() {
     );
   };
 
-  /** Branch: same re-keying as a fork, plus the message text to re-edit. */
-  const handleBranch = (point: BranchPoint): void => {
-    if (!sessionKey) return;
-    branchSession.mutate(
-      { path: { key: sessionKey }, body: { entryId: point.entryId } },
-      {
-        onSuccess: result => {
-          navigateTo({ project: result.state.cwd, session: result.state.key });
-          setDraft({ text: result.draft });
-          notifications.show({
-            color: "cyan",
-            title: "Branched",
-            message: "That message is back in the composer, ready to edit.",
-          });
-          void queryClient.invalidateQueries();
+  /**
+   * Branch: same re-keying as a fork, plus the message text to re-edit.
+   *
+   * Keyed on the entry id alone, because both callers already have one: the
+   * palette from its branch-point list, and a user message in the transcript
+   * from the entry it was written as.
+   */
+  const handleBranch = useCallback(
+    (entryId: string): void => {
+      if (!sessionKey) return;
+      branchSession.mutate(
+        { path: { key: sessionKey }, body: { entryId } },
+        {
+          onSuccess: result => {
+            navigateTo({ project: result.state.cwd, session: result.state.key });
+            setDraft({ text: result.draft });
+            notifications.show({
+              color: "cyan",
+              title: "Branched",
+              message: "That message is back in the composer, ready to edit.",
+            });
+            void queryClient.invalidateQueries();
+          },
+          onError: fail,
         },
-        onError: fail,
-      },
-    );
-  };
+      );
+    },
+    [sessionKey],
+  );
 
   /**
    * Send a message, echoing it locally at once.
@@ -1022,6 +1031,7 @@ export function App() {
               error={live.error}
               notices={live.notices}
               loading={transcript.isPending}
+              onFork={sessionKey ? handleBranch : undefined}
             />
             <Composer
               state={state.data}
@@ -1109,7 +1119,7 @@ export function App() {
         onAbort={handleAbort}
         onTogglePlanMode={handleSetPlanMode}
         onFork={handleFork}
-        onBranch={handleBranch}
+        onBranch={point => handleBranch(point.entryId)}
         onStopSession={handleStopSession}
         onDeleteSession={handleDeleteSession}
         onRefreshWorkspaces={() => void workspaces.refetch()}

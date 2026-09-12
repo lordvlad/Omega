@@ -1,4 +1,5 @@
 import type { ThinkingLevel as OmpThinkingLevel } from "@oh-my-pi/pi-agent-core";
+import type { AgentMessage } from "@oh-my-pi/pi-agent-core";
 import type { ImageContent } from "@oh-my-pi/pi-ai";
 
 import type {
@@ -165,7 +166,14 @@ export class Handlers implements OmpApi {
 
   async getTranscript(key: string): Promise<Transcript> {
     const live = this.#require(key);
-    return { key, messages: flattenMessages(live.session.messages) };
+    // The agent's messages are what render; the session entries are what
+    // carry ids. They hold the same message objects, so identity correlates
+    // them without either list having to be re-derived from the other.
+    const entryIds = new Map<AgentMessage, string>();
+    for (const entry of live.manager.getEntries()) {
+      if (entry.type === "message") entryIds.set(entry.message, entry.id);
+    }
+    return { key, messages: flattenMessages(live.session.messages, entryIds) };
   }
 
   async prompt(key: string, body: PromptRequest): Promise<Ack> {

@@ -12,8 +12,19 @@ import type { AgentMessage } from "@oh-my-pi/pi-agent-core";
 import type { MessagePart, TranscriptMessage } from "../shared/model.ts";
 import { toolResultText } from "./agui.ts";
 
+/**
+ * Entry ids for the messages that have one, keyed by message identity.
+ *
+ * Keyed by object rather than by position because the two lists are filtered
+ * differently: the transcript drops synthetic and empty messages, the entry
+ * log does not. Correlating by order would survive most conversations and
+ * then silently point one message off in the ones that do not — and a branch
+ * taken at the wrong entry truncates the conversation at the wrong place.
+ */
+export type EntryIds = ReadonlyMap<AgentMessage, string>;
+
 /** Flatten a live session's messages for rendering. */
-export function flattenMessages(messages: readonly AgentMessage[]): TranscriptMessage[] {
+export function flattenMessages(messages: readonly AgentMessage[], entryIds?: EntryIds): TranscriptMessage[] {
   const out: TranscriptMessage[] = [];
   /** Tool call id → the part awaiting its result. */
   const awaiting = new Map<string, MessagePart>();
@@ -60,7 +71,15 @@ export function flattenMessages(messages: readonly AgentMessage[]): TranscriptMe
       // user message nobody typed.
       if ("synthetic" in message && message.synthetic) continue;
       if (!text.trim()) continue;
-      out.push({ id: `user-${index}`, role: "user", timestamp, parts: [{ kind: "text", text }] });
+      out.push({
+        id: `user-${index}`,
+        role: "user",
+        timestamp,
+        parts: [{ kind: "text", text }],
+        // `developer` messages fall through this branch too; they are not
+        // branchable, and they have no entry of their own to offer.
+        entryId: message.role === "user" ? entryIds?.get(message) : undefined,
+      });
       continue;
     }
 

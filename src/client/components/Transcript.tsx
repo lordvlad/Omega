@@ -15,23 +15,28 @@ import {
   Collapse,
   Group,
   Loader,
+  Menu,
   Paper,
   Stack,
   Text,
   Tooltip,
   UnstyledButton,
 } from "@mantine/core";
+import { useClipboard } from "@mantine/hooks";
 import {
   IconAlertTriangle,
   IconArrowDown,
   IconBrain,
   IconChevronRight,
+  IconCopy,
+  IconDots,
+  IconGitBranch,
   IconTerminal2,
   IconTools,
   IconUser,
 } from "@tabler/icons-react";
 import { useVirtualizer } from "@tanstack/react-virtual";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { type MouseEvent as ReactMouseEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import type { MessagePart, TranscriptMessage } from "../api/model.ts";
 import { Markdown } from "../lib/markdown.tsx";
@@ -222,15 +227,114 @@ function groupParts(parts: MessagePart[]): PartSlot[] {
   return slots;
 }
 
-function Message({ message, streaming }: { message: TranscriptMessage; streaming: boolean }) {
+/**
+ * Per-message actions, revealed by clicking the message.
+ *
+ * Absolutely positioned, and deliberately so: the control appears mid-read,
+ * and anything that occupied layout would reflow the paragraph under the
+ * cursor at the moment of the click. `top` comes from where the click landed,
+ * so the control meets the pointer instead of the pointer hunting for it.
+ */
+function MessageMenu({
+  top,
+  copyText,
+  forkFrom,
+  onFork,
+}: {
+  top: number;
+  copyText: string;
+  forkFrom: string | undefined;
+  onFork: ((entryId: string) => void) | undefined;
+}) {
+  const clipboard = useClipboard({ timeout: 1200 });
+
+  return (
+    <Menu position="bottom-end" shadow="md" width={190} withinPortal>
+      <Menu.Target>
+        <ActionIcon
+          className="omega-msg-menu"
+          style={{ top }}
+          variant="subtle"
+          color="gray"
+          size="sm"
+          radius="sm"
+          aria-label="Message actions"
+        >
+          <IconDots size={16} />
+        </ActionIcon>
+      </Menu.Target>
+      <Menu.Dropdown>
+        <Menu.Item
+          leftSection={<IconCopy size={14} />}
+          disabled={!copyText}
+          onClick={() => clipboard.copy(copyText)}
+        >
+          {clipboard.copied ? "Copied" : "Copy"}
+        </Menu.Item>
+        {forkFrom !== undefined && onFork ? (
+          <Menu.Item leftSection={<IconGitBranch size={14} />} onClick={() => onFork(forkFrom)}>
+            Fork from here
+          </Menu.Item>
+        ) : null}
+      </Menu.Dropdown>
+    </Menu>
+  );
+}
+
+function Message({
+  message,
+  streaming,
+  armedAt,
+  onArm,
+  onFork,
+}: {
+  message: TranscriptMessage;
+  streaming: boolean;
+  /** Offset within this message where the menu sits, or undefined if unarmed. */
+  armedAt: number | undefined;
+  onArm: (offset: number) => void;
+  onFork?: (entryId: string) => void;
+}) {
+  // Only the prose is worth copying: tool parts hold rendered output, and a
+  // transcript of someone else's shell session is not what "copy" promises.
+  const copyText = message.parts
+    .filter(part => part.kind === "text")
+    .map(part => part.text)
+    .join("\n\n")
+    .trim();
+  // omp branches from user entries only, so an assistant message offers copy
+  // alone rather than an action that would fail on use.
+  const forkFrom = message.role === "user" ? message.entryId : undefined;
+
+  const arm = (event: ReactMouseEvent<HTMLDivElement>): void => {
+    // Leave the message's own controls alone: a click on a tool's disclosure
+    // or a link is that click, not a request for this menu.
+    if (event.target instanceof Element && event.target.closest("a,button,[role='button']")) return;
+    // Selecting text ends in a click; arming on it would fight the selection.
+    if (window.getSelection()?.isCollapsed === false) return;
+    const bounds = event.currentTarget.getBoundingClientRect();
+    onArm(event.clientY - bounds.top);
+  };
+
+  const menu =
+    armedAt === undefined ? null : (
+      <MessageMenu top={armedAt} copyText={copyText} forkFrom={forkFrom} onFork={onFork} />
+    );
+
   if (message.role === "user") {
     return (
       <Group justify="flex-end" align="flex-start" gap="xs" wrap="nowrap">
-        <Paper className="omega-user-bubble" p="sm" radius="lg">
-          {message.parts.map((part, index) => (
-            <Markdown key={index} text={part.text} />
-          ))}
-        </Paper>
+        {/* The bubble, not the row, anchors the menu: the row spans the whole
+            column, so positioning against it would strand the control far from
+            a short message. */}
+        <div className="omega-msg" data-role="user" onClick={arm}>
+          <Paper className="omega-user-bubble" p="sm" radius="lg">
+            {message.parts.map((part, index) => (
+              <Markdown key={index} text={part.text} />
+            ))}
+          </Paper>
+          {menu}
+        </div>
         <Box className="omega-avatar" data-role="user">
           <IconUser size={14} />
         </Box>
@@ -242,24 +346,27 @@ function Message({ message, streaming }: { message: TranscriptMessage; streaming
   const lastSlot = slots[slots.length - 1];
 
   return (
-    <Stack gap={12}>
-      {slots.map(slot => {
-        // The live edge of a streaming message is always the last slot.
-        const slotStreaming = streaming && slot === lastSlot;
-        if (slot.kind === "group") {
-          return (
-            <ToolGroup
-              key={`${message.id}-group-${slot.baseIndex}`}
-              parts={slot.parts}
-              streaming={slotStreaming}
-              messageId={message.id}
-              baseIndex={slot.baseIndex}
-            />
-          );
-        }
-        return <Part key={`${message.id}-${slot.index}`} part={slot.part} streaming={slotStreaming} />;
-      })}
-    </Stack>
+    <div className="omega-msg" data-role="assistant" onClick={arm}>
+      <Stack gap={12}>
+        {slots.map(slot => {
+          // The live edge of a streaming message is always the last slot.
+          const slotStreaming = streaming && slot === lastSlot;
+          if (slot.kind === "group") {
+            return (
+              <ToolGroup
+                key={`${message.id}-group-${slot.baseIndex}`}
+                parts={slot.parts}
+                streaming={slotStreaming}
+                messageId={message.id}
+                baseIndex={slot.baseIndex}
+              />
+            );
+          }
+          return <Part key={`${message.id}-${slot.index}`} part={slot.part} streaming={slotStreaming} />;
+        })}
+      </Stack>
+      {menu}
+    </div>
   );
 }
 
@@ -277,6 +384,11 @@ export interface TranscriptProps {
   notices: string[];
   /** True while the transcript for an open session is still being fetched. */
   loading?: boolean;
+  /**
+   * Start a new branch from a user message. Omitted while no session can
+   * accept one, which hides the action rather than offering a dead control.
+   */
+  onFork?: (entryId: string) => void;
 }
 
 type TranscriptItem =
@@ -329,10 +441,20 @@ export function Transcript({
   error,
   notices,
   loading = false,
+  onFork,
 }: TranscriptProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const pinned = useRef(true);
   const [atBottom, setAtBottom] = useState(true);
+  /**
+   * Which message is showing its actions, and where in it the click landed.
+   *
+   * Held here rather than per message because the list is virtualised: a
+   * message scrolled out of view is unmounted, and state living inside it
+   * would be lost on the way back. Holding one also means arming a message
+   * disarms the last, so the conversation never accumulates controls.
+   */
+  const [armed, setArmed] = useState<{ id: string; offset: number } | undefined>(undefined);
 
   // Flatten messages, in-flight streaming turn, notices and errors into a unified virtual list.
   const items = useMemo<TranscriptItem[]>(() => {
@@ -513,7 +635,15 @@ export function Transcript({
                   {(() => {
                     switch (item.kind) {
                       case "message":
-                        return <Message message={item.message} streaming={item.streaming} />;
+                        return (
+                          <Message
+                            message={item.message}
+                            streaming={item.streaming}
+                            armedAt={armed?.id === item.id ? armed.offset : undefined}
+                            onArm={offset => setArmed({ id: item.id, offset })}
+                            onFork={onFork}
+                          />
+                        );
                       case "separator":
                         return (
                           <Group gap="sm" align="center" wrap="nowrap" className="omega-separator">
