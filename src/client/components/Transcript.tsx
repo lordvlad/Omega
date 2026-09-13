@@ -22,7 +22,7 @@ import {
   Tooltip,
   UnstyledButton,
 } from "@mantine/core";
-import { useClipboard } from "@mantine/hooks";
+import { notifications } from "@mantine/notifications";
 import {
   IconAlertTriangle,
   IconArrowDown,
@@ -39,6 +39,7 @@ import { useVirtualizer } from "@tanstack/react-virtual";
 import { type MouseEvent as ReactMouseEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import type { MessagePart, TranscriptMessage } from "../api/model.ts";
+import { copyText } from "../lib/clipboard.ts";
 import { Markdown } from "../lib/markdown.tsx";
 
 /** A collapsible section with a persistent header. */
@@ -245,16 +246,30 @@ function groupParts(parts: MessagePart[]): PartSlot[] {
  */
 function MessageMenu({
   top,
-  copyText,
+  text,
   forkFrom,
   onFork,
 }: {
   top: number;
-  copyText: string;
+  /** Markdown of the message, as the clipboard should receive it. */
+  text: string;
   forkFrom: string | undefined;
   onFork: ((entryId: string) => void) | undefined;
 }) {
-  const clipboard = useClipboard({ timeout: 1200 });
+  // The menu closes on pick, so the result cannot be shown on the item
+  // itself: a copy that quietly did nothing is exactly the bug this path had.
+  const copy = async (): Promise<void> => {
+    const copied = await copyText(text);
+    notifications.show(
+      copied
+        ? { color: "cyan", message: "Copied to clipboard", autoClose: 1500 }
+        : {
+            color: "red",
+            title: "Could not copy",
+            message: "The browser refused the clipboard. Select the text and copy it by hand.",
+          },
+    );
+  };
 
   return (
     <Menu position="bottom-end" shadow="md" width={190} withinPortal>
@@ -276,12 +291,8 @@ function MessageMenu({
         </ActionIcon>
       </Menu.Target>
       <Menu.Dropdown>
-        <Menu.Item
-          leftSection={<IconCopy size={14} />}
-          disabled={!copyText}
-          onClick={() => clipboard.copy(copyText)}
-        >
-          {clipboard.copied ? "Copied" : "Copy"}
+        <Menu.Item leftSection={<IconCopy size={14} />} disabled={!text} onClick={() => void copy()}>
+          Copy
         </Menu.Item>
         {forkFrom !== undefined && onFork ? (
           <Menu.Item leftSection={<IconGitBranch size={14} />} onClick={() => onFork(forkFrom)}>
@@ -309,7 +320,7 @@ function Message({
 }) {
   // Only the prose is worth copying: tool parts hold rendered output, and a
   // transcript of someone else's shell session is not what "copy" promises.
-  const copyText = message.parts
+  const prose = message.parts
     .filter(part => part.kind === "text")
     .map(part => part.text)
     .join("\n\n")
@@ -330,7 +341,7 @@ function Message({
 
   const menu =
     armedAt === undefined ? null : (
-      <MessageMenu top={armedAt} copyText={copyText} forkFrom={forkFrom} onFork={onFork} />
+      <MessageMenu top={armedAt} text={prose} forkFrom={forkFrom} onFork={onFork} />
     );
 
   if (message.role === "user") {

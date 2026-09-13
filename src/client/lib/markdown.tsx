@@ -9,10 +9,13 @@
  * result is one pass: Bun owns the markdown, Mantine owns the code.
  */
 import { CodeHighlight } from "@mantine/code-highlight";
-import { Typography } from "@mantine/core";
+import { ActionIcon, Box, Tooltip, Typography } from "@mantine/core";
+import { notifications } from "@mantine/notifications";
+import { IconCheck, IconCopy } from "@tabler/icons-react";
 import { createElement, Fragment, type ReactNode, useEffect, useMemo, useState } from "react";
 
 import { renderMarkdown } from "../api/api.ts";
+import { copyText } from "./clipboard.ts";
 
 /** Attributes worth carrying from the parsed HTML onto the React element. */
 const KEPT_ATTRIBUTES: Record<string, string> = {
@@ -26,6 +29,50 @@ const KEPT_ATTRIBUTES: Record<string, string> = {
 
 /** Tags that must not survive into the React tree. */
 const DROPPED_TAGS: Record<string, true> = { script: true, style: true, iframe: true, object: true };
+
+/**
+ * A fenced block, with a copy control that works off a secure origin.
+ *
+ * Mantine's own copy button goes through `navigator.clipboard`, which does
+ * not exist when omega is reached over the LAN, so on a phone it is a button
+ * that does nothing. Code is the most copied thing in a transcript, so it
+ * gets the same fallback the message menu uses rather than the stock one.
+ */
+function CodeBlock({ code, language }: { code: string; language: string }) {
+  const [copied, setCopied] = useState(false);
+
+  const copy = async (): Promise<void> => {
+    const ok = await copyText(code);
+    setCopied(ok);
+    if (!ok) {
+      notifications.show({
+        color: "red",
+        title: "Could not copy",
+        message: "The browser refused the clipboard. Select the code and copy it by hand.",
+      });
+      return;
+    }
+    window.setTimeout(() => setCopied(false), 1500);
+  };
+
+  return (
+    <Box style={{ position: "relative" }} my="sm">
+      <CodeHighlight code={code} language={language} withCopyButton={false} />
+      <Tooltip label={copied ? "Copied" : "Copy"} position="left">
+        <ActionIcon
+          onClick={() => void copy()}
+          variant="subtle"
+          color="gray"
+          size="sm"
+          aria-label="Copy code"
+          style={{ position: "absolute", top: 6, right: 6, zIndex: 1 }}
+        >
+          {copied ? <IconCheck size={15} /> : <IconCopy size={15} />}
+        </ActionIcon>
+      </Tooltip>
+    </Box>
+  );
+}
 
 /** Convert one parsed DOM node into React elements. */
 function convert(node: Node, keyPath: string): ReactNode {
@@ -42,15 +89,7 @@ function convert(node: Node, keyPath: string): ReactNode {
     const code = element.firstElementChild;
     if (code && code.tagName.toLowerCase() === "code") {
       const declared = /language-([\w+-]+)/u.exec(code.className ?? "");
-      return (
-        <CodeHighlight
-          key={keyPath}
-          code={code.textContent ?? ""}
-          language={declared?.[1] ?? "text"}
-          withCopyButton
-          my="sm"
-        />
-      );
+      return <CodeBlock key={keyPath} code={code.textContent ?? ""} language={declared?.[1] ?? "text"} />;
     }
   }
 
