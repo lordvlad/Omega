@@ -184,6 +184,14 @@ function Part({ part, streaming }: { part: MessagePart; streaming: boolean }) {
           </Box>
         </Foldable>
       );
+    case "error":
+      // The same alert the live stream raises, so a turn that failed reads the
+      // same whether you watched it happen or arrived afterwards.
+      return (
+        <Alert variant="light" color="red" icon={<IconAlertTriangle size={16} />} title="Turn failed">
+          {part.text}
+        </Alert>
+      );
     case "toolCall":
     case "toolResult":
       return <ToolPart part={part} streaming={streaming} />;

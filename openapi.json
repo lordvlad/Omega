@@ -1629,6 +1629,10 @@
               "$ref": "#/components/schemas/TodoPhase"
             },
             "description": "Phases and tasks tracked by the session's todo tool."
+          },
+          "lastError": {
+            "type": "string",
+            "description": "Why the last turn stopped without finishing, if it did.\n\nThe socket reports a failure once, to whoever is listening at the time.\nA reload is a new listener, so the reason has to live somewhere a fresh\npage can ask for it — otherwise the conversation simply stops mid-turn\nand the UI has nothing to say about why. Cleared when the next turn\nstarts."
           }
         },
         "required": [
@@ -1840,11 +1844,14 @@
         ]
       },
       "MessagePart": {
-        "description": "One renderable piece of a message. `text` and `thinking` carry markdown in\n`text`; `toolCall` carries the call; `toolResult` carries its outcome.",
+        "description": "One renderable piece of a message. `text` and `thinking` carry markdown in\n`text`; `toolCall` carries the call; `toolResult` carries its outcome;\n`error` carries why the turn stopped.",
         "type": "object",
         "properties": {
           "kind": {
             "anyOf": [
+              {
+                "const": "error"
+              },
               {
                 "const": "toolResult"
               },

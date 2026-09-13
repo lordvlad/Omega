@@ -60,6 +60,8 @@ export class LiveSession {
   #lastActivityAt = Date.now();
   /** Whether the previous sweep sample saw work in flight. */
   #wasBusy = false;
+  /** Why the last turn stopped, for a page that reloaded after it did. */
+  #lastError: string | undefined;
 
   constructor(key: string, session: AgentSession, manager: SessionManager) {
     this.#key = key;
@@ -111,6 +113,9 @@ export class LiveSession {
       // tool call, a turn boundary — so any of them resets the idle clock and
       // a long tool-heavy turn is never evicted mid-flight.
       this.touch();
+      // A new turn supersedes the last failure; keeping it would caption a
+      // running turn with the reason the previous one stopped.
+      if (event.type === "agent_start") this.#lastError = undefined;
       for (const frame of this.#translator.translate(event)) this.#emit(frame);
       // A settled turn changes model/queue/context/plan state that the REST
       // snapshot owns; tell the client to refetch rather than duplicating
@@ -127,8 +132,17 @@ export class LiveSession {
     for (const sink of this.#sinks) sink(frame);
   }
 
-  /** Push an out-of-band frame, e.g. a plan proposal. */
+  /**
+   * Push an out-of-band frame, e.g. a plan proposal.
+   *
+   * A failure is also remembered, not just broadcast: the socket delivers it
+   * once, and a reloaded page was not there to hear it.
+   */
   emitCustom(frame: AguiFrame): void {
+    if (frame.type === "RUN_ERROR") {
+      const message = (frame as { message?: unknown }).message;
+      this.#lastError = typeof message === "string" ? message : "The turn failed.";
+    }
     this.#emit(frame);
   }
 
@@ -285,6 +299,7 @@ export class LiveSession {
           blocker: task.blocker,
         })),
       })),
+      lastError: this.#lastError,
     };
   }
 

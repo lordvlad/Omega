@@ -1048,7 +1048,10 @@ export function App() {
               liveParts={live.parts}
               pendingUser={pendingUser}
               running={live.running}
-              error={live.error}
+              // The stream reports a failure once, to whoever was listening.
+              // A reload was not, so the snapshot answers instead — otherwise
+              // the conversation just stops and nothing says why.
+              error={live.error ?? (streaming ? undefined : state.data?.lastError)}
               notices={live.notices}
               loading={transcript.isPending}
               onFork={sessionKey ? handleBranch : undefined}

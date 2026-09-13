@@ -1,5 +1,4 @@
 import type { ThinkingLevel as OmpThinkingLevel } from "@oh-my-pi/pi-agent-core";
-import type { AgentMessage } from "@oh-my-pi/pi-agent-core";
 import type { ImageContent } from "@oh-my-pi/pi-ai";
 
 import type {
@@ -41,7 +40,7 @@ import type { OmpApi } from "../shared/service.ts";
 import { planDocument, resolvePlan, writePlan } from "./plan.ts";
 import { dropQueued, editQueued, listQueue } from "./queue.ts";
 import { type LiveSession, registry } from "./registry.ts";
-import { flattenMessages } from "./transcript.ts";
+import { flattenSession } from "./transcript.ts";
 import { listWorkspaces } from "./workspaces.ts";
 
 /** Raised by handlers to select a non-200 status. */
@@ -167,14 +166,10 @@ export class Handlers implements OmpApi {
 
   async getTranscript(key: string): Promise<Transcript> {
     const live = this.#require(key);
-    // The agent's messages are what render; the session entries are what
-    // carry ids. They hold the same message objects, so identity correlates
-    // them without either list having to be re-derived from the other.
-    const entryIds = new Map<AgentMessage, string>();
-    for (const entry of live.manager.getEntries()) {
-      if (entry.type === "message") entryIds.set(entry.message, entry.id);
-    }
-    return { key, messages: flattenMessages(live.session.messages, entryIds) };
+    // The agent's messages are what render; the session entries carry the ids
+    // and the failures the agent dropped. They hold the same message objects,
+    // so identity correlates them without either list being re-derived.
+    return { key, messages: flattenSession(live.session.messages, live.manager.getEntries()) };
   }
 
   async prompt(key: string, body: PromptRequest): Promise<Ack> {

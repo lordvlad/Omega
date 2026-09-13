@@ -126,11 +126,117 @@ export function flattenMessages(messages: readonly AgentMessage[], entryIds?: En
           break;
       }
     }
-    if (message.errorMessage) parts.push({ kind: "text", text: `**Error:** ${message.errorMessage}` });
+    // A failure is why the turn stopped, not a paragraph of it. Marking it as
+    // its own kind lets the client render the same alert the live stream
+    // shows, rather than bold text buried in the reply it never finished.
+    if (message.errorMessage) parts.push({ kind: "error", text: message.errorMessage });
     if (parts.length > 0) {
       out.push({ id: `assistant-${index}`, role: "assistant", timestamp, parts });
     }
   }
 
   return out;
+}
+
+/**
+ * One entry of the session log, as much of it as this module needs.
+ *
+ * Structural rather than imported: the transcript only cares that an entry
+ * may carry a message and an id.
+ */
+export interface SessionEntryLike {
+  type: string;
+  id: string;
+  message?: AgentMessage;
+}
+
+/**
+ * Flatten a conversation, restoring failures the agent no longer holds.
+ *
+ * A turn that ends in an error is written to the session log as an assistant
+ * message carrying `errorMessage` and nothing else. Rebuilding a session from
+ * disk drops those: they are not context, so the agent has no use for them,
+ * and `agent.state.messages` omits them. The transcript is not context
+ * though, it is the record — and dropping them is exactly how a conversation
+ * comes back from a reload ending mid-turn with nothing to say about why.
+ *
+ * So they are spliced back in at the position the log gives them, which keeps
+ * a failure attached to the turn that failed rather than stranded at the end
+ * of a conversation that continued past it.
+ */
+export function flattenSession(
+  messages: readonly AgentMessage[],
+  entries: readonly SessionEntryLike[],
+): TranscriptMessage[] {
+  const entryIds = new Map<AgentMessage, string>();
+  for (const entry of entries) {
+    if (entry.type === "message" && entry.message) entryIds.set(entry.message, entry.id);
+  }
+
+  const out = flattenMessages(messages, entryIds);
+
+  // Every rendered message carries its source index in its id (`assistant-7`),
+  // so a failure can be placed against the message it followed without
+  // re-deriving the mapping or assuming the two lists run in step.
+  const renderedAt = new Map<number, number>();
+  for (const [position, rendered] of out.entries()) {
+    const source = Number(rendered.id.slice(rendered.id.lastIndexOf("-") + 1));
+    if (Number.isInteger(source)) renderedAt.set(source, position);
+  }
+  const sourceOf = new Map<AgentMessage, number>();
+  for (const [index, message] of messages.entries()) sourceOf.set(message, index);
+
+  /** How many attempts each rendered failure stands for. */
+  const repeats = new Map<string, number>();
+  let inserted = 0;
+  let after = -1;
+  for (const entry of entries) {
+    const message = entry.type === "message" ? entry.message : undefined;
+    if (!message) continue;
+
+    const source = sourceOf.get(message);
+    if (source !== undefined) {
+      // A tool result folds into the call above it and renders nothing of its
+      // own; anything that did render moves the insertion point along.
+      const position = renderedAt.get(source);
+      if (position !== undefined) after = position + inserted;
+      continue;
+    }
+
+    if (message.role !== "assistant" || !message.errorMessage) continue;
+
+    // omp retries a failing call before giving up, and each attempt is
+    // recorded. Rendering one alert per attempt reads as several failed turns
+    // instead of one that was retried, so a repeat of the error immediately
+    // above is folded into it and counted.
+    const previous = out[after];
+    const repeated =
+      previous?.id.startsWith("failure-") === true &&
+      previous.parts.length === 1 &&
+      previous.parts[0]?.kind === "error" &&
+      stripCount(previous.parts[0].text) === message.errorMessage;
+    if (repeated && previous?.parts[0]) {
+      repeats.set(previous.id, (repeats.get(previous.id) ?? 1) + 1);
+      previous.parts[0].text = `${message.errorMessage} (×${repeats.get(previous.id)})`;
+      continue;
+    }
+
+    const timestamp =
+      typeof message.timestamp === "number" ? new Date(message.timestamp).toISOString() : undefined;
+    out.splice(after + 1, 0, {
+      id: `failure-${entry.id}`,
+      role: "assistant",
+      timestamp,
+      parts: [{ kind: "error", text: message.errorMessage }],
+    });
+    inserted += 1;
+    after += 1;
+  }
+
+  return out;
+}
+
+/** The error text without the repeat count this module may have appended. */
+function stripCount(text: string): string {
+  return text.replace(/ \(×\d+\)$/u, "");
 }

@@ -67,6 +67,7 @@ export interface LiveState {
   contextUsage?: ContextUsage;
   plan?: PlanState;
   todos?: TodoPhase[];
+  lastError?: string;
 }
 
 /** omp thinking levels, in ascending order of budget. */
@@ -120,10 +121,11 @@ export interface TranscriptMessage {
 
 /**
  * One renderable piece of a message. `text` and `thinking` carry markdown in
- * `text`; `toolCall` carries the call; `toolResult` carries its outcome.
+ * `text`; `toolCall` carries the call; `toolResult` carries its outcome;
+ * `error` carries why the turn stopped.
  */
 export interface MessagePart {
-  kind: "toolResult" | "text" | "thinking" | "toolCall";
+  kind: "error" | "toolResult" | "text" | "thinking" | "toolCall";
   text: string;
   toolName?: string;
   toolCallId?: string;

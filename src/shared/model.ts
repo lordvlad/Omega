@@ -98,6 +98,16 @@ export interface LiveState {
   plan?: PlanState;
   /** Phases and tasks tracked by the session's todo tool. */
   todos?: TodoPhase[];
+  /**
+   * Why the last turn stopped without finishing, if it did.
+   *
+   * The socket reports a failure once, to whoever is listening at the time.
+   * A reload is a new listener, so the reason has to live somewhere a fresh
+   * page can ask for it — otherwise the conversation simply stops mid-turn
+   * and the UI has nothing to say about why. Cleared when the next turn
+   * starts.
+   */
+  lastError?: string;
 }
 
 /** Lifecycle status of a task in the todo list. */
@@ -208,10 +218,11 @@ export interface TranscriptMessage {
 
 /**
  * One renderable piece of a message. `text` and `thinking` carry markdown in
- * `text`; `toolCall` carries the call; `toolResult` carries its outcome.
+ * `text`; `toolCall` carries the call; `toolResult` carries its outcome;
+ * `error` carries why the turn stopped.
  */
 export interface MessagePart {
-  kind: "text" | "thinking" | "toolCall" | "toolResult";
+  kind: "text" | "thinking" | "toolCall" | "toolResult" | "error";
   /** Markdown source for `text`/`thinking`, rendered output for tool parts. */
   text: string;
   /** Tool name, for `toolCall`/`toolResult`. */
