@@ -355,6 +355,22 @@ export interface BranchResult {
 }
 
 /**
+ * A slash command an MCP server contributes to this session.
+ *
+ * These are omp's own: a connected server publishes prompts, omp turns each
+ * into a `/name` command, and expands it when a message starting with that
+ * name is sent. Nothing here executes anything — the list exists so the
+ * palette can show what the session actually has, rather than leaving it to
+ * be discovered by guessing.
+ */
+export interface SlashCommand {
+  /** Command word without its leading slash, e.g. `github:review`. */
+  name: string;
+  /** One-line description, as the server published it. */
+  description: string;
+}
+
+/**
  * Which queue a message waits in.
  *
  * `steer` messages interrupt the turn at its next step; `followUp` messages

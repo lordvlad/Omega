@@ -176,6 +176,20 @@ export interface QueuedMessage {
 export type QueueLane = "steer" | "followUp";
 
 /**
+ * A slash command an MCP server contributes to this session.
+ * 
+ * These are omp's own: a connected server publishes prompts, omp turns each
+ * into a `/name` command, and expands it when a message starting with that
+ * name is sent. Nothing here executes anything — the list exists so the
+ * palette can show what the session actually has, rather than leaving it to
+ * be discovered by guessing.
+ */
+export interface SlashCommand {
+  name: string;
+  description: string;
+}
+
+/**
  * Rewrite one queued message.
  * 
  * `expected` is the text the client last saw at this position. The agent

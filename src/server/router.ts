@@ -25,6 +25,7 @@ import type {
   RenderedMarkdown,
   SelectModelRequest,
   ShakeRequest,
+  SlashCommand,
   ThinkingRequest,
   Transcript,
   Workspace,
@@ -340,6 +341,16 @@ export class Handlers implements OmpApi {
       entryId: point.entryId,
       text: point.text.replace(/\s+/gu, " ").trim().slice(0, 160),
     }));
+  }
+
+  async listCommands(key: string): Promise<SlashCommand[]> {
+    const live = this.#require(key);
+    // `mcpPromptCommands` rather than `customCommands`: the latter also holds
+    // the TypeScript commands omp loads from disk, which this host does not
+    // run and would be listing as available when they are not.
+    return live.session.mcpPromptCommands
+      .map(loaded => ({ name: loaded.command.name, description: loaded.command.description }))
+      .sort((a, b) => a.name.localeCompare(b.name));
   }
 
   async branchSession(key: string, body: BranchRequest): Promise<BranchResult> {

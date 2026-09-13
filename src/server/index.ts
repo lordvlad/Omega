@@ -91,6 +91,9 @@ const server = serve({
     "/api/sessions/:key/queue": {
       GET: request => json(() => handlers.listQueue(request.params.key)),
     },
+    "/api/sessions/:key/commands": {
+      GET: request => json(() => handlers.listCommands(request.params.key)),
+    },
     "/api/sessions/:key/queue/edit": {
       POST: async request => {
         const body = await request.json();

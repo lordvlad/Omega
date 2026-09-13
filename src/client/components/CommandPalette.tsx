@@ -55,6 +55,7 @@ import {
   IconPlus,
   IconRefresh,
   IconRoute,
+  IconPlugConnected,
   IconSearch,
   IconTrash,
 } from "@tabler/icons-react";
@@ -66,6 +67,7 @@ import type {
   LiveState,
   ModelOption,
   SessionSummary,
+  SlashCommand,
   ShakeMode,
   ThinkingLevel,
   Workspace,
@@ -179,6 +181,19 @@ interface ParsedQuery {
 }
 
 /**
+ * Show the palette on its whole command list.
+ *
+ * The query is a bare `/` rather than empty: it is what the user typed to get
+ * here, every command label starts with one so nothing is filtered out, and
+ * leaving it in place means the next keystroke narrows the list instead of
+ * starting a search that has to be retyped.
+ */
+export function openPaletteCommands(setQuery: (query: string) => void): void {
+  setQuery("/");
+  spotlight.open();
+}
+
+/**
  * Split `/cd src/client` into its command and its filter term.
  *
  * An unrecognised leading slash word is *not* a command: the palette keeps
@@ -244,6 +259,17 @@ export interface CommandPaletteProps {
   onStopSession: (session: SessionSummary) => void;
   /** Erase a session and its artifacts from disk. Confirms before acting. */
   onDeleteSession: (session: SessionSummary) => void;
+  /** Slash commands MCP servers published for this session. */
+  mcpCommands: SlashCommand[];
+  /**
+   * Chosen an MCP command: the name without its slash.
+   *
+   * Picking writes it into the composer rather than sending it, because these
+   * commands take arguments and the palette cannot know which ones — and
+   * because a prompt that fires on a single keystroke, with no chance to read
+   * it back, is not a thing to build.
+   */
+  onPickCommand: (name: string) => void;
   /**
    * Re-read the workspace listing.
    *
@@ -280,6 +306,8 @@ export function CommandPalette({
   onBranch,
   onStopSession,
   onDeleteSession,
+  mcpCommands,
+  onPickCommand,
   onRefreshWorkspaces,
 }: CommandPaletteProps) {
   const { command, term } = parseQuery(query);
@@ -511,6 +539,25 @@ export function CommandPalette({
           },
         ],
       },
+      // Listed after the built-ins and only when a server actually published
+      // something, so a session without MCP shows no empty heading.
+      ...(mcpCommands.length > 0
+        ? [
+            {
+              group: "MCP",
+              actions: mcpCommands.map(command => ({
+                id: `mcp-${command.name}`,
+                label: `/${command.name}`,
+                description: command.description,
+                // The server name is half of `server:prompt`, so it is already
+                // searchable; the rest lets "mcp" or "prompt" find them all.
+                keywords: `mcp prompt ${command.name.replace(/[:_-]+/gu, " ")}`,
+                leftSection: <IconPlugConnected size={16} />,
+                onClick: () => onPickCommand(command.name),
+              })),
+            },
+          ]
+        : []),
     ],
     [
       sessionKey,
@@ -528,6 +575,8 @@ export function CommandPalette({
       onTogglePlanMode,
       onNewSession,
       onFork,
+      mcpCommands,
+      onPickCommand,
     ],
   );
 

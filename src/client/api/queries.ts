@@ -2,7 +2,7 @@
 // React Query options getters and hooks for query operations. Edit the document, not this file.
 
 import { useQuery, type UseQueryOptions } from "@tanstack/react-query";
-import { defaultClient, type Client, type GetPlanOptions, type GetPlanResult, type GetStateOptions, type GetStateResult, type GetTranscriptOptions, type GetTranscriptResult, type ListBranchPointsOptions, type ListBranchPointsResult, type ListModelsOptions, type ListModelsResult, type ListQueueOptions, type ListQueueResult, type ListWorkspacesOptions, type ListWorkspacesResult } from "./api.ts";
+import { defaultClient, type Client, type GetPlanOptions, type GetPlanResult, type GetStateOptions, type GetStateResult, type GetTranscriptOptions, type GetTranscriptResult, type ListBranchPointsOptions, type ListBranchPointsResult, type ListCommandsOptions, type ListCommandsResult, type ListModelsOptions, type ListModelsResult, type ListQueueOptions, type ListQueueResult, type ListWorkspacesOptions, type ListWorkspacesResult } from "./api.ts";
 import { createMutations } from "./mutations.ts";
 
 /**
@@ -174,6 +174,42 @@ export function useListQueue<
 }
 
 /**
+ * List MCP slash commands
+ * 
+ * Slash commands MCP servers contribute to this session.
+ * 
+ * Session-scoped rather than global: which servers are connected, and so
+ * which prompts exist, is a property of the agent, not of the install.
+ */
+export function getListCommandsQueryOptions<
+  TData = ListCommandsResult,
+  TError = unknown
+>(
+  options: ListCommandsOptions,
+  queryOptions?: Omit<UseQueryOptions<ListCommandsResult, TError, TData>, "queryKey" | "queryFn">,
+  client: Client = defaultClient()
+) {
+  return {
+    queryKey: ["/api/sessions/{key}/commands", options] as const,
+    queryFn: ({ signal }: { signal?: AbortSignal }) =>
+      client.listCommands(options as any, { signal }),
+    ...queryOptions,
+  };
+}
+
+/** React Query hook for `listCommands`. */
+export function useListCommands<
+  TData = ListCommandsResult,
+  TError = unknown
+>(
+  options: ListCommandsOptions,
+  queryOptions?: Omit<UseQueryOptions<ListCommandsResult, TError, TData>, "queryKey" | "queryFn">,
+  client: Client = defaultClient()
+) {
+  return useQuery(getListCommandsQueryOptions(options, queryOptions, client));
+}
+
+/**
  * List branch points
  * 
  * The user messages this session can branch from, oldest first.
@@ -283,6 +319,14 @@ export function createQueries(client: Client = defaultClient()) {
       options: ListQueueOptions,
       queryOptions?: Omit<UseQueryOptions<ListQueueResult, TError, TData>, "queryKey" | "queryFn">
     ) => useListQueue<TData, TError>(options, queryOptions, client),
+    getListCommandsQueryOptions: <TData = ListCommandsResult, TError = unknown>(
+      options: ListCommandsOptions,
+      queryOptions?: Omit<UseQueryOptions<ListCommandsResult, TError, TData>, "queryKey" | "queryFn">
+    ) => getListCommandsQueryOptions<TData, TError>(options, queryOptions, client),
+    useListCommands: <TData = ListCommandsResult, TError = unknown>(
+      options: ListCommandsOptions,
+      queryOptions?: Omit<UseQueryOptions<ListCommandsResult, TError, TData>, "queryKey" | "queryFn">
+    ) => useListCommands<TData, TError>(options, queryOptions, client),
     getListBranchPointsQueryOptions: <TData = ListBranchPointsResult, TError = unknown>(
       options: ListBranchPointsOptions,
       queryOptions?: Omit<UseQueryOptions<ListBranchPointsResult, TError, TData>, "queryKey" | "queryFn">

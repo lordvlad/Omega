@@ -334,6 +334,52 @@
         }
       }
     },
+    "/api/sessions/{key}/commands": {
+      "get": {
+        "operationId": "listCommands",
+        "x-service": "OmpApi",
+        "tags": [
+          "OmpApi"
+        ],
+        "summary": "List MCP slash commands",
+        "description": "Slash commands MCP servers contribute to this session.\n\nSession-scoped rather than global: which servers are connected, and so\nwhich prompts exist, is a property of the agent, not of the install.",
+        "parameters": [
+          {
+            "name": "key",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/SlashCommand"
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/sessions/{key}/queue/edit": {
       "post": {
         "operationId": "editQueued",
@@ -1948,6 +1994,24 @@
           {
             "const": "followUp"
           }
+        ]
+      },
+      "SlashCommand": {
+        "description": "A slash command an MCP server contributes to this session.\n\nThese are omp's own: a connected server publishes prompts, omp turns each\ninto a `/name` command, and expands it when a message starting with that\nname is sent. Nothing here executes anything — the list exists so the\npalette can show what the session actually has, rather than leaving it to\nbe discovered by guessing.",
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "Command word without its leading slash, e.g. `github:review`."
+          },
+          "description": {
+            "type": "string",
+            "description": "One-line description, as the server published it."
+          }
+        },
+        "required": [
+          "name",
+          "description"
         ]
       },
       "QueueEditRequest": {

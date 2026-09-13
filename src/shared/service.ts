@@ -36,6 +36,7 @@ import type {
   RenderedMarkdown,
   SelectModelRequest,
   ShakeRequest,
+  SlashCommand,
   ThinkingRequest,
   Transcript,
   Workspace,
@@ -126,6 +127,19 @@ export interface OmpApi {
    * @response 404 application/json Problem
    */
   listQueue(key: string): Promise<QueuedMessage[]>;
+
+  /**
+   * Slash commands MCP servers contribute to this session.
+   *
+   * Session-scoped rather than global: which servers are connected, and so
+   * which prompts exist, is a property of the agent, not of the install.
+   *
+   * @get /api/sessions/{key}/commands
+   * @summary List MCP slash commands
+   * @response 200 application/json SlashCommand[]
+   * @response 404 application/json Problem
+   */
+  listCommands(key: string): Promise<SlashCommand[]>;
 
   /**
    * Rewrite a queued message in place, keeping its lane and position.

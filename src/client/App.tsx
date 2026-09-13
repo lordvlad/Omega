@@ -72,6 +72,7 @@ import {
   useGetState,
   useGetTranscript,
   useListBranchPoints,
+  useListCommands,
   useListQueue,
   useListModels,
   useListWorkspaces,
@@ -80,6 +81,7 @@ import {
   CommandPalette,
   type CompactMode,
   openPalette,
+  openPaletteCommands,
   PALETTE_COMMAND,
 } from "./components/CommandPalette.tsx";
 import { Composer } from "./components/Composer.tsx";
@@ -190,6 +192,13 @@ export function App() {
   const branchPoints = useListBranchPoints(
     { path: { key: sessionKey ?? "" } },
     { enabled: Boolean(sessionKey), staleTime: 5_000 },
+  );
+  // MCP prompts change only when a server reconnects, which the session
+  // outlives; a long stale time keeps the palette from refetching on every
+  // open.
+  const mcpCommands = useListCommands(
+    { path: { key: sessionKey ?? "" } },
+    { enabled: Boolean(sessionKey), staleTime: 60_000 },
   );
   // The stream tells us when snapshot state went stale; refetching beats
   // mirroring omp's whole state machine in the client.
@@ -807,6 +816,17 @@ export function App() {
   );
 
   /**
+   * Picking an MCP command writes it into the composer rather than sending it.
+   *
+   * These commands take arguments, and omp expands them server-side when the
+   * message is sent — so the useful thing is to hand the user a started line
+   * they can finish, not to fire a prompt they never got to read.
+   */
+  const handlePickCommand = useCallback((name: string): void => {
+    setDraft({ text: `/${name} ` });
+  }, []);
+
+  /**
    * Send a message, echoing it locally at once.
    *
    * The persisted user message only arrives with the next transcript fetch,
@@ -1046,6 +1066,7 @@ export function App() {
               onAbort={handleAbort}
               queued={queued}
               onOpenQueue={() => setQueueOpen(true)}
+              onSlash={() => openPaletteCommands(setPaletteQuery)}
               compact={narrow}
             />
           </Stack>
@@ -1102,6 +1123,8 @@ export function App() {
         models={models.data ?? []}
         recentModels={recentModels}
         workspaces={workspaces.data ?? []}
+        mcpCommands={mcpCommands.data ?? []}
+        onPickCommand={handlePickCommand}
         activeProject={project}
         sessionKey={sessionKey}
         state={state.data}

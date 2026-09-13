@@ -103,6 +103,14 @@ export interface ComposerProps {
   queued: number;
   /** Open the queue panel; only reachable while something is queued. */
   onOpenQueue: () => void;
+  /**
+   * The user opened a command: `/` typed into an empty input.
+   *
+   * Only the first character counts. A slash anywhere else is a path, a
+   * fraction, or a closing tag, and hijacking those would make the input
+   * unusable for ordinary prose.
+   */
+  onSlash?: () => void;
   /** True on a phone viewport: dictation is hidden, the OS keyboard has its own. */
   compact?: boolean;
   /**
@@ -125,6 +133,7 @@ export function Composer({
   onAbort,
   queued,
   onOpenQueue,
+  onSlash,
   compact = false,
   offline = false,
 }: ComposerProps) {
@@ -243,7 +252,17 @@ export function Composer({
             disabled={disabled}
             placeholder={disabled ? "Open a session to start" : "Message the agent…"}
             value={dictation.interim ? `${text} ${dictation.interim}`.trim() : text}
-            onChange={event => setText(event.currentTarget.value)}
+            onChange={event => {
+              const next = event.currentTarget.value;
+              // `/` on an empty input opens the palette instead of typing:
+              // the palette is where commands live, and leaving the slash
+              // behind would strand a lone character in the message.
+              if (onSlash && text === "" && next === "/") {
+                onSlash();
+                return;
+              }
+              setText(next);
+            }}
             onKeyDown={event => {
               // Enter is a newline, always. Prose for an agent runs to
               // paragraphs and pasted snippets, and a stray Enter sending
