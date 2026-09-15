@@ -588,6 +588,8 @@ export function Transcript({
 
   /** Pending tail frame, so a burst of measurements yields one scroll write. */
   const tailFrame = useRef<number | undefined>(undefined);
+  /** Pending delayed tail timers. */
+  const tailTimers = useRef<number[]>([]);
 
   /** Pin to the bottom, once the frame that measured the rows has finished. */
   const tail = useCallback(() => {
@@ -616,9 +618,29 @@ export function Transcript({
     });
   }, []);
 
+  /**
+   * Schedule both immediate and delayed tail passes so late-measuring elements
+   * (shiki syntax highlighting, parsed markdown, dynamic images) settle before
+   * locking the final bottom scroll position.
+   */
+  const delayedTail = useCallback(
+    (delays = [60, 180, 350]) => {
+      tail();
+      for (const d of delays) {
+        const timer = window.setTimeout(() => {
+          tail();
+        }, d);
+        tailTimers.current.push(timer);
+      }
+    },
+    [tail],
+  );
+
   useEffect(
     () => () => {
       if (tailFrame.current !== undefined) cancelAnimationFrame(tailFrame.current);
+      for (const timer of tailTimers.current) window.clearTimeout(timer);
+      tailTimers.current = [];
     },
     [],
   );
@@ -647,10 +669,23 @@ export function Transcript({
     if (pendingUser.length > pendingCount.current) {
       pinned.current = true;
       setAtBottom(true);
-      tail();
+      delayedTail([50, 150, 300]);
     }
     pendingCount.current = pendingUser.length;
-  }, [pendingUser.length, tail]);
+  }, [pendingUser.length, delayedTail]);
+
+  // When initial loading completes or messages first arrive on page load,
+  // trigger delayed tailing so that late-measuring code blocks and images
+  // don't leave the view stranded short of the bottom.
+  const initialLoadDone = useRef(false);
+  useEffect(() => {
+    if (!loading && items.length > 0 && !initialLoadDone.current) {
+      initialLoadDone.current = true;
+      pinned.current = true;
+      setAtBottom(true);
+      delayedTail([60, 180, 350]);
+    }
+  }, [loading, items.length, delayedTail]);
 
   return (
     <Box style={{ position: "relative", flex: 1, minHeight: 0, display: "flex", flexDirection: "column" }}>
@@ -778,6 +813,7 @@ export function Transcript({
                       setAtBottom(true);
                       const el = scrollRef.current;
                       if (el) el.scrollTo({ top: el.scrollHeight, behavior: "smooth" });
+                      delayedTail([100, 250]);
                     }}
                     style={{
                       position: "absolute",
