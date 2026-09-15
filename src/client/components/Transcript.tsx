@@ -206,6 +206,24 @@ function isToolPart(part: MessagePart): boolean {
 }
 
 /**
+ * Drop thinking and/or tool parts per the project's display settings.
+ *
+ * Filtered before grouping, not just visually collapsed: a live stream and a
+ * persisted transcript both funnel through the same `Message` component, so
+ * this is the one place that has to know about the toggle.
+ */
+function visibleParts(
+  parts: MessagePart[],
+  settings: { showThinking: boolean; showToolCalls: boolean },
+): MessagePart[] {
+  return parts.filter(part => {
+    if (part.kind === "thinking") return settings.showThinking;
+    if (isToolPart(part)) return settings.showToolCalls;
+    return true;
+  });
+}
+
+/**
  * Collapse consecutive tool parts into groups. A run of two or more gets a
  * ToolGroup wrapper; a lone tool part renders directly as a ToolPart so no
  * extra nesting level appears for the common single-call case.
@@ -310,6 +328,8 @@ function Message({
   armedAt,
   onArm,
   onFork,
+  showThinking,
+  showToolCalls,
 }: {
   message: TranscriptMessage;
   streaming: boolean;
@@ -317,6 +337,8 @@ function Message({
   armedAt: number | undefined;
   onArm: (offset: number) => void;
   onFork?: (entryId: string) => void;
+  showThinking: boolean;
+  showToolCalls: boolean;
 }) {
   // Only the prose is worth copying: tool parts hold rendered output, and a
   // transcript of someone else's shell session is not what "copy" promises.
@@ -365,7 +387,7 @@ function Message({
     );
   }
 
-  const slots = groupParts(message.parts);
+  const slots = groupParts(visibleParts(message.parts, { showThinking, showToolCalls }));
   const lastSlot = slots[slots.length - 1];
 
   return (
@@ -412,6 +434,10 @@ export interface TranscriptProps {
    * accept one, which hides the action rather than offering a dead control.
    */
   onFork?: (entryId: string) => void;
+  /** Show the agent's thinking blocks; a per-project display preference. */
+  showThinking: boolean;
+  /** Show tool calls and their results; a per-project display preference. */
+  showToolCalls: boolean;
 }
 
 type TranscriptItem =
@@ -465,6 +491,8 @@ export function Transcript({
   notices,
   loading = false,
   onFork,
+  showThinking,
+  showToolCalls,
   children,
 }: TranscriptProps & { children?: React.ReactNode }) {
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -679,6 +707,8 @@ export function Transcript({
                             armedAt={armed?.id === item.id ? armed.offset : undefined}
                             onArm={offset => setArmed({ id: item.id, offset })}
                             onFork={onFork}
+                            showThinking={showThinking}
+                            showToolCalls={showToolCalls}
                           />
                         );
                       case "separator":
@@ -763,9 +793,7 @@ export function Transcript({
                   </ActionIcon>
                 </Tooltip>
               ) : null}
-              <div style={{ pointerEvents: "auto" }}>
-                {children}
-              </div>
+              <div style={{ pointerEvents: "auto" }}>{children}</div>
             </div>
           </Box>
         ) : null}

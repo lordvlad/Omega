@@ -26,7 +26,7 @@ import {
 } from "@mantine/core";
 import { useDisclosure, useLocalStorage, useMediaQuery } from "@mantine/hooks";
 import { notifications } from "@mantine/notifications";
-import { IconFolder, IconHistory, IconListCheck, IconMessage } from "@tabler/icons-react";
+import { IconFolder, IconHistory, IconListCheck, IconMessage, IconSettings } from "@tabler/icons-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useNavigate, useParams } from "@tanstack/react-router";
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -95,6 +95,7 @@ import { QueuePanel, queueSummary } from "./components/QueuePanel.tsx";
 import { TodoPanel } from "./components/TodoPanel.tsx";
 import { Transcript } from "./components/Transcript.tsx";
 import { useOnline } from "./lib/online.ts";
+import { useProjectSettings } from "./lib/settings.ts";
 import { useLiveTurn } from "./lib/stream.ts";
 import { forgetTranscript, usePersistedTranscript } from "./lib/transcript-cache.ts";
 
@@ -151,9 +152,9 @@ export function App() {
    * A file path picked for an `@` mention. Keyed with a counter so picking
    * the same path twice still reaches the composer as a fresh insert.
    */
-  const [insertedFile, setInsertedFile] = useState<{ path: string; id: number } | undefined>(
-    undefined,
-  );
+  const [insertedFile, setInsertedFile] = useState<{ path: string; id: number } | undefined>(undefined);
+
+  const [settings, toggleSetting] = useProjectSettings(project);
 
   // Up to 5 most recently used models, listed first under `/switch`.
   const [recentModels, setRecentModels] = useLocalStorage<string[]>({
@@ -945,17 +946,6 @@ export function App() {
       <AppShell.Header>
         <Group h="100%" px="sm" justify="space-between" wrap="nowrap">
           <Group gap={6} wrap="nowrap" align="center" style={{ flex: 1, minWidth: 0 }}>
-            {state.data ? (
-              <ActionIcon
-                variant={treeOpen ? "light" : "subtle"}
-                color="plum"
-                onClick={toggleTree}
-                aria-label="Toggle file tree"
-                size="sm"
-              >
-                <IconFolder size={16} />
-              </ActionIcon>
-            ) : null}
             {/* The status bar gave back the space the connection badge and the
                 plan switch were using, so the workspace survives on a phone. */}
             <Group gap={6} wrap="nowrap" style={{ minWidth: 0 }}>
@@ -1007,6 +997,30 @@ export function App() {
             ) : null}
           </Group>
           <Group gap="xs" wrap="nowrap" display={sessionKey ? undefined : "none"} style={{ flexShrink: 0 }}>
+            {state.data ? (
+              <Tooltip label={treeOpen ? "Hide files" : "Show files"}>
+                <ActionIcon
+                  variant={treeOpen ? "light" : "subtle"}
+                  color="plum"
+                  onClick={toggleTree}
+                  aria-label="Toggle file tree"
+                >
+                  <IconFolder size={18} />
+                </ActionIcon>
+              </Tooltip>
+            ) : null}
+            {state.data ? (
+              <Tooltip label="Settings (/omega-settings)">
+                <ActionIcon
+                  variant="subtle"
+                  color="plum"
+                  onClick={() => openPalette(PALETTE_COMMAND.settings, setPaletteQuery)}
+                  aria-label="Open settings"
+                >
+                  <IconSettings size={18} />
+                </ActionIcon>
+              </Tooltip>
+            ) : null}
             {(() => {
               const all = (state.data?.todos ?? []).flatMap(phase => phase.tasks);
               const total = all.length;
@@ -1169,6 +1183,8 @@ export function App() {
               notices={live.notices}
               loading={transcript.isPending}
               onFork={sessionKey ? handleBranch : undefined}
+              showThinking={settings.showThinking}
+              showToolCalls={settings.showToolCalls}
             >
               <Composer
                 state={state.data}
@@ -1247,6 +1263,8 @@ export function App() {
         onPickCommand={handlePickCommand}
         files={files.data ?? []}
         onPickFile={handlePickFile}
+        settings={settings}
+        onToggleSetting={toggleSetting}
         activeProject={project}
         sessionKey={sessionKey}
         state={state.data}

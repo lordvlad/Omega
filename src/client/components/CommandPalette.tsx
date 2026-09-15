@@ -58,6 +58,8 @@ import {
   IconRoute,
   IconPlugConnected,
   IconSearch,
+  IconSettings,
+  IconTerminal2,
   IconTrash,
 } from "@tabler/icons-react";
 import { useCallback, useMemo } from "react";
@@ -73,6 +75,7 @@ import type {
   ThinkingLevel,
   Workspace,
 } from "../api/model.ts";
+import type { ProjectSettings } from "../lib/settings.ts";
 
 /**
  * One-off compaction mode.
@@ -101,6 +104,7 @@ export const PALETTE_COMMAND = {
   stop: "/stop",
   delete: "/delete",
   file: "@",
+  settings: "/omega-settings",
 } as const;
 export type PaletteCommand = (typeof PALETTE_COMMAND)[keyof typeof PALETTE_COMMAND];
 
@@ -139,6 +143,7 @@ const COMMAND_SPEC: Record<
   "/stop": { kind: "scope", placeholder: "Filter live sessions to stop…" },
   "/delete": { kind: "scope", placeholder: "Filter sessions to delete from disk…" },
   "@": { kind: "scope", placeholder: "Filter files in this workspace…" },
+  "/omega-settings": { kind: "scope", placeholder: "Toggle a transcript display setting…" },
 };
 
 /** Thinking levels omp offers, ascending, matching the `ThinkingLevel` union. */
@@ -212,7 +217,7 @@ function parseQuery(query: string): ParsedQuery {
   if (trimmed.startsWith("@")) {
     return { command: "@", term: trimmed.slice(1).trimStart() };
   }
-  const match = /^(\/[a-zA-Z]+)(?:\s+([\s\S]*))?$/.exec(trimmed);
+  const match = /^(\/[a-zA-Z-]+)(?:\s+([\s\S]*))?$/.exec(trimmed);
   const word = match?.[1];
   if (!word || !Object.hasOwn(COMMAND_SPEC, word)) return { term: query };
   return { command: word as PaletteCommand, term: match?.[2] ?? "" };
@@ -310,6 +315,9 @@ export interface CommandPaletteProps {
   files?: string[];
   /** Picked a file for an `@` mention. */
   onPickFile?: (file: string) => void;
+  /** Per-project display toggles, edited via `/omega-settings`. */
+  settings: ProjectSettings;
+  onToggleSetting: (key: keyof ProjectSettings) => void;
 }
 
 export function CommandPalette({
@@ -343,6 +351,8 @@ export function CommandPalette({
   onRefreshWorkspaces,
   files = [],
   onPickFile,
+  settings,
+  onToggleSetting,
 }: CommandPaletteProps) {
   const { command, term } = parseQuery(query);
   /** Sessions currently held open by the server, newest workspace first. */
@@ -601,6 +611,15 @@ export function CommandPalette({
             closeSpotlightOnTrigger: false,
             onClick: () => onQueryChange("@"),
           },
+          {
+            id: "command-settings",
+            label: PALETTE_COMMAND.settings,
+            description: "Toggle what the transcript shows",
+            keywords: "settings preferences thinking tool calls show hide",
+            leftSection: <IconSettings size={16} />,
+            closeSpotlightOnTrigger: false,
+            onClick: () => onQueryChange(`${PALETTE_COMMAND.settings} `),
+          },
         ],
       },
       // Listed after the built-ins and only when a server actually published
@@ -818,6 +837,52 @@ export function CommandPalette({
     [state?.thinkingLevel, onSetThinking],
   );
 
+  /**
+   * `/omega-settings`: transcript display toggles for this workspace.
+   *
+   * Stays open on click, unlike most single-choice scopes — these are
+   * independent switches, not a pick-one-and-go list, so toggling one is
+   * worth seeing reflected before the palette closes.
+   */
+  const settingsActions = useMemo<PaletteAction[]>(
+    () => [
+      {
+        group: "Display settings",
+        actions: [
+          {
+            id: "settings-show-thinking",
+            label: "Show thinking",
+            description: settings.showThinking ? "Shown in the transcript" : "Hidden from the transcript",
+            keywords: "thinking reasoning show hide",
+            leftSection: <IconBrain size={16} />,
+            rightSection: (
+              <Badge size="xs" variant={settings.showThinking ? "filled" : "light"} color="plum">
+                {settings.showThinking ? "On" : "Off"}
+              </Badge>
+            ),
+            closeSpotlightOnTrigger: false,
+            onClick: () => onToggleSetting("showThinking"),
+          },
+          {
+            id: "settings-show-tool-calls",
+            label: "Show tool calls",
+            description: settings.showToolCalls ? "Shown in the transcript" : "Hidden from the transcript",
+            keywords: "tool calls bash commands show hide",
+            leftSection: <IconTerminal2 size={16} />,
+            rightSection: (
+              <Badge size="xs" variant={settings.showToolCalls ? "filled" : "light"} color="plum">
+                {settings.showToolCalls ? "On" : "Off"}
+              </Badge>
+            ),
+            closeSpotlightOnTrigger: false,
+            onClick: () => onToggleSetting("showToolCalls"),
+          },
+        ],
+      },
+    ],
+    [settings.showThinking, settings.showToolCalls, onToggleSetting],
+  );
+
   /** `/rename`: the term is the new title, so there is one action to confirm it. */
   const renameActions = useMemo<PaletteAction[]>(() => {
     const title = term.trim();
@@ -1026,6 +1091,7 @@ export function CommandPalette({
     "/stop": stopActions,
     "/delete": deleteActions,
     "@": fileActions,
+    "/omega-settings": settingsActions,
   };
 
   // The command prefix scopes the list rather than searching it, so it is
