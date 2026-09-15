@@ -22,13 +22,14 @@ import {
   Tooltip,
   UnstyledButton,
 } from "@mantine/core";
+import { useMergedRef, useResizeObserver } from "@mantine/hooks";
 import {
+  IconArrowUp,
   IconCpu,
   IconMicrophone,
   IconMicrophoneOff,
   IconPaperclip,
   IconPlayerStopFilled,
-  IconArrowUp,
   IconStack2,
 } from "@tabler/icons-react";
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -151,6 +152,17 @@ export function Composer({
   const [readError, setReadError] = useState<string | undefined>(undefined);
   const picker = useRef<HTMLInputElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  // Grown past its one-row baseline: the side buttons switch from a row
+  // beside the input to a column that spans it, so a tall message still has
+  // one of them within reach at the top and one at the bottom instead of
+  // both stranded in the middle.
+  const [sizeRef, textareaRect] = useResizeObserver<HTMLTextAreaElement>();
+  const mergedTextareaRef = useMergedRef(textareaRef, sizeRef);
+  const baselineHeight = useRef<number | null>(null);
+  if (baselineHeight.current === null && textareaRect.height > 0) {
+    baselineHeight.current = textareaRect.height;
+  }
+  const isMultiline = baselineHeight.current !== null && textareaRect.height > baselineHeight.current + 4;
   const atCursorRef = useRef<number | undefined>(undefined);
   // A branch hands back the message it branched from; loading it into the
   // input is the point of branching. Keyed on object identity so the same
@@ -275,6 +287,99 @@ export function Composer({
     followUp: "Deliver this message after the current turn finishes.",
   };
 
+  const attachButton = (
+    <Tooltip label="Attach files" position="top">
+      <ActionIcon
+        size="xl"
+        variant="transparent"
+        color="gray"
+        disabled={disabled}
+        onClick={() => picker.current?.click()}
+        aria-label="Attach files"
+      >
+        <IconPaperclip size={22} />
+      </ActionIcon>
+    </Tooltip>
+  );
+
+  const actionButton =
+    running && text.trim() ? (
+      <>
+        <Tooltip label={offline ? "No network..." : `${MODE_HINT[mode]} Ctrl+Enter sends.`} position="left">
+          <ActionIcon
+            size="xl"
+            radius="md"
+            variant="filled"
+            color={mode === "plan" ? "cyan" : "plum"}
+            disabled={disabled || offline}
+            onClick={send}
+          >
+            <IconArrowUp size={22} />
+          </ActionIcon>
+        </Tooltip>
+        <Tooltip label="Interrupt the assistant" position="left">
+          <ActionIcon size="xl" radius="md" variant="filled" color="red" onClick={onAbort}>
+            <IconPlayerStopFilled size={22} />
+          </ActionIcon>
+        </Tooltip>
+      </>
+    ) : running ? (
+      <Tooltip label="Interrupt the assistant" position="left">
+        <ActionIcon
+          size="xl"
+          radius="md"
+          variant="filled"
+          color="red"
+          onClick={onAbort}
+          aria-label="Interrupt the assistant"
+        >
+          <IconPlayerStopFilled size={22} />
+        </ActionIcon>
+      </Tooltip>
+    ) : text.trim() ? (
+      <Tooltip
+        label={
+          offline
+            ? "No network. Your message stays in the box until the connection is back."
+            : `${MODE_HINT[mode]} Ctrl+Enter sends.`
+        }
+        position="left"
+        multiline
+        w={240}
+      >
+        <ActionIcon
+          size="xl"
+          radius="md"
+          variant="filled"
+          color={mode === "plan" ? "cyan" : "plum"}
+          disabled={disabled || offline}
+          onClick={send}
+          aria-label="Send message"
+        >
+          <IconArrowUp size={22} />
+        </ActionIcon>
+      </Tooltip>
+    ) : dictation.supported && !compact ? (
+      <Tooltip label={dictation.listening ? "Stop dictation" : "Dictate"} position="left">
+        <ActionIcon
+          size="xl"
+          radius="md"
+          variant={dictation.listening ? "filled" : "light"}
+          color={dictation.listening ? "cyan" : "gray"}
+          disabled={disabled}
+          onClick={() => (dictation.listening ? dictation.stop() : dictation.start())}
+          aria-label={dictation.listening ? "Stop dictation" : "Start dictation"}
+          className={dictation.listening ? "omega-pulse" : undefined}
+        >
+          {dictation.listening ? <IconMicrophoneOff size={22} /> : <IconMicrophone size={22} />}
+        </ActionIcon>
+      </Tooltip>
+    ) : (
+      <ActionIcon size="xl" radius="md" variant="light" color="gray" disabled>
+        <IconMicrophone size={22} />
+      </ActionIcon>
+    );
+
   return (
     <Paper
       className="omega-composer"
@@ -302,9 +407,9 @@ export function Composer({
           </Group>
         ) : null}
 
-        <Group gap={8} wrap="nowrap" align="center">
+        <Group gap={8} wrap="nowrap" align="stretch">
           <Textarea
-            ref={textareaRef}
+            ref={mergedTextareaRef}
             flex={1}
             autosize
             minRows={1}
@@ -344,109 +449,27 @@ export function Composer({
             styles={{ input: { paddingTop: 4, paddingBottom: 4 } }}
           />
 
-          <Group gap={6} align="center" style={{ flexShrink: 0 }}>
-            <input
-              ref={picker}
-              type="file"
-              multiple
-              hidden
-              onChange={event => {
-                void attach(event.currentTarget.files);
-                event.currentTarget.value = "";
-              }}
-            />
-            <Tooltip label="Attach files" position="top">
-              <ActionIcon
-                size="xl"
-                variant="transparent"
-                color="gray"
-                disabled={disabled}
-                onClick={() => picker.current?.click()}
-                aria-label="Attach files"
-              >
-                <IconPaperclip size={22} />
-              </ActionIcon>
-            </Tooltip>
-            {running && text.trim() ? (
-              <>
-                <Tooltip
-                  label={offline ? "No network..." : `${MODE_HINT[mode]} Ctrl+Enter sends.`}
-                  position="left"
-                >
-                  <ActionIcon
-                    size="xl"
-                    radius="md"
-                    variant="filled"
-                    color={mode === "plan" ? "cyan" : "plum"}
-                    disabled={disabled || offline}
-                    onClick={send}
-                  >
-                    <IconArrowUp size={22} />
-                  </ActionIcon>
-                </Tooltip>
-                <Tooltip label="Interrupt the assistant" position="left">
-                  <ActionIcon size="xl" radius="md" variant="filled" color="red" onClick={onAbort}>
-                    <IconPlayerStopFilled size={22} />
-                  </ActionIcon>
-                </Tooltip>
-              </>
-            ) : running ? (
-              <Tooltip label="Interrupt the assistant" position="left">
-                <ActionIcon
-                  size="xl"
-                  radius="md"
-                  variant="filled"
-                  color="red"
-                  onClick={onAbort}
-                  aria-label="Interrupt the assistant"
-                >
-                  <IconPlayerStopFilled size={22} />
-                </ActionIcon>
-              </Tooltip>
-            ) : text.trim() ? (
-              <Tooltip
-                label={
-                  offline
-                    ? "No network. Your message stays in the box until the connection is back."
-                    : `${MODE_HINT[mode]} Ctrl+Enter sends.`
-                }
-                position="left"
-                multiline
-                w={240}
-              >
-                <ActionIcon
-                  size="xl"
-                  radius="md"
-                  variant="filled"
-                  color={mode === "plan" ? "cyan" : "plum"}
-                  disabled={disabled || offline}
-                  onClick={send}
-                  aria-label="Send message"
-                >
-                  <IconArrowUp size={22} />
-                </ActionIcon>
-              </Tooltip>
-            ) : dictation.supported && !compact ? (
-              <Tooltip label={dictation.listening ? "Stop dictation" : "Dictate"} position="left">
-                <ActionIcon
-                  size="xl"
-                  radius="md"
-                  variant={dictation.listening ? "filled" : "light"}
-                  color={dictation.listening ? "cyan" : "gray"}
-                  disabled={disabled}
-                  onClick={() => (dictation.listening ? dictation.stop() : dictation.start())}
-                  aria-label={dictation.listening ? "Stop dictation" : "Start dictation"}
-                  className={dictation.listening ? "omega-pulse" : undefined}
-                >
-                  {dictation.listening ? <IconMicrophoneOff size={22} /> : <IconMicrophone size={22} />}
-                </ActionIcon>
-              </Tooltip>
-            ) : (
-              <ActionIcon size="xl" radius="md" variant="light" color="gray" disabled>
-                <IconMicrophone size={22} />
-              </ActionIcon>
-            )}
-          </Group>
+          <input
+            ref={picker}
+            type="file"
+            multiple
+            hidden
+            onChange={event => {
+              void attach(event.currentTarget.files);
+              event.currentTarget.value = "";
+            }}
+          />
+          {isMultiline ? (
+            <Stack gap={6} justify="space-between" align="center" style={{ flexShrink: 0 }}>
+              {attachButton}
+              {actionButton}
+            </Stack>
+          ) : (
+            <Group gap={6} align="center" style={{ flexShrink: 0 }}>
+              {attachButton}
+              {actionButton}
+            </Group>
+          )}
         </Group>
 
         <Group gap={8} wrap="wrap" justify="space-between" align="flex-end">
