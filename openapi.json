@@ -63,6 +63,137 @@
         }
       }
     },
+    "/api/files": {
+      "get": {
+        "operationId": "listFiles",
+        "x-service": "OmpApi",
+        "tags": [
+          "OmpApi"
+        ],
+        "description": "Files in a workspace directory, relative to `cwd`.",
+        "parameters": [
+          {
+            "name": "cwd",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Workspace cwd to list files from. Defaults to the current project or server cwd."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/WorkspaceFile"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/files/content": {
+      "get": {
+        "operationId": "getFileContent",
+        "x-service": "OmpApi",
+        "tags": [
+          "OmpApi"
+        ],
+        "description": "Read content and metadata of a workspace file.",
+        "parameters": [
+          {
+            "name": "path",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Relative path of the file to read."
+          },
+          {
+            "name": "cwd",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Workspace cwd to read from. Defaults to current project or server cwd."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReadFileResult"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/git/status": {
+      "get": {
+        "operationId": "getGitStatus",
+        "x-service": "OmpApi",
+        "tags": [
+          "OmpApi"
+        ],
+        "description": "Git status for a workspace directory.",
+        "parameters": [
+          {
+            "name": "cwd",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Workspace cwd to query git status from. Defaults to the current project or server cwd."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GitStatusResult"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/sessions": {
       "post": {
         "operationId": "openSession",
@@ -1564,6 +1695,137 @@
           "ref",
           "reasoning",
           "contextWindow"
+        ]
+      },
+      "WorkspaceFile": {
+        "type": "string"
+      },
+      "ReadFileResult": {
+        "description": "File content and metadata.",
+        "type": "object",
+        "properties": {
+          "path": {
+            "type": "string",
+            "description": "Normalized relative file path."
+          },
+          "size": {
+            "type": "number",
+            "description": "File size in bytes."
+          },
+          "mimeType": {
+            "type": "string",
+            "description": "Inferred MIME type."
+          },
+          "isBinary": {
+            "type": "boolean",
+            "description": "True for non-text binary files."
+          },
+          "isImage": {
+            "type": "boolean",
+            "description": "True for image formats."
+          },
+          "content": {
+            "type": "string",
+            "description": "Text content for readable text/code files."
+          },
+          "dataUrl": {
+            "type": "string",
+            "description": "Data URL for image rendering."
+          }
+        },
+        "required": [
+          "path",
+          "size",
+          "mimeType",
+          "isBinary",
+          "isImage"
+        ]
+      },
+      "GitStatusResult": {
+        "description": "Summary of git workspace status.",
+        "type": "object",
+        "properties": {
+          "branch": {
+            "type": "string",
+            "description": "Current git branch name or `(detached)`."
+          },
+          "clean": {
+            "type": "boolean",
+            "description": "True when no tracked or untracked changes exist."
+          },
+          "files": {
+            "type": "object",
+            "additionalProperties": {
+              "$ref": "#/components/schemas/GitFileStatus"
+            },
+            "description": "Map of relative file paths to their git status."
+          }
+        },
+        "required": [
+          "clean",
+          "files"
+        ]
+      },
+      "GitFileStatus": {
+        "description": "Git change classification for a single workspace file.",
+        "type": "object",
+        "properties": {
+          "path": {
+            "type": "string",
+            "description": "Normalized relative file path in the workspace."
+          },
+          "origPath": {
+            "type": "string",
+            "description": "Prior file path when renamed."
+          },
+          "status": {
+            "anyOf": [
+              {
+                "const": "modified"
+              },
+              {
+                "const": "untracked"
+              },
+              {
+                "const": "added"
+              },
+              {
+                "const": "deleted"
+              },
+              {
+                "const": "renamed"
+              },
+              {
+                "const": "copied"
+              },
+              {
+                "const": "conflict"
+              },
+              {
+                "const": "ignored"
+              }
+            ],
+            "description": "High-level change status."
+          },
+          "marker": {
+            "type": "string",
+            "description": "Single-character marker (e.g. M, U, A, D, R, C, !)."
+          },
+          "staged": {
+            "type": "boolean",
+            "description": "True if change has staged modifications in the index."
+          },
+          "unstaged": {
+            "type": "boolean",
+            "description": "True if change has unstaged modifications in the working tree."
+          }
+        },
+        "required": [
+          "path",
+          "status",
+          "marker",
+          "staged",
+          "unstaged"
         ]
       },
       "OpenSessionRequest": {

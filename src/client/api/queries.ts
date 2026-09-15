@@ -2,7 +2,7 @@
 // React Query options getters and hooks for query operations. Edit the document, not this file.
 
 import { useQuery, type UseQueryOptions } from "@tanstack/react-query";
-import { defaultClient, type Client, type GetPlanOptions, type GetPlanResult, type GetStateOptions, type GetStateResult, type GetTranscriptOptions, type GetTranscriptResult, type ListBranchPointsOptions, type ListBranchPointsResult, type ListCommandsOptions, type ListCommandsResult, type ListModelsOptions, type ListModelsResult, type ListQueueOptions, type ListQueueResult, type ListWorkspacesOptions, type ListWorkspacesResult } from "./api.ts";
+import { defaultClient, type Client, type GetFileContentOptions, type GetFileContentResult, type GetGitStatusOptions, type GetGitStatusResult, type GetPlanOptions, type GetPlanResult, type GetStateOptions, type GetStateResult, type GetTranscriptOptions, type GetTranscriptResult, type ListBranchPointsOptions, type ListBranchPointsResult, type ListCommandsOptions, type ListCommandsResult, type ListFilesOptions, type ListFilesResult, type ListModelsOptions, type ListModelsResult, type ListQueueOptions, type ListQueueResult, type ListWorkspacesOptions, type ListWorkspacesResult } from "./api.ts";
 import { createMutations } from "./mutations.ts";
 
 /**
@@ -69,6 +69,93 @@ export function useListModels<
   client: Client = defaultClient()
 ) {
   return useQuery(getListModelsQueryOptions(options!, queryOptions, client));
+}
+
+/** Files in a workspace directory, relative to `cwd`. */
+export function getListFilesQueryOptions<
+  TData = ListFilesResult,
+  TError = unknown
+>(
+  options?: ListFilesOptions,
+  queryOptions?: Omit<UseQueryOptions<ListFilesResult, TError, TData>, "queryKey" | "queryFn">,
+  client: Client = defaultClient()
+) {
+  return {
+    queryKey: ["/api/files", options] as const,
+    queryFn: ({ signal }: { signal?: AbortSignal }) =>
+      client.listFiles(options as any, { signal }),
+    ...queryOptions,
+  };
+}
+
+/** React Query hook for `listFiles`. */
+export function useListFiles<
+  TData = ListFilesResult,
+  TError = unknown
+>(
+  options?: ListFilesOptions,
+  queryOptions?: Omit<UseQueryOptions<ListFilesResult, TError, TData>, "queryKey" | "queryFn">,
+  client: Client = defaultClient()
+) {
+  return useQuery(getListFilesQueryOptions(options!, queryOptions, client));
+}
+
+/** Read content and metadata of a workspace file. */
+export function getGetFileContentQueryOptions<
+  TData = GetFileContentResult,
+  TError = unknown
+>(
+  options: GetFileContentOptions,
+  queryOptions?: Omit<UseQueryOptions<GetFileContentResult, TError, TData>, "queryKey" | "queryFn">,
+  client: Client = defaultClient()
+) {
+  return {
+    queryKey: ["/api/files/content", options] as const,
+    queryFn: ({ signal }: { signal?: AbortSignal }) =>
+      client.getFileContent(options as any, { signal }),
+    ...queryOptions,
+  };
+}
+
+/** React Query hook for `getFileContent`. */
+export function useGetFileContent<
+  TData = GetFileContentResult,
+  TError = unknown
+>(
+  options: GetFileContentOptions,
+  queryOptions?: Omit<UseQueryOptions<GetFileContentResult, TError, TData>, "queryKey" | "queryFn">,
+  client: Client = defaultClient()
+) {
+  return useQuery(getGetFileContentQueryOptions(options, queryOptions, client));
+}
+
+/** Git status for a workspace directory. */
+export function getGetGitStatusQueryOptions<
+  TData = GetGitStatusResult,
+  TError = unknown
+>(
+  options?: GetGitStatusOptions,
+  queryOptions?: Omit<UseQueryOptions<GetGitStatusResult, TError, TData>, "queryKey" | "queryFn">,
+  client: Client = defaultClient()
+) {
+  return {
+    queryKey: ["/api/git/status", options] as const,
+    queryFn: ({ signal }: { signal?: AbortSignal }) =>
+      client.getGitStatus(options as any, { signal }),
+    ...queryOptions,
+  };
+}
+
+/** React Query hook for `getGitStatus`. */
+export function useGetGitStatus<
+  TData = GetGitStatusResult,
+  TError = unknown
+>(
+  options?: GetGitStatusOptions,
+  queryOptions?: Omit<UseQueryOptions<GetGitStatusResult, TError, TData>, "queryKey" | "queryFn">,
+  client: Client = defaultClient()
+) {
+  return useQuery(getGetGitStatusQueryOptions(options!, queryOptions, client));
 }
 
 /**
@@ -295,6 +382,30 @@ export function createQueries(client: Client = defaultClient()) {
       options?: ListModelsOptions,
       queryOptions?: Omit<UseQueryOptions<ListModelsResult, TError, TData>, "queryKey" | "queryFn">
     ) => useListModels<TData, TError>(options!, queryOptions, client),
+    getListFilesQueryOptions: <TData = ListFilesResult, TError = unknown>(
+      options?: ListFilesOptions,
+      queryOptions?: Omit<UseQueryOptions<ListFilesResult, TError, TData>, "queryKey" | "queryFn">
+    ) => getListFilesQueryOptions<TData, TError>(options!, queryOptions, client),
+    useListFiles: <TData = ListFilesResult, TError = unknown>(
+      options?: ListFilesOptions,
+      queryOptions?: Omit<UseQueryOptions<ListFilesResult, TError, TData>, "queryKey" | "queryFn">
+    ) => useListFiles<TData, TError>(options!, queryOptions, client),
+    getGetFileContentQueryOptions: <TData = GetFileContentResult, TError = unknown>(
+      options: GetFileContentOptions,
+      queryOptions?: Omit<UseQueryOptions<GetFileContentResult, TError, TData>, "queryKey" | "queryFn">
+    ) => getGetFileContentQueryOptions<TData, TError>(options, queryOptions, client),
+    useGetFileContent: <TData = GetFileContentResult, TError = unknown>(
+      options: GetFileContentOptions,
+      queryOptions?: Omit<UseQueryOptions<GetFileContentResult, TError, TData>, "queryKey" | "queryFn">
+    ) => useGetFileContent<TData, TError>(options, queryOptions, client),
+    getGetGitStatusQueryOptions: <TData = GetGitStatusResult, TError = unknown>(
+      options?: GetGitStatusOptions,
+      queryOptions?: Omit<UseQueryOptions<GetGitStatusResult, TError, TData>, "queryKey" | "queryFn">
+    ) => getGetGitStatusQueryOptions<TData, TError>(options!, queryOptions, client),
+    useGetGitStatus: <TData = GetGitStatusResult, TError = unknown>(
+      options?: GetGitStatusOptions,
+      queryOptions?: Omit<UseQueryOptions<GetGitStatusResult, TError, TData>, "queryKey" | "queryFn">
+    ) => useGetGitStatus<TData, TError>(options!, queryOptions, client),
     getGetStateQueryOptions: <TData = GetStateResult, TError = unknown>(
       options: GetStateOptions,
       queryOptions?: Omit<UseQueryOptions<GetStateResult, TError, TData>, "queryKey" | "queryFn">

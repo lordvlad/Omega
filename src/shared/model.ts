@@ -439,3 +439,70 @@ export interface Problem {
   /** Human-readable explanation. */
   detail: string;
 }
+
+/** Query parameters for listing workspace files. */
+export interface ListFilesQuery {
+  /** Workspace cwd to list files from. Defaults to the current project or server cwd. */
+  cwd?: string;
+}
+
+/** A file path in the workspace. */
+export type WorkspaceFile = string;
+
+/** Query parameters for reading workspace git status. */
+export interface GitStatusQuery {
+  /** Workspace cwd to query git status from. Defaults to the current project or server cwd. */
+  cwd?: string;
+}
+
+/** Git change classification for a single workspace file. */
+export interface GitFileStatus {
+  /** Normalized relative file path in the workspace. */
+  path: string;
+  /** Prior file path when renamed. */
+  origPath?: string;
+  /** High-level change status. */
+  status: "modified" | "untracked" | "added" | "deleted" | "renamed" | "copied" | "conflict" | "ignored";
+  /** Single-character marker (e.g. M, U, A, D, R, C, !). */
+  marker: string;
+  /** True if change has staged modifications in the index. */
+  staged: boolean;
+  /** True if change has unstaged modifications in the working tree. */
+  unstaged: boolean;
+}
+
+/** Summary of git workspace status. */
+export interface GitStatusResult {
+  /** Current git branch name or `(detached)`. */
+  branch?: string;
+  /** True when no tracked or untracked changes exist. */
+  clean: boolean;
+  /** Map of relative file paths to their git status. */
+  files: Record<string, GitFileStatus>;
+}
+
+/** Query parameters for reading file content. */
+export interface ReadFileQuery {
+  /** Relative path of the file to read. */
+  path: string;
+  /** Workspace cwd to read from. Defaults to current project or server cwd. */
+  cwd?: string;
+}
+
+/** File content and metadata. */
+export interface ReadFileResult {
+  /** Normalized relative file path. */
+  path: string;
+  /** File size in bytes. */
+  size: number;
+  /** Inferred MIME type. */
+  mimeType: string;
+  /** True for non-text binary files. */
+  isBinary: boolean;
+  /** True for image formats. */
+  isImage: boolean;
+  /** Text content for readable text/code files. */
+  content?: string;
+  /** Data URL for image rendering. */
+  dataUrl?: string;
+}

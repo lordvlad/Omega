@@ -16,10 +16,14 @@
  */
 import type {
   Ack,
+  Attachment,
   BranchPoint,
   BranchRequest,
   BranchResult,
   CompactRequest,
+  GitStatusQuery,
+  GitStatusResult,
+  ListFilesQuery,
   LiveState,
   MarkdownRequest,
   ModelOption,
@@ -32,6 +36,8 @@ import type {
   QueueDropRequest,
   QueueEditRequest,
   QueuedMessage,
+  ReadFileQuery,
+  ReadFileResult,
   RenameRequest,
   RenderedMarkdown,
   SelectModelRequest,
@@ -40,6 +46,7 @@ import type {
   ThinkingRequest,
   Transcript,
   Workspace,
+  WorkspaceFile,
 } from "./model.ts";
 
 export interface OmpApi {
@@ -60,6 +67,32 @@ export interface OmpApi {
    * @response 200 application/json ModelOption[]
    */
   listModels(): Promise<ModelOption[]>;
+
+  /**
+   * Files in a workspace directory, relative to `cwd`.
+   *
+   * @get /api/files
+   * @response 200 application/json WorkspaceFile[]
+   */
+  listFiles(query?: ListFilesQuery): Promise<WorkspaceFile[]>;
+
+  /**
+   * Read content and metadata of a workspace file.
+   *
+   * @get /api/files/content
+   * @response 200 application/json ReadFileResult
+   * @response 400 application/json Problem
+   * @response 404 application/json Problem
+   */
+  getFileContent(query?: ReadFileQuery): Promise<ReadFileResult>;
+
+  /**
+   * Git status for a workspace directory.
+   *
+   * @get /api/git/status
+   * @response 200 application/json GitStatusResult
+   */
+  getGitStatus(query?: GitStatusQuery): Promise<GitStatusResult>;
 
   /**
    * Load a session as a live agent, or start a new one in `cwd`.

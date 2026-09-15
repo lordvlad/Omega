@@ -47,6 +47,36 @@ export interface ModelOption {
   contextWindow: number;
 }
 
+export type WorkspaceFile = string;
+
+/** File content and metadata. */
+export interface ReadFileResult {
+  path: string;
+  size: number;
+  mimeType: string;
+  isBinary: boolean;
+  isImage: boolean;
+  content?: string;
+  dataUrl?: string;
+}
+
+/** Summary of git workspace status. */
+export interface GitStatusResult {
+  branch?: string;
+  clean: boolean;
+  files: Record<string, GitFileStatus>;
+}
+
+/** Git change classification for a single workspace file. */
+export interface GitFileStatus {
+  path: string;
+  origPath?: string;
+  status: "modified" | "untracked" | "added" | "deleted" | "renamed" | "copied" | "conflict" | "ignored";
+  marker: string;
+  staged: boolean;
+  unstaged: boolean;
+}
+
 /** Which session to load as a live agent. */
 export interface OpenSessionRequest {
   sessionPath?: string;
