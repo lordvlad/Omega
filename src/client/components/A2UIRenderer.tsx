@@ -1,3 +1,4 @@
+import { AreaChart, BarChart, DonutChart, LineChart, PieChart, RadarChart, Sparkline } from "@mantine/charts";
 /**
  * A2UI v1.0 renderer over Mantine components.
  *
@@ -964,6 +965,168 @@ export function A2UIRenderer({ surface, onAction, onUpdateData }: A2UIRendererPr
               {childId ? renderComponent(childId, scope, index) : null}
             </Box>
           </Tooltip>
+        );
+      }
+      case "AreaChart": {
+        const rawData = resolveDynamic<any[]>(comp.data as any, dataModel, scope, index);
+        const chartData = Array.isArray(rawData) ? rawData : [];
+        const dataKey = (comp.dataKey as string) ?? "x";
+        const rawSeries = (comp.series as Array<{ name: string; color?: string; label?: string }>) ?? [];
+        const series = rawSeries.map((s, i) => ({
+          name: s.name,
+          color: s.color || (i === 0 ? "cyan" : i === 1 ? "plum" : "teal"),
+          label: s.label,
+        }));
+        const height = typeof comp.height === "number" ? comp.height : 240;
+        const curveType = (comp.curveType as any) ?? "monotone";
+        const withLegend = comp.withLegend === true;
+        const withTooltip = comp.withTooltip !== false;
+        const withDots = comp.withDots === true;
+        return (
+          <Box key={key} style={{ width: "100%", ...style }}>
+            <AreaChart
+              h={height}
+              data={chartData}
+              dataKey={dataKey}
+              series={series}
+              curveType={curveType}
+              withLegend={withLegend}
+              withTooltip={withTooltip}
+              withDots={withDots}
+            />
+          </Box>
+        );
+      }
+
+      case "BarChart": {
+        const rawData = resolveDynamic<any[]>(comp.data as any, dataModel, scope, index);
+        const chartData = Array.isArray(rawData) ? rawData : [];
+        const dataKey = (comp.dataKey as string) ?? "x";
+        const rawSeries = (comp.series as Array<{ name: string; color?: string; label?: string }>) ?? [];
+        const series = rawSeries.map((s, i) => ({
+          name: s.name,
+          color: s.color || (i === 0 ? "cyan" : i === 1 ? "plum" : "teal"),
+          label: s.label,
+        }));
+        const height = typeof comp.height === "number" ? comp.height : 240;
+        const chartType = (comp.type as any) ?? "default";
+        const withLegend = comp.withLegend === true;
+        const withTooltip = comp.withTooltip !== false;
+        return (
+          <Box key={key} style={{ width: "100%", ...style }}>
+            <BarChart
+              h={height}
+              data={chartData}
+              dataKey={dataKey}
+              series={series}
+              type={chartType}
+              withLegend={withLegend}
+              withTooltip={withTooltip}
+            />
+          </Box>
+        );
+      }
+
+      case "LineChart": {
+        const rawData = resolveDynamic<any[]>(comp.data as any, dataModel, scope, index);
+        const chartData = Array.isArray(rawData) ? rawData : [];
+        const dataKey = (comp.dataKey as string) ?? "x";
+        const rawSeries = (comp.series as Array<{ name: string; color?: string; label?: string }>) ?? [];
+        const series = rawSeries.map((s, i) => ({
+          name: s.name,
+          color: s.color || (i === 0 ? "cyan" : i === 1 ? "plum" : "teal"),
+          label: s.label,
+        }));
+        const height = typeof comp.height === "number" ? comp.height : 240;
+        const curveType = (comp.curveType as any) ?? "monotone";
+        const withLegend = comp.withLegend === true;
+        const withTooltip = comp.withTooltip !== false;
+        const withDots = comp.withDots !== false;
+        return (
+          <Box key={key} style={{ width: "100%", ...style }}>
+            <LineChart
+              h={height}
+              data={chartData}
+              dataKey={dataKey}
+              series={series}
+              curveType={curveType}
+              withLegend={withLegend}
+              withTooltip={withTooltip}
+              withDots={withDots}
+            />
+          </Box>
+        );
+      }
+
+      case "DonutChart": {
+        const rawData = resolveDynamic<any[]>(comp.data as any, dataModel, scope, index);
+        const chartData = Array.isArray(rawData) ? rawData : [];
+        const size = typeof comp.size === "number" ? comp.size : 160;
+        const thickness = typeof comp.thickness === "number" ? comp.thickness : 16;
+        const withLabels = comp.withLabels === true;
+        const withTooltip = comp.withTooltip !== false;
+        const chartLabel = resolveDynamic<string>(comp.chartLabel as any, dataModel, scope, index);
+        return (
+          <Box key={key} style={{ display: "flex", justifyContent: "center", ...style }}>
+            <DonutChart
+              data={chartData}
+              size={size}
+              thickness={thickness}
+              withLabels={withLabels}
+              withTooltip={withTooltip}
+              chartLabel={chartLabel}
+            />
+          </Box>
+        );
+      }
+
+      case "PieChart": {
+        const rawData = resolveDynamic<any[]>(comp.data as any, dataModel, scope, index);
+        const chartData = Array.isArray(rawData) ? rawData : [];
+        const size = typeof comp.size === "number" ? comp.size : 160;
+        const withLabels = comp.withLabels === true;
+        const withTooltip = comp.withTooltip !== false;
+        return (
+          <Box key={key} style={{ display: "flex", justifyContent: "center", ...style }}>
+            <PieChart data={chartData} size={size} withLabels={withLabels} withTooltip={withTooltip} />
+          </Box>
+        );
+      }
+
+      case "RadarChart": {
+        const rawData = resolveDynamic<any[]>(comp.data as any, dataModel, scope, index);
+        const chartData = Array.isArray(rawData) ? rawData : [];
+        const dataKey = (comp.dataKey as string) ?? "name";
+        const rawSeries = (comp.series as Array<{ name: string; color?: string }>) ?? [];
+        const series = rawSeries.map((s, i) => ({
+          name: s.name,
+          color: s.color || (i === 0 ? "cyan" : i === 1 ? "plum" : "teal"),
+        }));
+        const withPolarGrid = comp.withPolarGrid !== false;
+        return (
+          <Box key={key} style={{ display: "flex", justifyContent: "center", width: "100%", ...style }}>
+            <RadarChart data={chartData} dataKey={dataKey} series={series} withPolarGrid={withPolarGrid} />
+          </Box>
+        );
+      }
+
+      case "Sparkline": {
+        const rawData = resolveDynamic<number[]>(comp.data as any, dataModel, scope, index);
+        const chartData = Array.isArray(rawData) ? rawData : [];
+        const height = typeof comp.height === "number" ? comp.height : 40;
+        const color = (comp.color as string) ?? "cyan";
+        const curveType = (comp.curveType as any) ?? "natural";
+        const fillOpacity = typeof comp.fillOpacity === "number" ? comp.fillOpacity : 0.2;
+        return (
+          <Box key={key} style={{ width: "100%", ...style }}>
+            <Sparkline
+              h={height}
+              data={chartData}
+              color={color}
+              curveType={curveType}
+              fillOpacity={fillOpacity}
+            />
+          </Box>
         );
       }
 

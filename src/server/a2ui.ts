@@ -43,9 +43,11 @@ export const A2UI_COMPONENTS: Record<string, true> = {
   Accordion: true,
   Alert: true,
   Anchor: true,
+  AreaChart: true,
   AudioPlayer: true,
   Avatar: true,
   Badge: true,
+  BarChart: true,
   Button: true,
   Card: true,
   CheckBox: true,
@@ -54,18 +56,23 @@ export const A2UI_COMPONENTS: Record<string, true> = {
   Column: true,
   DateTimeInput: true,
   Divider: true,
+  DonutChart: true,
   Icon: true,
   Image: true,
+  LineChart: true,
   List: true,
   Modal: true,
   Paper: true,
+  PieChart: true,
   Progress: true,
+  RadarChart: true,
   Rating: true,
   RingProgress: true,
   Row: true,
   SegmentedControl: true,
   Skeleton: true,
   Slider: true,
+  Sparkline: true,
   Switch: true,
   Table: true,
   Tabs: true,
@@ -166,6 +173,13 @@ Components (property: type — "dyn" accepts a literal or {"path":"/pointer"}):
 - Accordion: items (array of { title: dyn string, child: component id, value: string }), defaultValue (string), variant ("default" | "contained" | "filled" | "separated")
 - Paper: child (component id), shadow ("xs" | "sm" | "md" | "lg" | "xl"), radius ("xs" | "sm" | "md" | "lg" | "xl"), withBorder (boolean), p ("xs" | "sm" | "md" | "lg" | "xl")
 - Anchor: href (dyn string), text (dyn string), child (component id), target ("_blank" | "_self"), underline ("always" | "hover" | "never")
+- AreaChart: data (dyn array of objects), dataKey (string, x-axis key), series (array of { name: string, color?: string, label?: string }), height (number, default 240), curveType ("linear" | "natural" | "monotone" | "step"), withLegend (boolean), withTooltip (boolean), withDots (boolean)
+- BarChart: data (dyn array of objects), dataKey (string, x-axis key), series (array of { name: string, color?: string, label?: string }), height (number, default 240), type ("default" | "stacked" | "percent" | "waterfall"), withLegend (boolean), withTooltip (boolean)
+- LineChart: data (dyn array of objects), dataKey (string, x-axis key), series (array of { name: string, color?: string, label?: string }), height (number, default 240), curveType ("linear" | "natural" | "monotone" | "step"), withLegend (boolean), withTooltip (boolean), withDots (boolean)
+- DonutChart: data (dyn array of { name: string, value: number, color: string }), size (number, default 160), thickness (number, default 16), withLabels (boolean), withTooltip (boolean), chartLabel (dyn string)
+- PieChart: data (dyn array of { name: string, value: number, color: string }), size (number, default 160), withLabels (boolean), withTooltip (boolean)
+- RadarChart: data (dyn array of objects), dataKey (string, angle key), series (array of { name: string, color?: string }), withPolarGrid (boolean)
+- Sparkline: data (dyn array of numbers), height (number, default 40), color (string), curveType ("linear" | "natural" | "monotone"), fillOpacity (number)
 - Skeleton: height (number), width (number | string), circle (boolean), animate (boolean)
 - Tooltip: label (dyn string), child (component id)
 - Icon: name (one of: ${A2UI_ICONS.join(", ")})
