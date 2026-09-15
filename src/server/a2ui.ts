@@ -40,11 +40,17 @@ export type A2uiSink = (message: A2uiMessage) => void;
  * never hear about.
  */
 export const A2UI_COMPONENTS: Record<string, true> = {
+  Accordion: true,
+  Alert: true,
+  Anchor: true,
   AudioPlayer: true,
+  Avatar: true,
+  Badge: true,
   Button: true,
   Card: true,
   CheckBox: true,
   ChoicePicker: true,
+  Code: true,
   Column: true,
   DateTimeInput: true,
   Divider: true,
@@ -52,11 +58,21 @@ export const A2UI_COMPONENTS: Record<string, true> = {
   Image: true,
   List: true,
   Modal: true,
+  Paper: true,
+  Progress: true,
+  Rating: true,
+  RingProgress: true,
   Row: true,
+  SegmentedControl: true,
+  Skeleton: true,
   Slider: true,
+  Switch: true,
+  Table: true,
   Tabs: true,
   Text: true,
   TextField: true,
+  Timeline: true,
+  Tooltip: true,
   Video: true,
 };
 
@@ -135,7 +151,23 @@ export const A2UI_ICONS = [
  */
 const CATALOG_REFERENCE = `
 Components (property: type — "dyn" accepts a literal or {"path":"/pointer"}):
-- Text: text (dyn string, simple markdown), variant ("body" | "caption")
+- Text: text (dyn string, simple markdown), variant ("body" | "caption" | "heading")
+- Badge: label (dyn string), color (string, e.g. "cyan", "plum", "red", "green", "yellow", "gray", "blue", "orange"), variant ("light" | "filled" | "outline" | "dot"), size ("xs" | "sm" | "md" | "lg")
+- Alert: title (dyn string), text (dyn string), child (component id), color (string), icon (icon name), variant ("light" | "filled" | "outline")
+- Avatar: src (dyn string), name (dyn string), size ("xs" | "sm" | "md" | "lg" | "xl"), radius ("xs" | "sm" | "md" | "lg" | "xl"), color (string)
+- Progress: value (dyn number, 0-100), color (string), size ("xs" | "sm" | "md" | "lg" | "xl"), striped (boolean), animated (boolean)
+- RingProgress: value (dyn number, 0-100), label (dyn string), color (string), size (number), thickness (number)
+- Switch: label (dyn string), description (dyn string), value (dyn boolean, bind it), color (string)
+- SegmentedControl: options (array of { label: dyn string, value: string }), value (dyn string, bind it), color (string), size ("xs" | "sm" | "md" | "lg")
+- Rating: value (dyn number, bind it), count (number), color (string), size ("xs" | "sm" | "md" | "lg"), readOnly (boolean)
+- Code: code (dyn string), language (string), block (boolean)
+- Table: headers (array of dyn string), rows (array of array of dyn string), striped (boolean), highlightOnHover (boolean)
+- Timeline: items (array of { title: dyn string, description: dyn string, time: dyn string, bullet: icon name }), active (dyn number), color (string)
+- Accordion: items (array of { title: dyn string, child: component id, value: string }), defaultValue (string), variant ("default" | "contained" | "filled" | "separated")
+- Paper: child (component id), shadow ("xs" | "sm" | "md" | "lg" | "xl"), radius ("xs" | "sm" | "md" | "lg" | "xl"), withBorder (boolean), p ("xs" | "sm" | "md" | "lg" | "xl")
+- Anchor: href (dyn string), text (dyn string), child (component id), target ("_blank" | "_self"), underline ("always" | "hover" | "never")
+- Skeleton: height (number), width (number | string), circle (boolean), animate (boolean)
+- Tooltip: label (dyn string), child (component id)
 - Icon: name (one of: ${A2UI_ICONS.join(", ")})
 - Image: url (dyn string), description (dyn string), fit ("contain" | "cover" | "fill" | "none" | "scaleDown"), variant ("icon" | "avatar" | "smallFeature" | "mediumFeature" | "largeFeature" | "header")
 - Video: url (dyn string), posterUrl (dyn string)

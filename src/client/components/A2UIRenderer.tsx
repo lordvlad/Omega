@@ -6,23 +6,39 @@
  * data model and writes input changes back in real time.
  */
 import {
+  Accordion,
+  Alert,
+  Anchor,
+  Avatar,
+  Badge,
   Box,
   Button,
   Card,
   Checkbox,
   Chip,
+  Code,
   Divider,
   Group,
   Image,
   NumberInput,
+  Paper,
   PasswordInput,
+  Progress,
   Radio,
+  Rating,
+  RingProgress,
+  SegmentedControl,
+  Skeleton,
   Slider,
   Stack,
+  Switch,
+  Table,
   Tabs,
   Text,
   TextInput,
   Textarea,
+  Timeline,
+  Tooltip,
 } from "@mantine/core";
 import {
   IconAlertCircle,
@@ -657,6 +673,297 @@ export function A2UIRenderer({ surface, onAction, onUpdateData }: A2UIRendererPr
             onChange={e => handleUpdate(path, e.currentTarget.value)}
             style={style}
           />
+        );
+      }
+      case "Badge": {
+        const label = resolveDynamic<string>(comp.label as any, dataModel, scope, index);
+        const color = (comp.color as string) ?? "cyan";
+        const variant = (comp.variant as any) ?? "light";
+        const size = (comp.size as any) ?? "sm";
+        return (
+          <Badge key={key} color={color} variant={variant} size={size} style={style}>
+            {label ?? ""}
+          </Badge>
+        );
+      }
+
+      case "Alert": {
+        const title = resolveDynamic<string>(comp.title as any, dataModel, scope, index);
+        const text = resolveDynamic<string>(comp.text as any, dataModel, scope, index);
+        const color = (comp.color as string) ?? "cyan";
+        const variant = (comp.variant as any) ?? "light";
+        const iconName = comp.icon as string | undefined;
+        const iconNode = iconName ? renderTablerIcon(iconName, 16) : undefined;
+        const childId = comp.child as string | undefined;
+        return (
+          <Alert key={key} title={title} color={color} variant={variant} icon={iconNode} style={style}>
+            {text ?? (childId ? renderComponent(childId, scope, index) : null)}
+          </Alert>
+        );
+      }
+
+      case "Progress": {
+        const value = Number(resolveDynamic<number>(comp.value as any, dataModel, scope, index) ?? 0);
+        const color = (comp.color as string) ?? "cyan";
+        const size = (comp.size as any) ?? "md";
+        const striped = comp.striped === true;
+        const animated = comp.animated === true;
+        return (
+          <Progress
+            key={key}
+            value={value}
+            color={color}
+            size={size}
+            striped={striped}
+            animated={animated}
+            style={style}
+          />
+        );
+      }
+
+      case "RingProgress": {
+        const value = Number(resolveDynamic<number>(comp.value as any, dataModel, scope, index) ?? 0);
+        const label = resolveDynamic<string>(comp.label as any, dataModel, scope, index);
+        const color = (comp.color as string) ?? "cyan";
+        const size = typeof comp.size === "number" ? comp.size : 80;
+        const thickness = typeof comp.thickness === "number" ? comp.thickness : 8;
+        return (
+          <RingProgress
+            key={key}
+            size={size}
+            thickness={thickness}
+            sections={[{ value, color }]}
+            label={
+              label ? (
+                <Text size="xs" ta="center">
+                  {label}
+                </Text>
+              ) : undefined
+            }
+            style={style}
+          />
+        );
+      }
+
+      case "Avatar": {
+        const src = resolveDynamic<string>(comp.src as any, dataModel, scope, index);
+        const name = resolveDynamic<string>(comp.name as any, dataModel, scope, index);
+        const size = (comp.size as any) ?? "md";
+        const radius = (comp.radius as any) ?? "xl";
+        const color = (comp.color as string) ?? "cyan";
+        return (
+          <Avatar key={key} src={src} name={name} size={size} radius={radius} color={color} style={style}>
+            {name ? name.slice(0, 2).toUpperCase() : undefined}
+          </Avatar>
+        );
+      }
+
+      case "Switch": {
+        const label = resolveDynamic<string>(comp.label as any, dataModel, scope, index);
+        const description = resolveDynamic<string>(comp.description as any, dataModel, scope, index);
+        const path = bindingPath(comp.value);
+        const checked = Boolean(resolveDynamic<boolean>(comp.value as any, dataModel, scope, index));
+        const color = (comp.color as string) ?? "cyan";
+        return (
+          <Switch
+            key={key}
+            label={label}
+            description={description}
+            checked={checked}
+            color={color}
+            onChange={e => handleUpdate(path, e.currentTarget.checked)}
+            style={style}
+          />
+        );
+      }
+
+      case "SegmentedControl": {
+        const path = bindingPath(comp.value);
+        const currentVal = String(resolveDynamic<string>(comp.value as any, dataModel, scope, index) ?? "");
+        const rawOptions = (comp.options as Array<{ label: any; value: string }>) ?? [];
+        const data = rawOptions.map(opt => ({
+          value: opt.value,
+          label: resolveDynamic<string>(opt.label, dataModel, scope, index) ?? opt.value,
+        }));
+        const color = (comp.color as string) ?? "cyan";
+        const size = (comp.size as any) ?? "sm";
+        return (
+          <SegmentedControl
+            key={key}
+            data={data}
+            value={currentVal}
+            color={color}
+            size={size}
+            onChange={val => handleUpdate(path, val)}
+            style={style}
+          />
+        );
+      }
+
+      case "Rating": {
+        const path = bindingPath(comp.value);
+        const currentVal = Number(resolveDynamic<number>(comp.value as any, dataModel, scope, index) ?? 0);
+        const count = typeof comp.count === "number" ? comp.count : 5;
+        const color = (comp.color as string) ?? "yellow";
+        const size = (comp.size as any) ?? "md";
+        const readOnly = comp.readOnly === true;
+        return (
+          <Rating
+            key={key}
+            value={currentVal}
+            count={count}
+            color={color}
+            size={size}
+            readOnly={readOnly}
+            onChange={val => handleUpdate(path, val)}
+            style={style}
+          />
+        );
+      }
+
+      case "Accordion": {
+        const rawItems = (comp.items as Array<{ title: any; child: string; value?: string }>) ?? [];
+        const variant = (comp.variant as any) ?? "default";
+        const defaultValue = (comp.defaultValue as string) ?? rawItems[0]?.value ?? "0";
+        return (
+          <Accordion key={key} variant={variant} defaultValue={defaultValue} style={style}>
+            {rawItems.map((item, i) => {
+              const val = item.value ?? String(i);
+              const title = resolveDynamic<string>(item.title, dataModel, scope, index);
+              return (
+                <Accordion.Item key={val} value={val}>
+                  <Accordion.Control>{title ?? `Section ${i + 1}`}</Accordion.Control>
+                  <Accordion.Panel>
+                    {item.child ? renderComponent(item.child, scope, index) : null}
+                  </Accordion.Panel>
+                </Accordion.Item>
+              );
+            })}
+          </Accordion>
+        );
+      }
+
+      case "Table": {
+        const headers = (comp.headers as any[]) ?? [];
+        const rows = (comp.rows as any[][]) ?? [];
+        const striped = comp.striped === true;
+        const highlightOnHover = comp.highlightOnHover === true;
+        return (
+          <Table key={key} striped={striped} highlightOnHover={highlightOnHover} style={style}>
+            {headers.length > 0 ? (
+              <Table.Thead>
+                <Table.Tr>
+                  {headers.map((h, i) => (
+                    <Table.Th key={String(i)}>
+                      {resolveDynamic<string>(h, dataModel, scope, index) ?? ""}
+                    </Table.Th>
+                  ))}
+                </Table.Tr>
+              </Table.Thead>
+            ) : null}
+            <Table.Tbody>
+              {rows.map((row, rIdx) => (
+                <Table.Tr key={String(rIdx)}>
+                  {(row ?? []).map((cell, cIdx) => (
+                    <Table.Td key={String(cIdx)}>
+                      {resolveDynamic<string>(cell, dataModel, scope, index) ?? ""}
+                    </Table.Td>
+                  ))}
+                </Table.Tr>
+              ))}
+            </Table.Tbody>
+          </Table>
+        );
+      }
+
+      case "Code": {
+        const code = resolveDynamic<string>(comp.code as any, dataModel, scope, index) ?? "";
+        const block = comp.block !== false;
+        return (
+          <Code key={key} block={block} style={style}>
+            {code}
+          </Code>
+        );
+      }
+
+      case "Timeline": {
+        const rawItems =
+          (comp.items as Array<{ title: any; description: any; time: any; bullet?: string }>) ?? [];
+        const active = Number(resolveDynamic<number>(comp.active as any, dataModel, scope, index) ?? 0);
+        const color = (comp.color as string) ?? "cyan";
+        return (
+          <Timeline key={key} active={active} color={color} style={style}>
+            {rawItems.map((item, i) => {
+              const title = resolveDynamic<string>(item.title, dataModel, scope, index);
+              const desc = resolveDynamic<string>(item.description, dataModel, scope, index);
+              const time = resolveDynamic<string>(item.time, dataModel, scope, index);
+              const bullet = item.bullet ? renderTablerIcon(item.bullet, 12) : undefined;
+              return (
+                <Timeline.Item key={String(i)} title={title} bullet={bullet}>
+                  {desc ? (
+                    <Text c="dimmed" size="xs">
+                      {desc}
+                    </Text>
+                  ) : null}
+                  {time ? (
+                    <Text size="xs" mt={4}>
+                      {time}
+                    </Text>
+                  ) : null}
+                </Timeline.Item>
+              );
+            })}
+          </Timeline>
+        );
+      }
+
+      case "Paper": {
+        const childId = comp.child as string | undefined;
+        const shadow = (comp.shadow as any) ?? "xs";
+        const radius = (comp.radius as any) ?? "md";
+        const withBorder = comp.withBorder !== false;
+        const p = (comp.p as any) ?? "md";
+        return (
+          <Paper key={key} shadow={shadow} radius={radius} withBorder={withBorder} p={p} style={style}>
+            {childId
+              ? renderComponent(childId, scope, index)
+              : renderChildren(comp.children as A2uiChildList, scope, index)}
+          </Paper>
+        );
+      }
+
+      case "Anchor": {
+        const href = resolveDynamic<string>(comp.href as any, dataModel, scope, index) ?? "#";
+        const text = resolveDynamic<string>(comp.text as any, dataModel, scope, index);
+        const childId = comp.child as string | undefined;
+        const target = (comp.target as string) ?? "_blank";
+        const underline = (comp.underline as any) ?? "hover";
+        return (
+          <Anchor key={key} href={href} target={target} underline={underline} color="cyan" style={style}>
+            {text ?? (childId ? renderComponent(childId, scope, index) : href)}
+          </Anchor>
+        );
+      }
+
+      case "Skeleton": {
+        const height = typeof comp.height === "number" ? comp.height : 20;
+        const width = typeof comp.width === "number" || typeof comp.width === "string" ? comp.width : "100%";
+        const circle = comp.circle === true;
+        const animate = comp.animate !== false;
+        return (
+          <Skeleton key={key} height={height} width={width} circle={circle} animate={animate} style={style} />
+        );
+      }
+
+      case "Tooltip": {
+        const label = resolveDynamic<string>(comp.label as any, dataModel, scope, index) ?? "";
+        const childId = comp.child as string;
+        return (
+          <Tooltip key={key} label={label}>
+            <Box style={{ display: "inline-block", ...style }}>
+              {childId ? renderComponent(childId, scope, index) : null}
+            </Box>
+          </Tooltip>
         );
       }
 
