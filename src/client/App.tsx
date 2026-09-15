@@ -1296,7 +1296,7 @@ export function App() {
               messages={transcript.data?.messages ?? []}
               liveParts={live.parts}
               pendingUser={pendingUser}
-              running={live.running}
+              running={streaming}
               // The stream reports a failure once, to whoever was listening.
               // A reload was not, so the snapshot answers instead — otherwise
               // the conversation just stops and nothing says why.

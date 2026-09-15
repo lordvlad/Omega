@@ -409,6 +409,13 @@ function Message({
           }
           return <Part key={`${message.id}-${slot.index}`} part={slot.part} streaming={slotStreaming} />;
         })}
+        {streaming && slots.length > 0 ? (
+          <Group gap="xs" mt={2}>
+            <Badge color="plum" variant="light" size="sm" className="omega-pulse">
+              working
+            </Badge>
+          </Group>
+        ) : null}
       </Stack>
       {menu}
     </div>
@@ -537,8 +544,8 @@ export function Transcript({
         streaming: false,
       });
     }
-
-    if (liveParts.length > 0) {
+    const visibleLive = visibleParts(liveParts, { showThinking, showToolCalls });
+    if (visibleLive.length > 0) {
       result.push({
         kind: "message",
         id: "live",
@@ -558,7 +565,7 @@ export function Transcript({
     }
 
     return result;
-  }, [messages, liveParts, pendingUser, running, notices, error]);
+  }, [messages, liveParts, pendingUser, running, notices, error, showThinking, showToolCalls]);
 
   // Virtualizer dynamically measures element heights via ResizeObserver (measureElement).
   // Handles variable heights from one-line chats to long code blocks and expanded thinking.
