@@ -584,7 +584,7 @@ export function Transcript({
    * chunk mean an exact comparison never holds, so tailing needs a grace band
    * rather than equality.
    */
-  const BOTTOM_GRACE_PX = 48;
+  const BOTTOM_GRACE_PX = 96;
 
   /** Pending tail frame, so a burst of measurements yields one scroll write. */
   const tailFrame = useRef<number | undefined>(undefined);

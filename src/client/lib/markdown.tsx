@@ -104,13 +104,25 @@ function convert(node: Node, keyPath: string): ReactNode {
     props.target = "_blank";
     props.rel = "noreferrer noopener";
   }
+  if (tag === "table") {
+    props.className = props.className ? `${props.className} omega-markdown-table` : "omega-markdown-table";
+  }
 
   const children = [...element.childNodes]
     .map((child, index) => convert(child, `${keyPath}.${index}`))
     .filter(child => child !== null && child !== "");
 
-  if (children.length === 0) return createElement(tag, props);
-  return createElement(tag, props, children);
+  const rendered = children.length === 0 ? createElement(tag, props) : createElement(tag, props, children);
+
+  if (tag === "table") {
+    return (
+      <div key={`wrap.${keyPath}`} className="omega-table-wrap">
+        {rendered}
+      </div>
+    );
+  }
+
+  return rendered;
 }
 
 /** Parse server-rendered HTML into a React tree. */

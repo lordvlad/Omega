@@ -222,6 +222,57 @@ body {
 .mantine-CodeHighlight-codeHighlight .mantine-CodeHighlight-control:focus-visible {
   opacity: 1;
 }
+/* ---- markdown tables & horizontal scrolling ---- */
+
+.omega-table-wrap {
+  width: 100%;
+  max-width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  margin-block: var(--mantine-spacing-sm, 12px);
+  scrollbar-width: thin;
+  border-radius: var(--mantine-radius-sm, 6px);
+  border: 1px solid var(--omega-line);
+}
+
+.omega-markdown-table {
+  width: 100%;
+  min-width: max-content;
+  border-collapse: collapse;
+  font-size: 0.9em;
+  line-height: 1.5;
+}
+
+.omega-markdown-table th,
+.omega-markdown-table td {
+  border: 1px solid var(--omega-line);
+  padding: 8px 14px;
+  text-align: left;
+}
+
+.omega-markdown-table th {
+  background: var(--omega-surface-raised);
+  font-weight: 600;
+  color: var(--mantine-color-white, #fff);
+  white-space: nowrap;
+}
+
+.omega-markdown-table tr:nth-of-type(even) {
+  background: color-mix(in srgb, var(--omega-surface-raised) 40%, transparent);
+}
+
+/* On desktop, allow messages with wide content/tables to stretch beyond the 800px reading measure */
+@media (min-width: 900px) {
+  .omega-msg:has(.omega-table-wrap),
+  .omega-msg:has(table) {
+    width: min(calc(100vw - 80px), 1200px);
+    max-width: min(calc(100vw - 80px), 1200px);
+    margin-inline: calc(50% - min(calc(50vw - 40px), 600px));
+    transition:
+      width 150ms ease,
+      margin-inline 150ms ease;
+  }
+}
 
 /* ---- planning ---- */
 

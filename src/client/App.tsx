@@ -1053,10 +1053,16 @@ export function App() {
               </Badge>
             ) : null}
           </Group>
-          <Group gap="xs" wrap="nowrap" display={sessionKey ? undefined : "none"} style={{ flexShrink: 0 }}>
+          <Group
+            gap={narrow ? 2 : "xs"}
+            wrap="nowrap"
+            display={sessionKey ? undefined : "none"}
+            style={{ flexShrink: 0 }}
+          >
             {state.data ? (
               <Tooltip label={treeOpen ? "Hide files" : "Show files"}>
                 <ActionIcon
+                  size={narrow ? "md" : "lg"}
                   variant={treeOpen ? "light" : "subtle"}
                   color="plum"
                   onClick={toggleTree}
@@ -1069,6 +1075,7 @@ export function App() {
             {state.data ? (
               <Tooltip label="Settings (/omega-settings)">
                 <ActionIcon
+                  size={narrow ? "md" : "lg"}
                   variant="subtle"
                   color="plum"
                   onClick={() => openPalette(PALETTE_COMMAND.settings, setPaletteQuery)}
@@ -1089,6 +1096,7 @@ export function App() {
                   offset={2}
                 >
                   <ActionIcon
+                    size={narrow ? "md" : "lg"}
                     variant={surfaceDrawerOpen ? "light" : "subtle"}
                     color="cyan"
                     onClick={toggleSurfaceDrawer}
@@ -1124,6 +1132,7 @@ export function App() {
                     }}
                   >
                     <ActionIcon
+                      size={narrow ? "md" : "lg"}
                       onClick={toggleTodo}
                       color={todoOpen ? "cyan" : "plum"}
                       aria-label="Toggle tasks panel"
