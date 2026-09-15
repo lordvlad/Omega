@@ -25,7 +25,9 @@ import {
   Settings,
 } from "@oh-my-pi/pi-coding-agent";
 
+import type { A2uiMessage } from "../shared/a2ui.ts";
 import type { LiveState, ModelOption, PlanState, ThinkingLevel } from "../shared/model.ts";
+import { A2uiChannel, createA2uiTools } from "./a2ui.ts";
 import { type AguiFrame, AguiTranslator, custom } from "./agui.ts";
 
 /** Frames retained per session so a reconnecting browser can catch up. */
@@ -449,6 +451,8 @@ export class Registry {
     const manager = options.sessionPath
       ? await SessionManager.open(options.sessionPath)
       : SessionManager.create(options.cwd as string);
+    const a2uiChannel = new A2uiChannel();
+    const a2uiTools = createA2uiTools(a2uiChannel);
 
     const { session } = await createAgentSession({
       authStorage,
@@ -460,8 +464,8 @@ export class Registry {
       // surfaces (LSP warmup, title bar). Leave it false and drive the
       // surfaces this host actually implements explicitly.
       hasUI: false,
+      customTools: a2uiTools,
     });
-
     // The key must be the id `SessionManager.listAll()` reports as
     // `SessionSummary.id` — what the client matches on for stale-URL recovery
     // and what a fork or a branch mints. `session.sessionId` prefers a
@@ -478,6 +482,9 @@ export class Registry {
     live.start();
     live.armPlanProposals();
     this.#sessions.set(key, live);
+    a2uiChannel.attach(message => {
+      live.emitCustom(custom("omp.a2ui", message));
+    });
     return live;
   }
 

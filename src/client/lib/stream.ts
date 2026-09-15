@@ -10,8 +10,9 @@
 import { EventType } from "@tanstack/ai/client";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
+import type { A2uiMessage } from "../../shared/a2ui.ts";
 import type { MessagePart } from "../api/model.ts";
-
+import { type ClientSurface, reduceA2uiMessage, setPointer } from "./a2ui.ts";
 /** A frame as it arrives off the socket. */
 interface Frame {
   type: string;
@@ -83,6 +84,11 @@ export interface LiveTurn {
   /** True while a plan is awaiting review. */
   planAwaiting: boolean;
   /** Force an immediate reconnect attempt. */
+  /** Active A2UI surfaces for this session. */
+  surfaces: ClientSurface[];
+  /** Update a surface's data model locally (e.g. from input components). */
+  updateSurfaceData: (surfaceId: string, path: string | undefined, value: unknown) => void;
+  /** Force an immediate reconnect attempt. */
   reconnect: () => void;
 }
 
@@ -105,8 +111,10 @@ export function useLiveTurn(key: string | undefined, onStale: () => void): LiveT
   const tools = useRef<StreamedTool[]>([]);
   const order = useRef<Array<{ kind: "block" | "tool"; id: string }>>([]);
   /** Incremented on every mutation to publish the refs. */
+  /** Active A2UI surfaces. Persist across turns within the session. */
+  const surfaces = useRef<Map<string, ClientSurface>>(new Map());
+  /** Incremented on every mutation to publish the refs. */
   const [tick, setTick] = useState(0);
-
   const stale = useRef(onStale);
   stale.current = onStale;
 
@@ -123,6 +131,12 @@ export function useLiveTurn(key: string | undefined, onStale: () => void): LiveT
   // which closes over whatever the count was when the effect last ran.
   const [failures, setFailures] = useState(0);
   const failureCount = useRef(0);
+
+  useEffect(() => {
+    // When switching sessions, clear active surfaces.
+    surfaces.current = new Map();
+    setTick(value => value + 1);
+  }, [key]);
 
   useEffect(() => {
     if (!key) {
@@ -315,7 +329,12 @@ export function useLiveTurn(key: string | undefined, onStale: () => void): LiveT
             const value = frame.value as { toolCallId?: string; text?: string } | null;
             const tool = tools.current.find(candidate => candidate.id === String(value?.toolCallId));
             if (tool && value?.text) tool.result = value.text;
-            setTick(current => current + 1);
+          } else if (name === "omp.a2ui") {
+            const msg = frame.value as A2uiMessage;
+            if (msg) {
+              surfaces.current = reduceA2uiMessage(surfaces.current, msg);
+              setTick(current => current + 1);
+            }
           }
           break;
         }
@@ -366,6 +385,18 @@ export function useLiveTurn(key: string | undefined, onStale: () => void): LiveT
     setFailures(0);
     setAttempt(value => value + 1);
   }, []);
+  const updateSurfaceData = useCallback((surfaceId: string, path: string | undefined, value: unknown) => {
+    const surface = surfaces.current.get(surfaceId);
+    if (!surface) return;
+    setPointer(surface.dataModel, path, value);
+    surface.revision += 1;
+    setTick(v => v + 1);
+  }, []);
+
+  const surfaceList = useMemo<ClientSurface[]>(() => {
+    void tick;
+    return [...surfaces.current.values()];
+  }, [tick]);
 
   return {
     running,
@@ -376,6 +407,8 @@ export function useLiveTurn(key: string | undefined, onStale: () => void): LiveT
     failures,
     revision,
     planAwaiting,
+    surfaces: surfaceList,
+    updateSurfaceData,
     reconnect: reconnectNow,
   };
 }

@@ -19,7 +19,13 @@ import { EventType } from "@tanstack/ai/client";
 export type AguiFrame = Record<string, unknown> & { type: string };
 
 /** omp-specific frames ride `CUSTOM`, keyed by `name`. */
-export type OmpCustomName = "omp.state" | "omp.plan" | "omp.notice" | "omp.todo" | "omp.tool_update";
+export type OmpCustomName =
+  | "omp.state"
+  | "omp.plan"
+  | "omp.notice"
+  | "omp.todo"
+  | "omp.tool_update"
+  | "omp.a2ui";
 
 /** Build a `CUSTOM` frame carrying omp state the AG-UI vocabulary has no slot for. */
 export function custom(name: OmpCustomName, value: unknown): AguiFrame {

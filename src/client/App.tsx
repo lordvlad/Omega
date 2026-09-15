@@ -26,11 +26,19 @@ import {
 } from "@mantine/core";
 import { useDisclosure, useLocalStorage, useMediaQuery } from "@mantine/hooks";
 import { notifications } from "@mantine/notifications";
-import { IconFolder, IconHistory, IconListCheck, IconMessage, IconSettings } from "@tabler/icons-react";
+import {
+  IconFolder,
+  IconHistory,
+  IconLayout2,
+  IconListCheck,
+  IconMessage,
+  IconSettings,
+} from "@tabler/icons-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useNavigate, useParams } from "@tanstack/react-router";
 import { useCallback, useEffect, useRef, useState } from "react";
 
+import type { A2uiActionEvent } from "../shared/a2ui.ts";
 import { ApiError } from "./api/api.ts";
 import type {
   Attachment,
@@ -79,6 +87,7 @@ import {
   useGetGitStatus,
   useListFiles,
 } from "./api/queries.ts";
+import { A2UIRenderer } from "./components/A2UIRenderer.tsx";
 import {
   CommandPalette,
   type CompactMode,
@@ -144,6 +153,11 @@ export function App() {
   const [viewingFile, setViewingFile] = useState<string | null>(null);
   /** The queue panel, opened from the composer's queued-message hint. */
   const [queueOpen, { open: openQueue, close: closeQueue }] = useDisclosure(false);
+  /** The A2UI surface drawer, opened automatically when a surface arrives. */
+  const [
+    surfaceDrawerOpen,
+    { open: openSurfaceDrawer, close: closeSurfaceDrawer, toggle: toggleSurfaceDrawer },
+  ] = useDisclosure(false);
   /** Sent messages not yet echoed back by the server transcript. */
   const [pendingUser, setPendingUser] = useState<string[]>([]);
   /** Message text a branch handed back, for the composer to pick up. */
@@ -280,6 +294,24 @@ export function App() {
   );
 
   const live = useLiveTurn(sessionKey, refresh);
+  const knownSurfaces = useRef<Set<string>>(new Set());
+  useEffect(() => {
+    if (live.surfaces.length === 0) {
+      knownSurfaces.current.clear();
+      return;
+    }
+    let hasNew = false;
+    for (const s of live.surfaces) {
+      if (!knownSurfaces.current.has(s.surfaceId)) {
+        knownSurfaces.current.add(s.surfaceId);
+        hasNew = true;
+      }
+    }
+    if (hasNew) {
+      openSurfaceDrawer();
+    }
+  }, [live.surfaces, openSurfaceDrawer]);
+
   /**
    * The queue is polled, not cached.
    *
@@ -890,6 +922,31 @@ export function App() {
       },
     );
   };
+  const handleSurfaceAction = useCallback(
+    (
+      surfaceId: string,
+      action: A2uiActionEvent,
+      context: Record<string, unknown>,
+      dataModel?: Record<string, unknown>,
+    ) => {
+      const userMsg = action.userMessage
+        ? typeof action.userMessage === "string"
+          ? action.userMessage
+          : String(action.userMessage)
+        : undefined;
+
+      const lines = [`[Action: ${action.name} on surface "${surfaceId}"]`];
+      if (userMsg) lines.push(userMsg);
+      if (Object.keys(context).length > 0) {
+        lines.push(`Context: ${JSON.stringify(context)}`);
+      }
+      if (dataModel) {
+        lines.push(`DataModel: ${JSON.stringify(dataModel)}`);
+      }
+      handleSend(lines.join("\n"), undefined, undefined);
+    },
+    [handleSend],
+  );
 
   const handlePlanAction = (action: PlanAction, feedback: string, tier: string | undefined): void => {
     if (!sessionKey) return;
@@ -1019,6 +1076,27 @@ export function App() {
                 >
                   <IconSettings size={18} />
                 </ActionIcon>
+              </Tooltip>
+            ) : null}
+            {state.data && live.surfaces.length > 0 ? (
+              <Tooltip label={surfaceDrawerOpen ? "Hide UI surface" : "Show UI surface"}>
+                <Indicator
+                  inline
+                  label={live.surfaces.length > 1 ? String(live.surfaces.length) : undefined}
+                  disabled={live.surfaces.length <= 1}
+                  size={13}
+                  color="cyan"
+                  offset={2}
+                >
+                  <ActionIcon
+                    variant={surfaceDrawerOpen ? "light" : "subtle"}
+                    color="cyan"
+                    onClick={toggleSurfaceDrawer}
+                    aria-label="Toggle UI surface drawer"
+                  >
+                    <IconLayout2 size={18} />
+                  </ActionIcon>
+                </Indicator>
               </Tooltip>
             ) : null}
             {(() => {
@@ -1166,6 +1244,40 @@ export function App() {
           onEdit={handleQueueEdit}
           onDrop={handleQueueDrop}
         />
+      </Drawer>
+      <Drawer
+        opened={surfaceDrawerOpen && live.surfaces.length > 0}
+        onClose={closeSurfaceDrawer}
+        position={narrow ? "bottom" : "right"}
+        size={narrow ? "92%" : "min(85%, 600px)"}
+        title={
+          <Group gap="xs">
+            <IconLayout2 size={18} color="var(--mantine-color-cyan-filled)" />
+            <Text fw={600} size="sm">
+              {live.surfaces.length === 1
+                ? `Surface — ${live.surfaces[0]!.surfaceId}`
+                : `Surfaces (${live.surfaces.length})`}
+            </Text>
+          </Group>
+        }
+        padding="md"
+      >
+        <Stack gap="lg">
+          {live.surfaces.map(surface => (
+            <Box key={surface.surfaceId}>
+              {live.surfaces.length > 1 ? (
+                <Text size="xs" fw={700} c="dimmed" mb="xs" tt="uppercase">
+                  {surface.surfaceId}
+                </Text>
+              ) : null}
+              <A2UIRenderer
+                surface={surface}
+                onAction={handleSurfaceAction}
+                onUpdateData={live.updateSurfaceData}
+              />
+            </Box>
+          ))}
+        </Stack>
       </Drawer>
 
       <AppShell.Main>
