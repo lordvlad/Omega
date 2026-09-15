@@ -8,6 +8,9 @@ import type {
   BranchRequest,
   BranchResult,
   CompactRequest,
+  GitStatusQuery,
+  GitStatusResult,
+  ListFilesQuery,
   LiveState,
   MarkdownRequest,
   ModelOption,
@@ -20,6 +23,8 @@ import type {
   QueueDropRequest,
   QueueEditRequest,
   QueuedMessage,
+  ReadFileQuery,
+  ReadFileResult,
   RenameRequest,
   RenderedMarkdown,
   SelectModelRequest,
@@ -37,6 +42,8 @@ import type {
  * generated client — is a type error here.
  */
 import type { OmpApi } from "../shared/service.ts";
+import { listFiles, readFileContent } from "./files.ts";
+import { getGitStatus } from "./git.ts";
 import { planDocument, resolvePlan, writePlan } from "./plan.ts";
 import { dropQueued, editQueued, listQueue } from "./queue.ts";
 import { type LiveSession, registry } from "./registry.ts";
@@ -148,6 +155,22 @@ export class Handlers implements OmpApi {
     return registry.listModels();
   }
 
+  listFiles(query?: ListFilesQuery): Promise<string[]> {
+    return listFiles(query?.cwd);
+  }
+
+  async getFileContent(query?: ReadFileQuery): Promise<ReadFileResult> {
+    if (!query?.path) throw new HttpError(400, "File path is required.");
+    try {
+      return await readFileContent(query.path, query.cwd);
+    } catch (error) {
+      throw new HttpError(404, error instanceof Error ? error.message : String(error));
+    }
+  }
+
+  getGitStatus(query?: GitStatusQuery): Promise<GitStatusResult> {
+    return getGitStatus(query?.cwd);
+  }
   async openSession(body: OpenSessionRequest): Promise<LiveState> {
     if (!body.sessionPath && !body.cwd) {
       throw new HttpError(400, "Provide sessionPath to resume, or cwd to start a new session.");

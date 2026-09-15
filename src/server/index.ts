@@ -68,6 +68,28 @@ const server = serve({
   routes: {
     "/api/workspaces": { GET: () => json(() => handlers.listWorkspaces()) },
     "/api/models": { GET: () => json(() => handlers.listModels()) },
+    "/api/files": {
+      GET: request => {
+        const url = new URL(request.url);
+        const cwd = url.searchParams.get("cwd") || undefined;
+        return json(() => handlers.listFiles({ cwd }));
+      },
+    },
+    "/api/files/content": {
+      GET: request => {
+        const url = new URL(request.url);
+        const path = url.searchParams.get("path") || "";
+        const cwd = url.searchParams.get("cwd") || undefined;
+        return json(() => handlers.getFileContent({ path, cwd }));
+      },
+    },
+    "/api/git/status": {
+      GET: request => {
+        const url = new URL(request.url);
+        const cwd = url.searchParams.get("cwd") || undefined;
+        return json(() => handlers.getGitStatus({ cwd }));
+      },
+    },
 
     "/api/sessions": {
       POST: async request => {
