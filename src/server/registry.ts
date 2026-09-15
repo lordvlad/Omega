@@ -26,10 +26,16 @@ import {
 } from "@oh-my-pi/pi-coding-agent";
 
 import type { A2uiMessage } from "../shared/a2ui.ts";
-import type { LiveState, ModelOption, PlanState, ThinkingLevel } from "../shared/model.ts";
+import type {
+  LiveState,
+  ModelOption,
+  PlanState,
+  SubagentStatus,
+  SubagentTask,
+  ThinkingLevel,
+} from "../shared/model.ts";
 import { A2uiChannel, createA2uiTools } from "./a2ui.ts";
 import { type AguiFrame, AguiTranslator, custom } from "./agui.ts";
-
 /** Frames retained per session so a reconnecting browser can catch up. */
 const REPLAY_LIMIT = 2000;
 
@@ -64,6 +70,7 @@ export class LiveSession {
   #wasBusy = false;
   /** Why the last turn stopped, for a page that reloaded after it did. */
   #lastError: string | undefined;
+  readonly #subagents = new Map<string, SubagentTask>();
 
   constructor(key: string, session: AgentSession, manager: SessionManager) {
     this.#key = key;
@@ -274,6 +281,14 @@ export class LiveSession {
       title: this.#pendingPlan?.title,
     };
   }
+  get subagents(): SubagentTask[] {
+    return [...this.#subagents.values()];
+  }
+
+  updateSubagent(task: SubagentTask): void {
+    this.#subagents.set(task.id, task);
+    this.emitCustom(custom("omp.subagents", { subagents: this.subagents }));
+  }
 
   /** The snapshot every session route returns. */
   state(): LiveState {
@@ -302,6 +317,7 @@ export class LiveSession {
         })),
       })),
       lastError: this.#lastError,
+      subagents: this.subagents,
     };
   }
 
@@ -454,7 +470,7 @@ export class Registry {
     const a2uiChannel = new A2uiChannel();
     const a2uiTools = createA2uiTools(a2uiChannel);
 
-    const { session } = await createAgentSession({
+    const result = await createAgentSession({
       authStorage,
       modelRegistry,
       settings,
@@ -466,10 +482,7 @@ export class Registry {
       hasUI: false,
       customTools: a2uiTools,
     });
-    // The key must be the id `SessionManager.listAll()` reports as
-    // `SessionSummary.id` — what the client matches on for stale-URL recovery
-    // and what a fork or a branch mints. `session.sessionId` prefers a
-    // provider-session override, so it is not that id.
+    const { session, subagentEventBus } = result;
     const key = manager.getSessionId();
     const existing = this.#sessions.get(key);
     if (existing) {
@@ -485,9 +498,37 @@ export class Registry {
     a2uiChannel.attach(message => {
       live.emitCustom(custom("omp.a2ui", message));
     });
+
+    if (subagentEventBus) {
+      subagentEventBus.on("task:subagent:lifecycle", (payload: any) => {
+        if (!payload?.id) return;
+        const status = payload.status === "started" ? "running" : payload.status;
+        const existing = live.subagents.find(s => s.id === payload.id);
+        const task: SubagentTask = {
+          id: payload.id,
+          agent: payload.agent || "task",
+          description: payload.description || payload.task || existing?.description,
+          status: status as SubagentStatus,
+          startedAt: existing?.startedAt ?? Date.now(),
+          completedAt: status !== "running" ? (existing?.completedAt ?? Date.now()) : undefined,
+          error: payload.error || existing?.error,
+        };
+        live.updateSubagent(task);
+      });
+      subagentEventBus.on("task:subagent:progress", (payload: any) => {
+        if (!payload) return;
+        const id = payload.id || `task-${payload.index}`;
+        const existing = live.subagents.find(
+          s => s.id === id || (payload.task && s.description === payload.task),
+        );
+        if (existing && payload.task && !existing.description) {
+          live.updateSubagent({ ...existing, description: payload.task });
+        }
+      });
+    }
+
     return live;
   }
-
   /**
    * Move a live session to the id omp minted for it, e.g. after a fork or a
    * branch, and return it under its new key.

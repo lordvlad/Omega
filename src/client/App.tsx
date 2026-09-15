@@ -101,6 +101,7 @@ import { FileTreePanel } from "./components/FileTreePanel.tsx";
 import { FileViewer } from "./components/FileViewer.tsx";
 import { Planning } from "./components/Planning.tsx";
 import { QueuePanel, queueSummary } from "./components/QueuePanel.tsx";
+import { SubagentPanel } from "./components/SubagentPanel.tsx";
 import { TodoPanel } from "./components/TodoPanel.tsx";
 import { Transcript } from "./components/Transcript.tsx";
 import { useOnline } from "./lib/online.ts";
@@ -158,6 +159,8 @@ export function App() {
     surfaceDrawerOpen,
     { open: openSurfaceDrawer, close: closeSurfaceDrawer, toggle: toggleSurfaceDrawer },
   ] = useDisclosure(false);
+  /** The sub-agents panel, opened from the working badge in transcript. */
+  const [subagentDrawerOpen, { open: openSubagents, close: closeSubagents }] = useDisclosure(false);
   /** Sent messages not yet echoed back by the server transcript. */
   const [pendingUser, setPendingUser] = useState<string[]>([]);
   /** Message text a branch handed back, for the composer to pick up. */
@@ -1288,6 +1291,20 @@ export function App() {
           ))}
         </Stack>
       </Drawer>
+      <Drawer
+        opened={subagentDrawerOpen}
+        onClose={closeSubagents}
+        position={narrow ? "bottom" : "right"}
+        size={narrow ? "90%" : 460}
+        title={null}
+        withCloseButton={false}
+        padding={0}
+      >
+        <SubagentPanel
+          subagents={live.subagents.length > 0 ? live.subagents : (state.data?.subagents ?? [])}
+          onClose={closeSubagents}
+        />
+      </Drawer>
 
       <AppShell.Main>
         {sessionKey ? (
@@ -1306,6 +1323,8 @@ export function App() {
               onFork={sessionKey ? handleBranch : undefined}
               showThinking={settings.showThinking}
               showToolCalls={settings.showToolCalls}
+              subagents={live.subagents.length > 0 ? live.subagents : state.data?.subagents}
+              onOpenSubagents={openSubagents}
             >
               <Composer
                 state={state.data}

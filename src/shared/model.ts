@@ -98,6 +98,8 @@ export interface LiveState {
   plan?: PlanState;
   /** Phases and tasks tracked by the session's todo tool. */
   todos?: TodoPhase[];
+  /** Sub-agent tasks spawned during this session. */
+  subagents?: SubagentTask[];
   /**
    * Why the last turn stopped without finishing, if it did.
    *
@@ -125,6 +127,19 @@ export interface TodoTask {
 export interface TodoPhase {
   name: string;
   tasks: TodoTask[];
+}
+/** Lifecycle status of a spawned subagent. */
+export type SubagentStatus = "running" | "completed" | "failed" | "aborted";
+
+/** A subagent task spawned by the session. */
+export interface SubagentTask {
+  id: string;
+  agent: string;
+  description?: string;
+  status: SubagentStatus;
+  startedAt: number;
+  completedAt?: number;
+  error?: string;
 }
 
 /** Plan-mode status carried alongside live session state. */

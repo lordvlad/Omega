@@ -11,7 +11,7 @@ import { EventType } from "@tanstack/ai/client";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import type { A2uiMessage } from "../../shared/a2ui.ts";
-import type { MessagePart } from "../api/model.ts";
+import type { MessagePart, SubagentTask } from "../api/model.ts";
 import { type ClientSurface, reduceA2uiMessage, setPointer } from "./a2ui.ts";
 /** A frame as it arrives off the socket. */
 interface Frame {
@@ -88,6 +88,8 @@ export interface LiveTurn {
   surfaces: ClientSurface[];
   /** Update a surface's data model locally (e.g. from input components). */
   updateSurfaceData: (surfaceId: string, path: string | undefined, value: unknown) => void;
+  /** Active sub-agent tasks spawned in this session. */
+  subagents: SubagentTask[];
   /** Force an immediate reconnect attempt. */
   reconnect: () => void;
 }
@@ -106,6 +108,7 @@ export function useLiveTurn(key: string | undefined, onStale: () => void): LiveT
   const [notices, setNotices] = useState<string[]>([]);
   const [planAwaiting, setPlanAwaiting] = useState(false);
   const [revision, setRevision] = useState(0);
+  const [subagents, setSubagents] = useState<SubagentTask[]>([]);
   /** Blocks and tools in arrival order; a ref so deltas do not re-render per token. */
   const blocks = useRef<Block[]>([]);
   const tools = useRef<StreamedTool[]>([]);
@@ -131,10 +134,10 @@ export function useLiveTurn(key: string | undefined, onStale: () => void): LiveT
   // which closes over whatever the count was when the effect last ran.
   const [failures, setFailures] = useState(0);
   const failureCount = useRef(0);
-
   useEffect(() => {
-    // When switching sessions, clear active surfaces.
+    // When switching sessions, clear active surfaces and subagents.
     surfaces.current = new Map();
+    setSubagents([]);
     setTick(value => value + 1);
   }, [key]);
 
@@ -335,6 +338,11 @@ export function useLiveTurn(key: string | undefined, onStale: () => void): LiveT
               surfaces.current = reduceA2uiMessage(surfaces.current, msg);
               setTick(current => current + 1);
             }
+          } else if (name === "omp.subagents") {
+            const val = frame.value as { subagents?: SubagentTask[] } | null;
+            if (val?.subagents) {
+              setSubagents(val.subagents);
+            }
           }
           break;
         }
@@ -409,6 +417,7 @@ export function useLiveTurn(key: string | undefined, onStale: () => void): LiveT
     planAwaiting,
     surfaces: surfaceList,
     updateSurfaceData,
+    subagents,
     reconnect: reconnectNow,
   };
 }

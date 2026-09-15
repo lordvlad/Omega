@@ -1892,6 +1892,13 @@
             },
             "description": "Phases and tasks tracked by the session's todo tool."
           },
+          "subagents": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SubagentTask"
+            },
+            "description": "Sub-agent tasks spawned during this session."
+          },
           "lastError": {
             "type": "string",
             "description": "Why the last turn stopped without finishing, if it did.\n\nThe socket reports a failure once, to whoever is listening at the time.\nA reload is a new listener, so the reason has to live somewhere a fresh\npage can ask for it — otherwise the conversation simply stops mid-turn\nand the UI has nothing to say about why. Cleared when the next turn\nstarts."
@@ -2037,6 +2044,56 @@
           },
           {
             "const": "blocked"
+          }
+        ]
+      },
+      "SubagentTask": {
+        "description": "A subagent task spawned by the session.",
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "agent": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "status": {
+            "$ref": "#/components/schemas/SubagentStatus"
+          },
+          "startedAt": {
+            "type": "number"
+          },
+          "completedAt": {
+            "type": "number"
+          },
+          "error": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "agent",
+          "status",
+          "startedAt"
+        ]
+      },
+      "SubagentStatus": {
+        "description": "Lifecycle status of a spawned subagent.",
+        "anyOf": [
+          {
+            "const": "aborted"
+          },
+          {
+            "const": "completed"
+          },
+          {
+            "const": "running"
+          },
+          {
+            "const": "failed"
           }
         ]
       },

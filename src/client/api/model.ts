@@ -97,6 +97,7 @@ export interface LiveState {
   contextUsage?: ContextUsage;
   plan?: PlanState;
   todos?: TodoPhase[];
+  subagents?: SubagentTask[];
   lastError?: string;
 }
 
@@ -133,6 +134,20 @@ export interface TodoTask {
 
 /** Lifecycle status of a task in the todo list. */
 export type TodoTaskStatus = "pending" | "in_progress" | "completed" | "abandoned" | "blocked";
+
+/** A subagent task spawned by the session. */
+export interface SubagentTask {
+  id: string;
+  agent: string;
+  description?: string;
+  status: SubagentStatus;
+  startedAt: number;
+  completedAt?: number;
+  error?: string;
+}
+
+/** Lifecycle status of a spawned subagent. */
+export type SubagentStatus = "aborted" | "completed" | "running" | "failed";
 
 /** A transcript page. */
 export interface Transcript {

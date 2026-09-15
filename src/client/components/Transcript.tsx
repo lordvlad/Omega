@@ -31,6 +31,7 @@ import {
   IconCopy,
   IconDots,
   IconGitBranch,
+  IconRobot,
   IconTerminal2,
   IconTools,
   IconUser,
@@ -38,7 +39,7 @@ import {
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { type MouseEvent as ReactMouseEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
 
-import type { MessagePart, TranscriptMessage } from "../api/model.ts";
+import type { MessagePart, SubagentTask, TranscriptMessage } from "../api/model.ts";
 import { copyText } from "../lib/clipboard.ts";
 import { Markdown } from "../lib/markdown.tsx";
 
@@ -330,6 +331,8 @@ function Message({
   onFork,
   showThinking,
   showToolCalls,
+  subagents,
+  onOpenSubagents,
 }: {
   message: TranscriptMessage;
   streaming: boolean;
@@ -339,6 +342,8 @@ function Message({
   onFork?: (entryId: string) => void;
   showThinking: boolean;
   showToolCalls: boolean;
+  subagents?: SubagentTask[];
+  onOpenSubagents?: () => void;
 }) {
   // Only the prose is worth copying: tool parts hold rendered output, and a
   // transcript of someone else's shell session is not what "copy" promises.
@@ -411,9 +416,24 @@ function Message({
         })}
         {streaming && slots.length > 0 ? (
           <Group gap="xs" mt={2}>
-            <Badge color="plum" variant="light" size="sm" className="omega-pulse">
-              working
-            </Badge>
+            {(() => {
+              const activeCount = (subagents ?? []).filter(s => s.status === "running").length;
+              return (
+                <Badge
+                  color="plum"
+                  variant="light"
+                  size="sm"
+                  className="omega-pulse"
+                  style={{ cursor: onOpenSubagents ? "pointer" : undefined }}
+                  onClick={onOpenSubagents}
+                  leftSection={activeCount > 0 ? <IconRobot size={13} /> : undefined}
+                >
+                  {activeCount > 0
+                    ? `working (${activeCount} ${activeCount === 1 ? "sub-agent" : "sub-agents"})`
+                    : "working"}
+                </Badge>
+              );
+            })()}
           </Group>
         ) : null}
       </Stack>
@@ -441,10 +461,13 @@ export interface TranscriptProps {
    * accept one, which hides the action rather than offering a dead control.
    */
   onFork?: (entryId: string) => void;
-  /** Show the agent's thinking blocks; a per-project display preference. */
   showThinking: boolean;
   /** Show tool calls and their results; a per-project display preference. */
   showToolCalls: boolean;
+  /** Active sub-agent tasks spawned during this session. */
+  subagents?: SubagentTask[];
+  /** Open the sub-agents drawer. */
+  onOpenSubagents?: () => void;
 }
 
 type TranscriptItem =
@@ -500,6 +523,8 @@ export function Transcript({
   onFork,
   showThinking,
   showToolCalls,
+  subagents,
+  onOpenSubagents,
   children,
 }: TranscriptProps & { children?: React.ReactNode }) {
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -751,6 +776,8 @@ export function Transcript({
                             onFork={onFork}
                             showThinking={showThinking}
                             showToolCalls={showToolCalls}
+                            subagents={subagents}
+                            onOpenSubagents={onOpenSubagents}
                           />
                         );
                       case "separator":
@@ -763,14 +790,25 @@ export function Transcript({
                             <Box style={{ flex: 1, height: 1 }} className="omega-separator-line" />
                           </Group>
                         );
-                      case "working":
+                      case "working": {
+                        const activeCount = (subagents ?? []).filter(s => s.status === "running").length;
                         return (
                           <Group gap="xs">
-                            <Badge color="plum" variant="light" className="omega-pulse">
-                              working
+                            <Badge
+                              color="plum"
+                              variant="light"
+                              className="omega-pulse"
+                              style={{ cursor: onOpenSubagents ? "pointer" : undefined }}
+                              onClick={onOpenSubagents}
+                              leftSection={activeCount > 0 ? <IconRobot size={14} /> : undefined}
+                            >
+                              {activeCount > 0
+                                ? `working (${activeCount} ${activeCount === 1 ? "sub-agent" : "sub-agents"})`
+                                : "working"}
                             </Badge>
                           </Group>
                         );
+                      }
                       case "notice":
                         return (
                           <Alert variant="light" color="cyan" title="Notice">
