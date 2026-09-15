@@ -28,7 +28,7 @@ import {
   IconMicrophoneOff,
   IconPaperclip,
   IconPlayerStopFilled,
-  IconSend,
+  IconArrowUp,
   IconStack2,
 } from "@tabler/icons-react";
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -111,6 +111,12 @@ export interface ComposerProps {
    * unusable for ordinary prose.
    */
   onSlash?: () => void;
+  /**
+   * The user typed `@` to mention a file (either as first character or after a space).
+   */
+  onAt?: () => void;
+  /** File selected from the palette to insert into the message. */
+  insertedFile?: { path: string; id: number };
   /** True on a phone viewport: dictation is hidden, the OS keyboard has its own. */
   compact?: boolean;
   /**
@@ -134,6 +140,8 @@ export function Composer({
   queued,
   onOpenQueue,
   onSlash,
+  onAt,
+  insertedFile,
   compact = false,
   offline = false,
 }: ComposerProps) {
@@ -142,7 +150,8 @@ export function Composer({
   const [files, setFiles] = useState<Attached[]>([]);
   const [readError, setReadError] = useState<string | undefined>(undefined);
   const picker = useRef<HTMLInputElement>(null);
-
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const atCursorRef = useRef<number | undefined>(undefined);
   // A branch hands back the message it branched from; loading it into the
   // input is the point of branching. Keyed on object identity so the same
   // text can be re-loaded by a later branch.
@@ -150,6 +159,32 @@ export function Composer({
     if (draft) setText(draft.text);
   }, [draft]);
 
+  // Insert a file picked from the command palette.
+  useEffect(() => {
+    if (!insertedFile) return;
+    const file = insertedFile.path;
+    const formatted = file.includes(" ") ? `@"${file}" ` : `@${file} `;
+    setText(current => {
+      const atPos = atCursorRef.current;
+      atCursorRef.current = undefined;
+      if (atPos !== undefined && atPos > 0 && current[atPos - 1] === "@") {
+        const before = current.slice(0, atPos - 1);
+        const after = current.slice(atPos);
+        return `${before}${formatted}${after}`;
+      }
+      if (current.endsWith("@")) {
+        return `${current.slice(0, -1)}${formatted}`;
+      }
+      if (!current) {
+        return formatted;
+      }
+      if (current.endsWith(" ")) {
+        return `${current}${formatted}`;
+      }
+      return `${current} ${formatted}`;
+    });
+    textareaRef.current?.focus();
+  }, [insertedFile]);
   // Stable dictation commit callback avoids re-binding speech recognition listeners.
   const onDictationCommit = useCallback((phrase: string) => {
     if (!phrase) return;
@@ -241,132 +276,14 @@ export function Composer({
   };
 
   return (
-    <Paper className="omega-composer" p="sm" radius={0} withBorder>
+    <Paper
+      className="omega-composer"
+      p="sm"
+      radius="md"
+      withBorder
+      style={{ display: "flex", flexDirection: "column", gap: 8 }}
+    >
       <Stack gap={8} className="omega-measure">
-        <Group gap={8} wrap="nowrap" align="flex-end">
-          <Textarea
-            flex={1}
-            autosize
-            minRows={3}
-            maxRows={10}
-            disabled={disabled}
-            placeholder={disabled ? "Open a session to start" : "Message the agent…"}
-            value={dictation.interim ? `${text} ${dictation.interim}`.trim() : text}
-            onChange={event => {
-              const next = event.currentTarget.value;
-              // `/` on an empty input opens the palette instead of typing:
-              // the palette is where commands live, and leaving the slash
-              // behind would strand a lone character in the message.
-              if (onSlash && text === "" && next === "/") {
-                onSlash();
-                return;
-              }
-              setText(next);
-            }}
-            onKeyDown={event => {
-              // Enter is a newline, always. Prose for an agent runs to
-              // paragraphs and pasted snippets, and a stray Enter sending
-              // half a thought costs a turn; Ctrl/⌘+Enter sends.
-              if (event.key !== "Enter" || event.nativeEvent.isComposing) return;
-              if (!event.ctrlKey && !event.metaKey) return;
-              event.preventDefault();
-              send();
-            }}
-          />
-
-          <Stack gap={6} align="center" style={{ flexShrink: 0 }}>
-            <input
-              ref={picker}
-              type="file"
-              multiple
-              hidden
-              onChange={event => {
-                void attach(event.currentTarget.files);
-                // Reset, so picking the same file after removing its pill
-                // still fires a change event.
-                event.currentTarget.value = "";
-              }}
-            />
-            <Tooltip label="Attach files" position="left">
-              <ActionIcon
-                size="xl"
-                radius="md"
-                variant="subtle"
-                color="plum"
-                disabled={disabled}
-                onClick={() => picker.current?.click()}
-                aria-label="Attach files"
-              >
-                <IconPaperclip size={22} />
-              </ActionIcon>
-            </Tooltip>
-
-            {dictation.supported && !compact ? (
-              <Tooltip label={dictation.listening ? "Stop dictation" : "Dictate"} position="left">
-                <ActionIcon
-                  size="xl"
-                  radius="md"
-                  variant={dictation.listening ? "filled" : "subtle"}
-                  color={dictation.listening ? "cyan" : "plum"}
-                  disabled={disabled}
-                  onClick={() => (dictation.listening ? dictation.stop() : dictation.start())}
-                  aria-label={dictation.listening ? "Stop dictation" : "Start dictation"}
-                  className={dictation.listening ? "omega-pulse" : undefined}
-                >
-                  {dictation.listening ? <IconMicrophoneOff size={22} /> : <IconMicrophone size={22} />}
-                </ActionIcon>
-              </Tooltip>
-            ) : null}
-
-            {/*
-             * Stop takes send's slot while a turn is in flight, so the primary
-             * control is the useful one. Typing during a turn is a steer or a
-             * queued follow-up though — both real actions — so send returns
-             * beside stop as soon as the input has content, rather than
-             * leaving Ctrl+Enter as the only way to deliver it.
-             */}
-            {!running || text.trim() ? (
-              <Tooltip
-                label={
-                  offline
-                    ? "No network. Your message stays in the box until the connection is back."
-                    : `${MODE_HINT[mode]} Ctrl+Enter sends.`
-                }
-                position="left"
-                multiline
-                w={240}
-              >
-                <ActionIcon
-                  size="xl"
-                  radius="md"
-                  variant="filled"
-                  color={mode === "plan" ? "cyan" : "plum"}
-                  disabled={disabled || !text.trim() || offline}
-                  onClick={send}
-                  aria-label="Send message"
-                >
-                  <IconSend size={22} />
-                </ActionIcon>
-              </Tooltip>
-            ) : null}
-
-            {running ? (
-              <Tooltip label="Interrupt the assistant" position="left">
-                <ActionIcon
-                  size="xl"
-                  radius="md"
-                  variant="filled"
-                  color="red"
-                  onClick={onAbort}
-                  aria-label="Interrupt the assistant"
-                >
-                  <IconPlayerStopFilled size={22} />
-                </ActionIcon>
-              </Tooltip>
-            ) : null}
-          </Stack>
-        </Group>
-
         {files.length > 0 ? (
           <Group gap={6} wrap="wrap">
             {files.map(entry => (
@@ -385,11 +302,159 @@ export function Composer({
           </Group>
         ) : null}
 
-        <Group gap={8} wrap="wrap" justify="space-between">
-          <Group gap={8} wrap="nowrap">
+        <Group gap={8} wrap="nowrap" align="center">
+          <Textarea
+            ref={textareaRef}
+            flex={1}
+            autosize
+            minRows={1}
+            maxRows={10}
+            variant="unstyled"
+            disabled={disabled}
+            placeholder={disabled ? "Open a session to start" : "Message the agent…"}
+            value={dictation.interim ? `${text} ${dictation.interim}`.trim() : text}
+            onChange={event => {
+              const next = event.currentTarget.value;
+              const cursorPos = event.currentTarget.selectionStart ?? next.length;
+              if (onSlash && text === "" && next === "/") {
+                onSlash();
+                return;
+              }
+              if (onAt) {
+                const isFirstChar =
+                  (text === "" && next === "@") || (cursorPos === 1 && next.startsWith("@"));
+                const isSpaceThenAt =
+                  (cursorPos >= 2 && next[cursorPos - 1] === "@" && next[cursorPos - 2] === " ") ||
+                  (text.endsWith(" ") && next === `${text}@`);
+                if (isFirstChar || isSpaceThenAt) {
+                  atCursorRef.current = cursorPos;
+                  setText(next);
+                  onAt();
+                  return;
+                }
+              }
+              setText(next);
+            }}
+            onKeyDown={event => {
+              if (event.key !== "Enter" || event.nativeEvent.isComposing) return;
+              if (!event.ctrlKey && !event.metaKey) return;
+              event.preventDefault();
+              send();
+            }}
+            styles={{ input: { paddingTop: 4, paddingBottom: 4 } }}
+          />
+
+          <Group gap={6} align="center" style={{ flexShrink: 0 }}>
+            <input
+              ref={picker}
+              type="file"
+              multiple
+              hidden
+              onChange={event => {
+                void attach(event.currentTarget.files);
+                event.currentTarget.value = "";
+              }}
+            />
+            <Tooltip label="Attach files" position="top">
+              <ActionIcon
+                size="xl"
+                variant="transparent"
+                color="gray"
+                disabled={disabled}
+                onClick={() => picker.current?.click()}
+                aria-label="Attach files"
+              >
+                <IconPaperclip size={22} />
+              </ActionIcon>
+            </Tooltip>
+            {running && text.trim() ? (
+              <>
+                <Tooltip
+                  label={offline ? "No network..." : `${MODE_HINT[mode]} Ctrl+Enter sends.`}
+                  position="left"
+                >
+                  <ActionIcon
+                    size="xl"
+                    radius="md"
+                    variant="filled"
+                    color={mode === "plan" ? "cyan" : "plum"}
+                    disabled={disabled || offline}
+                    onClick={send}
+                  >
+                    <IconArrowUp size={22} />
+                  </ActionIcon>
+                </Tooltip>
+                <Tooltip label="Interrupt the assistant" position="left">
+                  <ActionIcon size="xl" radius="md" variant="filled" color="red" onClick={onAbort}>
+                    <IconPlayerStopFilled size={22} />
+                  </ActionIcon>
+                </Tooltip>
+              </>
+            ) : running ? (
+              <Tooltip label="Interrupt the assistant" position="left">
+                <ActionIcon
+                  size="xl"
+                  radius="md"
+                  variant="filled"
+                  color="red"
+                  onClick={onAbort}
+                  aria-label="Interrupt the assistant"
+                >
+                  <IconPlayerStopFilled size={22} />
+                </ActionIcon>
+              </Tooltip>
+            ) : text.trim() ? (
+              <Tooltip
+                label={
+                  offline
+                    ? "No network. Your message stays in the box until the connection is back."
+                    : `${MODE_HINT[mode]} Ctrl+Enter sends.`
+                }
+                position="left"
+                multiline
+                w={240}
+              >
+                <ActionIcon
+                  size="xl"
+                  radius="md"
+                  variant="filled"
+                  color={mode === "plan" ? "cyan" : "plum"}
+                  disabled={disabled || offline}
+                  onClick={send}
+                  aria-label="Send message"
+                >
+                  <IconArrowUp size={22} />
+                </ActionIcon>
+              </Tooltip>
+            ) : dictation.supported && !compact ? (
+              <Tooltip label={dictation.listening ? "Stop dictation" : "Dictate"} position="left">
+                <ActionIcon
+                  size="xl"
+                  radius="md"
+                  variant={dictation.listening ? "filled" : "light"}
+                  color={dictation.listening ? "cyan" : "gray"}
+                  disabled={disabled}
+                  onClick={() => (dictation.listening ? dictation.stop() : dictation.start())}
+                  aria-label={dictation.listening ? "Stop dictation" : "Start dictation"}
+                  className={dictation.listening ? "omega-pulse" : undefined}
+                >
+                  {dictation.listening ? <IconMicrophoneOff size={22} /> : <IconMicrophone size={22} />}
+                </ActionIcon>
+              </Tooltip>
+            ) : (
+              <ActionIcon size="xl" radius="md" variant="light" color="gray" disabled>
+                <IconMicrophone size={22} />
+              </ActionIcon>
+            )}
+          </Group>
+        </Group>
+
+        <Group gap={8} wrap="wrap" justify="space-between" align="flex-end">
+          <Group gap={8} wrap="nowrap" align="center">
             <Tooltip label={MODE_HINT[mode]} multiline w={240} position="top-start">
               <SegmentedControl
                 size="xs"
+                radius="md"
                 value={mode}
                 onChange={value => chooseMode(value as PromptMode)}
                 disabled={disabled || planPending}
@@ -417,25 +482,27 @@ export function Composer({
             ) : null}
           </Group>
 
-          {state ? (
-            <Tooltip label="Change model (/switch)" position="top-end">
-              <UnstyledButton
-                onClick={onChangeModel}
-                aria-label="Change model"
-                style={{ display: "inline-flex", alignItems: "center", gap: 4, cursor: "pointer" }}
-              >
-                <IconCpu size={13} />
-                <Text
-                  size="xs"
-                  c="dimmed"
-                  truncate
-                  style={{ textDecoration: "underline", textUnderlineOffset: "3px" }}
+          <Group gap={8} wrap="nowrap" align="center">
+            {state ? (
+              <Tooltip label="Change model (/switch)" position="top-end">
+                <UnstyledButton
+                  onClick={onChangeModel}
+                  aria-label="Change model"
+                  style={{ display: "inline-flex", alignItems: "center", gap: 4, cursor: "pointer" }}
                 >
-                  {state.modelName}
-                </Text>
-              </UnstyledButton>
-            </Tooltip>
-          ) : null}
+                  <IconCpu size={13} />
+                  <Text
+                    size="xs"
+                    c="dimmed"
+                    truncate
+                    style={{ textDecoration: "underline", textUnderlineOffset: "3px" }}
+                  >
+                    {state.modelName}
+                  </Text>
+                </UnstyledButton>
+              </Tooltip>
+            ) : null}
+          </Group>
         </Group>
 
         {dictation.error ? (

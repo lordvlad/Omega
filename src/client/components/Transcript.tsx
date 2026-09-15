@@ -465,7 +465,8 @@ export function Transcript({
   notices,
   loading = false,
   onFork,
-}: TranscriptProps) {
+  children,
+}: TranscriptProps & { children?: React.ReactNode }) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const pinned = useRef(true);
   const [atBottom, setAtBottom] = useState(true);
@@ -610,6 +611,19 @@ export function Transcript({
   const totalSize = virtualizer.getTotalSize();
   useEffect(tail, [items.length, liveParts, totalSize, tail]);
 
+  // A submitted message is the user acting, not just new content arriving —
+  // it always snaps the view back to the bottom and re-pins it there, even
+  // if they had scrolled up to read back through history.
+  const pendingCount = useRef(0);
+  useEffect(() => {
+    if (pendingUser.length > pendingCount.current) {
+      pinned.current = true;
+      setAtBottom(true);
+      tail();
+    }
+    pendingCount.current = pendingUser.length;
+  }, [pendingUser.length, tail]);
+
   return (
     <Box style={{ position: "relative", flex: 1, minHeight: 0, display: "flex", flexDirection: "column" }}>
       <Box
@@ -618,7 +632,7 @@ export function Transcript({
         px="sm"
         pt="sm"
         onScroll={handleScroll}
-        style={{ flex: 1, minHeight: 0, overflowY: "auto", overflowX: "hidden" }}
+        style={{ flex: 1, minHeight: 0, overflowY: "scroll", overflowX: "hidden" }}
       >
         {items.length === 0 && loading ? (
           // A session in the URL always has history behind it; "no messages"
@@ -709,39 +723,53 @@ export function Transcript({
             })}
           </div>
         )}
-      </Box>
-
-      {!atBottom ? (
-        <Tooltip label="Scroll to bottom" position="left">
-          <ActionIcon
-            variant="filled"
-            color="plum"
-            size="lg"
-            radius="xl"
-            onClick={() => {
-              pinned.current = true;
-              setAtBottom(true);
-              const el = scrollRef.current;
-              if (el) el.scrollTo({ top: el.scrollHeight, behavior: "smooth" });
-            }}
+        {children ? (
+          <Box
             style={{
-              position: "absolute",
-              bottom: 16,
-              // Hug the conversation column, not the window: on a wide screen
-              // the gutter is empty page, and a control stranded out there
-              // reads as belonging to nothing. Inline because Mantine's own
-              // `position: relative` on the ActionIcon root would win against
-              // a stylesheet rule of equal specificity.
-              right: "max(20px, calc((100% - var(--omega-measure)) / 2 + 20px))",
-              boxShadow: "0 4px 14px rgba(0, 0, 0, 0.45)",
-              zIndex: 10,
+              position: "sticky",
+              bottom: 0,
+              zIndex: 100,
+              pointerEvents: "none",
+              paddingTop: "var(--mantine-spacing-sm)",
+              paddingBottom: "max(var(--mantine-spacing-sm), env(safe-area-inset-bottom))",
             }}
-            aria-label="Scroll to bottom"
           >
-            <IconArrowDown size={20} />
-          </ActionIcon>
-        </Tooltip>
-      ) : null}
+            <div className="omega-measure" style={{ position: "relative" }}>
+              {!atBottom ? (
+                <Tooltip label="Scroll to bottom" position="left">
+                  <ActionIcon
+                    variant="filled"
+                    color="plum"
+                    size="lg"
+                    radius="xl"
+                    className="omega-scroll-fab"
+                    onClick={() => {
+                      pinned.current = true;
+                      setAtBottom(true);
+                      const el = scrollRef.current;
+                      if (el) el.scrollTo({ top: el.scrollHeight, behavior: "smooth" });
+                    }}
+                    style={{
+                      position: "absolute",
+                      bottom: "100%",
+                      marginBottom: 16,
+                      boxShadow: "0 4px 14px rgba(0, 0, 0, 0.45)",
+                      zIndex: 10,
+                      pointerEvents: "auto",
+                    }}
+                    aria-label="Scroll to bottom"
+                  >
+                    <IconArrowDown size={20} />
+                  </ActionIcon>
+                </Tooltip>
+              ) : null}
+              <div style={{ pointerEvents: "auto" }}>
+                {children}
+              </div>
+            </div>
+          </Box>
+        ) : null}
+      </Box>
     </Box>
   );
 }

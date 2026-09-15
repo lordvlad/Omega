@@ -39,6 +39,7 @@ body {
 .omega-main {
   height: calc(100dvh - 56px);
   min-height: 0;
+  scrollbar-gutter: stable;
 }
 
 .omega-scroll {
@@ -52,15 +53,13 @@ body {
   max-width: var(--omega-measure);
   margin-inline: auto;
 }
-
 .omega-composer {
   background: var(--omega-surface);
   border-color: var(--omega-line);
-  border-left: 0;
-  border-right: 0;
-  border-bottom: 0;
-  /* Clear the home indicator on iOS. */
-  padding-bottom: max(var(--mantine-spacing-sm), env(safe-area-inset-bottom));
+  max-width: var(--omega-measure);
+  width: 100%;
+  /* Spacing is handled by the sticky wrapper to prevent margin-collapse scroll jitter */
+  margin: 0 auto;
 }
 
 /* ---- landing (no session open) ---- */
@@ -102,6 +101,18 @@ body {
 @media (max-width: 900px) {
   .omega-msg-menu {
     right: -4px;
+  }
+}
+
+/* On desktop, the scroll-to-bottom FAB sits in the gutter; on mobile, it snaps
+   inside to the right edge of the messages. */
+.omega-scroll-fab {
+  right: -50px;
+}
+
+@media (max-width: 900px) {
+  .omega-scroll-fab {
+    right: 0;
   }
 }
 
@@ -282,4 +293,41 @@ body {
   .omega-foldable-chevron {
     transition: none;
   }
+}
+
+/* ---- file tree ---- */
+
+.omega-filetree-row {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  min-height: 26px;
+  padding: 2px 6px;
+  border-radius: 4px;
+  cursor: pointer;
+  user-select: none;
+  transition: background 100ms ease;
+}
+
+.omega-filetree-row:hover {
+  background: var(--omega-surface-raised);
+}
+
+.omega-filetree-row:focus-visible {
+  outline: 1px solid var(--mantine-color-plum-5);
+}
+
+.omega-filetree-action-btn {
+  opacity: 0;
+  transition: opacity 100ms ease;
+  flex-shrink: 0;
+}
+
+.omega-filetree-row:hover .omega-filetree-action-btn,
+.omega-filetree-action-btn:focus-visible {
+  opacity: 1;
+}
+
+.omega-filetree-children {
+  position: relative;
 }

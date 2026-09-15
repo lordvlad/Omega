@@ -76,6 +76,8 @@ import {
   useListQueue,
   useListModels,
   useListWorkspaces,
+  useGetGitStatus,
+  useListFiles,
 } from "./api/queries.ts";
 import {
   CommandPalette,
@@ -85,6 +87,8 @@ import {
   PALETTE_COMMAND,
 } from "./components/CommandPalette.tsx";
 import { Composer } from "./components/Composer.tsx";
+import { FileTreePanel } from "./components/FileTreePanel.tsx";
+import { FileViewer } from "./components/FileViewer.tsx";
 import { Planning } from "./components/Planning.tsx";
 import { QueuePanel, queueSummary } from "./components/QueuePanel.tsx";
 import { TodoPanel } from "./components/TodoPanel.tsx";
@@ -134,6 +138,8 @@ export function App() {
   /** Controlled palette query; a header hyperlink prefills the command. */
   const [paletteQuery, setPaletteQuery] = useState("");
   const [todoOpen, setTodoOpen] = useState(false);
+  const [treeOpen, setTreeOpen] = useState(false);
+  const [viewingFile, setViewingFile] = useState<string | null>(null);
   /** The queue panel, opened from the composer's queued-message hint. */
   const [queueOpen, setQueueOpen] = useState(false);
   /** Sent messages not yet echoed back by the server transcript. */
@@ -184,6 +190,14 @@ export function App() {
   const models = useListModels(undefined, { staleTime: 5 * 60_000 });
 
   const state = useGetState({ path: { key: sessionKey ?? "" } }, { enabled: Boolean(sessionKey) });
+  const gitStatus = useGetGitStatus(
+    { query: { cwd: state.data?.cwd } },
+    { enabled: Boolean(sessionKey && state.data?.cwd) },
+  );
+  const files = useListFiles(
+    { query: { cwd: state.data?.cwd } },
+    { enabled: Boolean(sessionKey && state.data?.cwd) },
+  );
   const transcript = useGetTranscript({ path: { key: sessionKey ?? "" } }, { enabled: Boolean(sessionKey) });
   // Show the conversation that was on screen last time while the fetch runs,
   // and while a released session is being re-opened.
@@ -896,6 +910,15 @@ export function App() {
   return (
     <AppShell
       header={{ height: 56 }}
+      navbar={
+        treeOpen && !narrow
+          ? {
+              width: 360,
+              breakpoint: "62em",
+              collapsed: { desktop: false, mobile: true },
+            }
+          : undefined
+      }
       aside={{
         width: 340,
         breakpoint: "62em",
@@ -906,6 +929,17 @@ export function App() {
       <AppShell.Header>
         <Group h="100%" px="sm" justify="space-between" wrap="nowrap">
           <Group gap={6} wrap="nowrap" align="center" style={{ flex: 1, minWidth: 0 }}>
+            {state.data ? (
+              <ActionIcon
+                variant={treeOpen ? "light" : "subtle"}
+                color="plum"
+                onClick={() => setTreeOpen(o => !o)}
+                aria-label="Toggle file tree"
+                size="sm"
+              >
+                <IconFolder size={16} />
+              </ActionIcon>
+            ) : null}
             {/* The status bar gave back the space the connection badge and the
                 plan switch were using, so the workspace survives on a phone. */}
             <Group gap={6} wrap="nowrap" style={{ minWidth: 0 }}>
@@ -1000,6 +1034,67 @@ export function App() {
         <TodoPanel phases={state.data?.todos} onClose={() => setTodoOpen(false)} />
       </AppShell.Aside>
 
+      {treeOpen && !narrow ? (
+        <AppShell.Navbar p={0} style={{ overflow: "hidden" }}>
+          <FileTreePanel
+            files={files.data ?? []}
+            gitStatus={gitStatus.data}
+            projectKey={project ?? sessionKey ?? ""}
+            workspaceName={state.data?.cwd?.split("/").pop()}
+            onOpenFile={path => setViewingFile(path)}
+            onClose={() => setTreeOpen(false)}
+            onRefresh={() => {
+              void files.refetch();
+              void gitStatus.refetch();
+            }}
+          />
+        </AppShell.Navbar>
+      ) : null}
+
+      <Drawer
+        opened={treeOpen && narrow}
+        onClose={() => setTreeOpen(false)}
+        position="left"
+        size="100%"
+        zIndex={400}
+        withOverlay
+        closeOnClickOutside
+        withCloseButton={false}
+        padding={0}
+      >
+        <FileTreePanel
+          files={files.data ?? []}
+          gitStatus={gitStatus.data}
+          projectKey={project ?? sessionKey ?? ""}
+          workspaceName={state.data?.cwd?.split("/").pop()}
+          onOpenFile={path => setViewingFile(path)}
+          onClose={() => setTreeOpen(false)}
+          onRefresh={() => {
+            void files.refetch();
+            void gitStatus.refetch();
+          }}
+        />
+      </Drawer>
+
+      <Drawer
+        position="right"
+        opened={viewingFile !== null}
+        onClose={() => setViewingFile(null)}
+        size={narrow ? "100%" : 800}
+        zIndex={400}
+        withOverlay={narrow}
+        closeOnClickOutside={narrow}
+        withCloseButton={false}
+        padding={0}
+      >
+        <FileViewer
+          filePath={viewingFile}
+          cwd={state.data?.cwd}
+          gitStatus={viewingFile && gitStatus.data?.files ? gitStatus.data.files[viewingFile] : undefined}
+          onClose={() => setViewingFile(null)}
+        />
+      </Drawer>
+
       <Drawer
         opened={planOpen}
         onClose={() => setPlanOpen(false)}
@@ -1055,23 +1150,24 @@ export function App() {
               notices={live.notices}
               loading={transcript.isPending}
               onFork={sessionKey ? handleBranch : undefined}
-            />
-            <Composer
-              state={state.data}
-              offline={!online}
-              running={streaming}
-              draft={draft}
-              planEnabled={planEnabled}
-              planPending={setPlanMode.isPending}
-              onSend={handleSend}
-              onPlanMode={handleSetPlanMode}
-              onChangeModel={() => openPalette(PALETTE_COMMAND.model, setPaletteQuery)}
-              onAbort={handleAbort}
-              queued={queued}
-              onOpenQueue={() => setQueueOpen(true)}
-              onSlash={() => openPaletteCommands(setPaletteQuery)}
-              compact={narrow}
-            />
+            >
+              <Composer
+                state={state.data}
+                offline={!online}
+                running={streaming}
+                draft={draft}
+                planEnabled={planEnabled}
+                planPending={setPlanMode.isPending}
+                onSend={handleSend}
+                onPlanMode={handleSetPlanMode}
+                onChangeModel={() => openPalette(PALETTE_COMMAND.model, setPaletteQuery)}
+                onAbort={handleAbort}
+                queued={queued}
+                onOpenQueue={() => setQueueOpen(true)}
+                onSlash={() => openPaletteCommands(setPaletteQuery)}
+                compact={narrow}
+              />
+            </Transcript>
           </Stack>
         ) : (
           // Landing: nothing is open, so the only useful action is choosing
