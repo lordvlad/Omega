@@ -21,6 +21,7 @@ import {
   ThemeIcon,
   Tooltip,
 } from "@mantine/core";
+import { useTimeout } from "@mantine/hooks";
 import {
   IconAlertCircle,
   IconBrandCss3,
@@ -153,11 +154,13 @@ export function FileViewer({ filePath, cwd, gitStatus, onInsertRef, onClose }: F
     return fileData.content.split("\n").length;
   }, [fileData?.content]);
 
+  const copiedReset = useTimeout(() => setCopiedContent(false), 1500);
   const handleCopy = () => {
     if (fileData?.content) {
       void copyText(fileData.content);
       setCopiedContent(true);
-      setTimeout(() => setCopiedContent(false), 1500);
+      copiedReset.clear();
+      copiedReset.start();
     }
   };
 

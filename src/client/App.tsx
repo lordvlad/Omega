@@ -24,7 +24,7 @@ import {
   Tooltip,
   UnstyledButton,
 } from "@mantine/core";
-import { useLocalStorage, useMediaQuery } from "@mantine/hooks";
+import { useDisclosure, useLocalStorage, useMediaQuery } from "@mantine/hooks";
 import { notifications } from "@mantine/notifications";
 import { IconFolder, IconHistory, IconListCheck, IconMessage } from "@tabler/icons-react";
 import { useQueryClient } from "@tanstack/react-query";
@@ -135,14 +135,14 @@ export function App() {
   const project = params.project;
   const navigate = useNavigate();
 
-  const [planOpen, setPlanOpen] = useState(false);
+  const [planOpen, { open: openPlan, close: closePlan }] = useDisclosure(false);
   /** Controlled palette query; a header hyperlink prefills the command. */
   const [paletteQuery, setPaletteQuery] = useState("");
-  const [todoOpen, setTodoOpen] = useState(false);
-  const [treeOpen, setTreeOpen] = useState(false);
+  const [todoOpen, { toggle: toggleTodo, close: closeTodo }] = useDisclosure(false);
+  const [treeOpen, { toggle: toggleTree, close: closeTree }] = useDisclosure(false);
   const [viewingFile, setViewingFile] = useState<string | null>(null);
   /** The queue panel, opened from the composer's queued-message hint. */
-  const [queueOpen, setQueueOpen] = useState(false);
+  const [queueOpen, { open: openQueue, close: closeQueue }] = useDisclosure(false);
   /** Sent messages not yet echoed back by the server transcript. */
   const [pendingUser, setPendingUser] = useState<string[]>([]);
   /** Message text a branch handed back, for the composer to pick up. */
@@ -300,7 +300,7 @@ export function App() {
   // A plan arriving for review is the one event worth interrupting for.
   useEffect(() => {
     if (!live.planAwaiting) return;
-    setPlanOpen(true);
+    openPlan();
     notifications.show({
       color: "cyan",
       title: "Plan ready for review",
@@ -323,12 +323,12 @@ export function App() {
     const content = plan.data?.content?.trim() ?? "";
     if (!content) {
       shownPlan.current = undefined;
-      setPlanOpen(false);
+      closePlan();
       return;
     }
     if (shownPlan.current === content) return;
     shownPlan.current = content;
-    setPlanOpen(true);
+    openPlan();
   }, [plan.data?.content]);
 
   // A different conversation's plan is news again.
@@ -899,7 +899,7 @@ export function App() {
           notifications.show({ color: "cyan", title: "Plan", message: result.detail ?? "Done." });
           // `execute` runs the approved plan in a fresh session; follow it.
           if (result.sessionKey) navigateTo({ project: state.data?.cwd, session: result.sessionKey });
-          if (action !== "refine") setPlanOpen(false);
+          if (action !== "refine") closePlan();
           void queryClient.invalidateQueries();
         },
         onError: fail,
@@ -949,7 +949,7 @@ export function App() {
               <ActionIcon
                 variant={treeOpen ? "light" : "subtle"}
                 color="plum"
-                onClick={() => setTreeOpen(o => !o)}
+                onClick={toggleTree}
                 aria-label="Toggle file tree"
                 size="sm"
               >
@@ -1032,7 +1032,7 @@ export function App() {
                     }}
                   >
                     <ActionIcon
-                      onClick={() => setTodoOpen(value => !value)}
+                      onClick={toggleTodo}
                       color={todoOpen ? "cyan" : "plum"}
                       aria-label="Toggle tasks panel"
                     >
@@ -1047,7 +1047,7 @@ export function App() {
       </AppShell.Header>
 
       <AppShell.Aside p={0}>
-        <TodoPanel phases={state.data?.todos} onClose={() => setTodoOpen(false)} />
+        <TodoPanel phases={state.data?.todos} onClose={closeTodo} />
       </AppShell.Aside>
 
       {treeOpen && !narrow ? (
@@ -1059,7 +1059,7 @@ export function App() {
             workspaceName={state.data?.cwd?.split("/").pop()}
             onOpenFile={path => setViewingFile(path)}
             onInsertRef={handlePickFile}
-            onClose={() => setTreeOpen(false)}
+            onClose={closeTree}
             onRefresh={() => {
               void files.refetch();
               void gitStatus.refetch();
@@ -1070,7 +1070,7 @@ export function App() {
 
       <Drawer
         opened={treeOpen && narrow}
-        onClose={() => setTreeOpen(false)}
+        onClose={closeTree}
         position="left"
         size="100%"
         zIndex={400}
@@ -1086,7 +1086,7 @@ export function App() {
           workspaceName={state.data?.cwd?.split("/").pop()}
           onOpenFile={path => setViewingFile(path)}
           onInsertRef={handlePickFile}
-          onClose={() => setTreeOpen(false)}
+          onClose={closeTree}
           onRefresh={() => {
             void files.refetch();
             void gitStatus.refetch();
@@ -1116,7 +1116,7 @@ export function App() {
 
       <Drawer
         opened={planOpen}
-        onClose={() => setPlanOpen(false)}
+        onClose={closePlan}
         position={narrow ? "bottom" : "right"}
         size={narrow ? "92%" : "min(85%, 960px)"}
         title="Planning"
@@ -1128,19 +1128,19 @@ export function App() {
       {narrow ? (
         <Drawer
           opened={todoOpen}
-          onClose={() => setTodoOpen(false)}
+          onClose={closeTodo}
           position="right"
           size="85%"
           title="Tasks & Todos"
           padding={0}
         >
-          <TodoPanel phases={state.data?.todos} onClose={() => setTodoOpen(false)} />
+          <TodoPanel phases={state.data?.todos} onClose={closeTodo} />
         </Drawer>
       ) : null}
 
       <Drawer
         opened={queueOpen}
-        onClose={() => setQueueOpen(false)}
+        onClose={closeQueue}
         position={narrow ? "bottom" : "right"}
         size={narrow ? "80%" : 460}
         title={queue.data && queue.data.length > 0 ? `Queue — ${queueSummary(queue.data)}` : "Queue"}
@@ -1182,7 +1182,7 @@ export function App() {
                 onChangeModel={() => openPalette(PALETTE_COMMAND.model, setPaletteQuery)}
                 onAbort={handleAbort}
                 queued={queued}
-                onOpenQueue={() => setQueueOpen(true)}
+                onOpenQueue={openQueue}
                 onSlash={() => openPaletteCommands(setPaletteQuery)}
                 onAt={() => openPaletteFiles(setPaletteQuery)}
                 insertedFile={insertedFile}

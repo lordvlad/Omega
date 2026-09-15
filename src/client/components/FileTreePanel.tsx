@@ -19,6 +19,7 @@ import {
   Tooltip,
   UnstyledButton,
 } from "@mantine/core";
+import { useLocalStorage } from "@mantine/hooks";
 import {
   IconBraces,
   IconBrandCss3,
@@ -26,10 +27,8 @@ import {
   IconBrandJavascript,
   IconBrandPython,
   IconBrandTypescript,
-  IconCheck,
   IconChevronDown,
   IconChevronRight,
-  IconCopy,
   IconEye,
   IconFile,
   IconFileText,
@@ -47,7 +46,6 @@ import {
 import { useCallback, useEffect, useMemo, useState } from "react";
 
 import type { GitFileStatus, GitStatusResult } from "../api/model.ts";
-import { copyText } from "../lib/clipboard.ts";
 
 export interface FileTreePanelProps {
   /** All workspace files (relative paths). */
@@ -309,58 +307,26 @@ export function FileTreePanel({
 }: FileTreePanelProps) {
   const storageKey = `omega:filetree:expanded:${projectKey || "root"}`;
   const [filterQuery, setFilterQuery] = useState("");
-  const [copiedPath, setCopiedPath] = useState<string | null>(null);
 
   // Build the hierarchical tree
   const tree = useMemo(() => buildTree(files, gitStatus), [files, gitStatus]);
 
-  // Load expanded state from localStorage per project
-  const [expandedPaths, setExpandedPaths] = useState<Set<string>>(() => {
-    try {
-      const stored = localStorage.getItem(storageKey);
-      if (stored) {
-        const parsed = JSON.parse(stored);
-        if (Array.isArray(parsed)) return new Set(parsed);
-      }
-    } catch {
-      // Ignore localStorage read errors
-    }
-    // Default initial state: expand top-level directories
-    const initialDirs = tree.filter(n => n.isDirectory).map(n => n.path);
-    return new Set(initialDirs);
-  });
-
-  // Re-sync expanded paths when project changes
-  useEffect(() => {
-    try {
-      const stored = localStorage.getItem(storageKey);
-      if (stored) {
-        const parsed = JSON.parse(stored);
-        if (Array.isArray(parsed)) {
-          setExpandedPaths(new Set(parsed));
-          return;
-        }
-      }
-    } catch {
-      // Ignore localStorage read errors
-    }
-    // Default initial state for fresh projects: expand top-level directories
-    const initialDirs = tree.filter(n => n.isDirectory).map(n => n.path);
-    setExpandedPaths(new Set(initialDirs));
-  }, [storageKey, tree]);
-
-  // Save expanded state to localStorage
-  const persistExpanded = useCallback(
-    (next: Set<string>) => {
-      setExpandedPaths(next);
+  // Persisted per project; falls back to expanding top-level directories the
+  // first time a project is seen (or after its storage entry is cleared).
+  const [expandedPaths, setExpandedPaths] = useLocalStorage<Set<string>>({
+    key: storageKey,
+    defaultValue: new Set(tree.filter(n => n.isDirectory).map(n => n.path)),
+    serialize: value => JSON.stringify(Array.from(value)),
+    deserialize: raw => {
+      if (raw === undefined) return new Set();
       try {
-        localStorage.setItem(storageKey, JSON.stringify(Array.from(next)));
+        const parsed: unknown = JSON.parse(raw);
+        return Array.isArray(parsed) ? new Set(parsed) : new Set();
       } catch {
-        // Ignore localStorage quota/permission errors
+        return new Set();
       }
     },
-    [storageKey],
-  );
+  });
 
   const toggleExpand = useCallback(
     (dirPath: string) => {
@@ -370,26 +336,19 @@ export function FileTreePanel({
       } else {
         next.add(dirPath);
       }
-      persistExpanded(next);
+      setExpandedPaths(next);
     },
-    [expandedPaths, persistExpanded],
+    [expandedPaths, setExpandedPaths],
   );
 
   const handleExpandAll = useCallback(() => {
     const allDirs = collectAllDirPaths(tree);
-    persistExpanded(new Set(allDirs));
-  }, [tree, persistExpanded]);
+    setExpandedPaths(new Set(allDirs));
+  }, [tree, setExpandedPaths]);
 
   const handleCollapseAll = useCallback(() => {
-    persistExpanded(new Set());
-  }, [persistExpanded]);
-
-  const handleCopyPath = (e: React.MouseEvent, path: string) => {
-    e.stopPropagation();
-    void copyText(path);
-    setCopiedPath(path);
-    setTimeout(() => setCopiedPath(null), 1500);
-  };
+    setExpandedPaths(new Set());
+  }, [setExpandedPaths]);
 
   // Filter tree matching search query
   const query = filterQuery.trim().toLowerCase();
