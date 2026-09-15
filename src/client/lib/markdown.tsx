@@ -1,208 +1,91 @@
 /**
- * Markdown rendering, split across the two runtimes that can each do half.
+ * Markdown rendering with server-side React SSR (Bun.markdown.react + Shiki).
  *
- * `Bun.markdown` is a Bun API with no browser equivalent, so the server
- * renders the markdown and this module renders the resulting HTML. Fenced code
- * is the exception: `Bun.markdown.html` emits a plain
- * `<pre><code class="language-ts">`, which carries no highlighting, so those
- * nodes are replaced with Mantine's `CodeHighlight` on the way through. The
- * result is one pass: Bun owns the markdown, Mantine owns the code.
+ * The server performs GitHub Flavored Markdown parsing, syntax highlighting,
+ * and element composition in Bun, returning pre-rendered HTML. The client
+ * caches results by content hash and injects them directly, with a delegated
+ * click handler for code block copying.
  */
-import { CodeHighlight } from "@mantine/code-highlight";
-import { ActionIcon, Box, Tooltip, Typography } from "@mantine/core";
+import { Typography } from "@mantine/core";
 import { notifications } from "@mantine/notifications";
-import { IconCheck, IconCopy } from "@tabler/icons-react";
-import { createElement, Fragment, type ReactNode, useEffect, useMemo, useState } from "react";
+import React, { type ReactNode, useCallback, useEffect, useState } from "react";
 
 import { renderMarkdown } from "../api/api.ts";
 import { copyText } from "./clipboard.ts";
 
-/** Attributes worth carrying from the parsed HTML onto the React element. */
-const KEPT_ATTRIBUTES: Record<string, string> = {
-  href: "href",
-  src: "src",
-  alt: "alt",
-  title: "title",
-  id: "id",
-  start: "start",
-  type: "type",
-  disabled: "disabled",
-  align: "align",
-};
+/** In-memory cache so re-rendering a settled transcript costs no requests. */
+const cache = new Map<string, string>();
 
-/** Tags that must not survive into the React tree. */
-const DROPPED_TAGS: Record<string, true> = { script: true, style: true, iframe: true, object: true };
-
-/**
- * A fenced block, with a copy control that works off a secure origin.
- *
- * Mantine's own copy button goes through `navigator.clipboard`, which does
- * not exist when omega is reached over the LAN, so on a phone it is a button
- * that does nothing. Code is the most copied thing in a transcript, so it
- * gets the same fallback the message menu uses rather than the stock one.
- */
-function CodeBlock({ code, language }: { code: string; language: string }) {
-  const [copied, setCopied] = useState(false);
-
-  const copy = async (): Promise<void> => {
-    const ok = await copyText(code);
-    setCopied(ok);
-    if (!ok) {
-      notifications.show({
-        color: "red",
-        title: "Could not copy",
-        message: "The browser refused the clipboard. Select the code and copy it by hand.",
-      });
-      return;
+/** Parse and render server-rendered HTML directly. */
+export function RenderedHtml({ html, className }: { html: string; className?: string }): ReactNode {
+  const handleClick = useCallback(async (event: React.MouseEvent<HTMLDivElement>) => {
+    const target = event.target as HTMLElement;
+    // Check if clicked inside a code block to copy
+    const codeBlock = target.closest(".omega-code-block") as HTMLElement | null;
+    if (codeBlock && (target.tagName.toLowerCase() === "pre" || target.closest("pre"))) {
+      const code = codeBlock.getAttribute("data-code");
+      if (code) {
+        const ok = await copyText(code);
+        if (ok) {
+          notifications.show({
+            color: "cyan",
+            title: "Copied code",
+            message: "Code snippet copied to clipboard.",
+            autoClose: 2000,
+          });
+        }
+      }
     }
-    window.setTimeout(() => setCopied(false), 1500);
-  };
+  }, []);
 
+  if (!html) return null;
   return (
-    <Box style={{ position: "relative" }} my="sm">
-      <CodeHighlight code={code} language={language} withCopyButton={false} />
-      <Tooltip label={copied ? "Copied" : "Copy"} position="left">
-        <ActionIcon
-          onClick={() => void copy()}
-          variant="subtle"
-          color="gray"
-          size="sm"
-          aria-label="Copy code"
-          style={{ position: "absolute", top: 6, right: 6, zIndex: 1 }}
-        >
-          {copied ? <IconCheck size={15} /> : <IconCopy size={15} />}
-        </ActionIcon>
-      </Tooltip>
-    </Box>
+    <Typography
+      className={className ? `omega-markdown ${className}` : "omega-markdown"}
+      dangerouslySetInnerHTML={{ __html: html }}
+      onClick={handleClick}
+    />
   );
 }
 
-/** Convert one parsed DOM node into React elements. */
-function convert(node: Node, keyPath: string): ReactNode {
-  if (node.nodeType === Node.TEXT_NODE) return node.textContent;
-  if (node.nodeType !== Node.ELEMENT_NODE) return null;
-
-  const element = node as Element;
-  const tag = element.tagName.toLowerCase();
-  if (DROPPED_TAGS[tag]) return null;
-
-  // A fenced block is `<pre><code class="language-x">`; hand it to Mantine
-  // with the language it declared.
-  if (tag === "pre") {
-    const code = element.firstElementChild;
-    if (code && code.tagName.toLowerCase() === "code") {
-      const declared = /language-([\w+-]+)/u.exec(code.className ?? "");
-      return <CodeBlock key={keyPath} code={code.textContent ?? ""} language={declared?.[1] ?? "text"} />;
-    }
-  }
-
-  const props: Record<string, unknown> = { key: keyPath };
-  for (const [attribute, propName] of Object.entries(KEPT_ATTRIBUTES)) {
-    const value = element.getAttribute(attribute);
-    if (value !== null) props[propName] = value;
-  }
-  if (tag === "code") props.className = "omega-inline-code";
-  if (tag === "blockquote") props.className = "omega-markdown-blockquote";
-  if (tag === "img") props.className = "omega-markdown-image";
-  if (tag === "a") {
-    props.target = "_blank";
-    props.rel = "noreferrer noopener";
-  }
-  if (tag === "table") {
-    props.className = props.className ? `${props.className} omega-markdown-table` : "omega-markdown-table";
-  }
-  if (tag === "input") {
-    const isCheckbox =
-      element.getAttribute("type") === "checkbox" || element.classList.contains("task-list-item-checkbox");
-    if (isCheckbox) {
-      props.type = "checkbox";
-      props.defaultChecked = element.hasAttribute("checked");
-      props.disabled = true;
-      props.readOnly = true;
-      props.className = "omega-task-checkbox";
-    }
-  }
-  if (tag === "li" && element.classList.contains("task-list-item")) {
-    props.className = "omega-task-list-item";
-  }
-
-  const children = [...element.childNodes]
-    .map((child, index) => convert(child, `${keyPath}.${index}`))
-    .filter(child => child !== null && child !== "");
-
-  const rendered = children.length === 0 ? createElement(tag, props) : createElement(tag, props, children);
-
-  if (tag === "table") {
-    return (
-      <div key={`wrap.${keyPath}`} className="omega-table-wrap">
-        {rendered}
-      </div>
-    );
-  }
-
-  return rendered;
-}
-
-/** Parse server-rendered HTML into a React tree. */
 export function useRenderedHtml(html: string): ReactNode {
-  return useMemo(() => {
-    if (!html) return null;
-    // `DOMParser` never executes scripts, and `DROPPED_TAGS` removes them
-    // anyway, so agent-authored markdown cannot inject behaviour here.
-    const parsed = new DOMParser().parseFromString(html, "text/html");
-    return (
-      <Fragment>{[...parsed.body.childNodes].map((child, index) => convert(child, `n${index}`))}</Fragment>
-    );
-  }, [html]);
+  return <RenderedHtml html={html} />;
 }
-
-/** In-memory cache so re-rendering a settled transcript costs no requests. */
-const cache = new Map<string, string>();
 
 /**
  * Render markdown through the server.
  *
- * Text arrives token by token during a turn, so the request is debounced and
- * the last good HTML is kept on screen while the next one is in flight —
- * otherwise a streaming answer would flicker between rendered and blank.
+ * Streaming text without a server render yet falls back to raw text with line
+ * breaks preserved, so the turn stays readable token by token.
  */
 export function Markdown({ text }: { text: string }): ReactNode {
   const [html, setHtml] = useState(() => cache.get(text) ?? "");
 
   useEffect(() => {
-    const hit = cache.get(text);
-    if (hit !== undefined) {
-      setHtml(hit);
+    const cached = cache.get(text);
+    if (cached !== undefined) {
+      setHtml(cached);
       return;
     }
-    if (!text.trim()) {
-      setHtml("");
-      return;
-    }
-    let cancelled = false;
-    const timer = window.setTimeout(() => {
-      void renderMarkdown({ body: { text } })
-        .then(result => {
-          cache.set(text, result.html);
-          if (!cancelled) setHtml(result.html);
-        })
-        .catch(() => {
-          // Rendering is presentation; a failed round trip should not blank
-          // the message. Fall back to the source text.
-          if (!cancelled) setHtml("");
-        });
-    }, 90);
+    let active = true;
+    void renderMarkdown({ body: { text } })
+      .then(result => {
+        if (!active) return;
+        cache.set(text, result.html);
+        setHtml(result.html);
+      })
+      .catch(() => {
+        if (!active) return;
+        setHtml("");
+      });
     return () => {
-      cancelled = true;
-      window.clearTimeout(timer);
+      active = false;
     };
   }, [text]);
 
-  const tree = useRenderedHtml(html);
   if (!html) {
-    // Pre-render (or failed render): show the markdown source rather than a
-    // gap, so streaming text is readable before its first render lands.
     return <div className="omega-markdown-raw">{text}</div>;
   }
-  return <Typography className="omega-markdown">{tree}</Typography>;
+
+  return <RenderedHtml html={html} />;
 }

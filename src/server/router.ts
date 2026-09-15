@@ -44,6 +44,7 @@ import type {
 import type { OmpApi } from "../shared/service.ts";
 import { listFiles, readFileContent } from "./files.ts";
 import { getGitStatus } from "./git.ts";
+import { renderMarkdownServer } from "./markdown.ts";
 import { planDocument, resolvePlan, writePlan } from "./plan.ts";
 import { dropQueued, editQueued, listQueue } from "./queue.ts";
 import { type LiveSession, registry } from "./registry.ts";
@@ -428,7 +429,8 @@ export class Handlers implements OmpApi {
   }
 
   async renderMarkdown(body: MarkdownRequest): Promise<RenderedMarkdown> {
-    return { html: Bun.markdown.html(body.text) };
+    const html = await renderMarkdownServer(body.text);
+    return { html };
   }
 
   #require(key: string): LiveSession {
