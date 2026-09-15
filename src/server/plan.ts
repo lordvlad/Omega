@@ -178,7 +178,12 @@ export async function resolvePlan(
     // call, and it cannot accept a new turn until that returns.
     live.settlePlan();
     live.session.setPlanModeState(live.session.getPlanModeState());
-    await live.session.prompt(feedback);
+    void live.session.prompt(feedback).catch(error => {
+      live.emitCustom({
+        type: "RUN_ERROR",
+        message: error instanceof Error ? error.message : String(error),
+      });
+    });
     return { detail: "Sent refinements to the planner." };
   }
 
@@ -225,9 +230,16 @@ export async function resolvePlan(
     contextPreserved: request.action !== "execute",
   });
 
-  if (target.session.isStreaming) await target.session.followUp(directive, undefined, { synthetic: true });
-  else await target.session.prompt(directive, { synthetic: true });
-
+  if (target.session.isStreaming) {
+    void target.session.followUp(directive, undefined, { synthetic: true });
+  } else {
+    void target.session.prompt(directive, { synthetic: true }).catch(error => {
+      target.emitCustom({
+        type: "RUN_ERROR",
+        message: error instanceof Error ? error.message : String(error),
+      });
+    });
+  }
   return {
     detail:
       request.action === "execute"

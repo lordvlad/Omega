@@ -958,9 +958,11 @@ export function App() {
       {
         onSuccess: result => {
           notifications.show({ color: "cyan", title: "Plan", message: result.detail ?? "Done." });
-          // `execute` runs the approved plan in a fresh session; follow it.
-          if (result.sessionKey) navigateTo({ project: state.data?.cwd, session: result.sessionKey });
           if (action !== "refine") closePlan();
+          // `execute` runs the approved plan in a fresh session; follow it.
+          if (result.sessionKey) {
+            navigateTo({ project: state.data?.cwd ?? project, session: result.sessionKey });
+          }
           void queryClient.invalidateQueries();
         },
         onError: fail,
