@@ -208,6 +208,35 @@ body {
   white-space: pre-wrap;
   word-break: break-word;
 }
+.omega-markdown-blockquote {
+  margin: 0.5rem 0;
+  padding: 4px 14px;
+  border-left: 3px solid var(--mantine-color-plum-5);
+  background: color-mix(in srgb, var(--omega-surface-raised) 50%, transparent);
+  border-radius: 0 var(--mantine-radius-sm) var(--mantine-radius-sm) 0;
+  color: var(--mantine-color-dark-1);
+}
+
+.omega-markdown-image {
+  max-width: 100%;
+  height: auto;
+  border-radius: var(--mantine-radius-sm);
+  margin-block: 0.5rem;
+}
+
+.omega-task-list-item {
+  list-style-type: none;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-left: -1.2rem;
+}
+
+.omega-task-checkbox {
+  margin: 0;
+  accent-color: var(--mantine-color-cyan-6);
+  cursor: default;
+}
 
 /* Mantine parks the copy control at half opacity, which reads as decoration
    rather than a button. Every code block here is something you want in a

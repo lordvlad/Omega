@@ -25,6 +25,9 @@ const KEPT_ATTRIBUTES: Record<string, string> = {
   title: "title",
   id: "id",
   start: "start",
+  type: "type",
+  disabled: "disabled",
+  align: "align",
 };
 
 /** Tags that must not survive into the React tree. */
@@ -98,14 +101,29 @@ function convert(node: Node, keyPath: string): ReactNode {
     const value = element.getAttribute(attribute);
     if (value !== null) props[propName] = value;
   }
-  // Inline code keeps its class so the theme can style it.
   if (tag === "code") props.className = "omega-inline-code";
+  if (tag === "blockquote") props.className = "omega-markdown-blockquote";
+  if (tag === "img") props.className = "omega-markdown-image";
   if (tag === "a") {
     props.target = "_blank";
     props.rel = "noreferrer noopener";
   }
   if (tag === "table") {
     props.className = props.className ? `${props.className} omega-markdown-table` : "omega-markdown-table";
+  }
+  if (tag === "input") {
+    const isCheckbox =
+      element.getAttribute("type") === "checkbox" || element.classList.contains("task-list-item-checkbox");
+    if (isCheckbox) {
+      props.type = "checkbox";
+      props.defaultChecked = element.hasAttribute("checked");
+      props.disabled = true;
+      props.readOnly = true;
+      props.className = "omega-task-checkbox";
+    }
+  }
+  if (tag === "li" && element.classList.contains("task-list-item")) {
+    props.className = "omega-task-list-item";
   }
 
   const children = [...element.childNodes]
