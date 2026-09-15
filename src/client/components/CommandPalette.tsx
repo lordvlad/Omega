@@ -42,6 +42,7 @@ import {
   IconArchive,
   IconBrain,
   IconCpu,
+  IconFile,
   IconFilterX,
   IconFolder,
   IconFolderPlus,
@@ -99,8 +100,8 @@ export const PALETTE_COMMAND = {
   branch: "/branch",
   stop: "/stop",
   delete: "/delete",
+  file: "@",
 } as const;
-
 export type PaletteCommand = (typeof PALETTE_COMMAND)[keyof typeof PALETTE_COMMAND];
 
 /** Either a single palette action or a labelled group of them. */
@@ -137,6 +138,7 @@ const COMMAND_SPEC: Record<
   "/branch": { kind: "scope", placeholder: "Filter earlier messages to branch from…" },
   "/stop": { kind: "scope", placeholder: "Filter live sessions to stop…" },
   "/delete": { kind: "scope", placeholder: "Filter sessions to delete from disk…" },
+  "@": { kind: "scope", placeholder: "Filter files in this workspace…" },
 };
 
 /** Thinking levels omp offers, ascending, matching the `ThinkingLevel` union. */
@@ -169,7 +171,13 @@ const FORK_DESCRIPTION = "Copy this session, transcript and all, and continue in
  * trailing space that separates a command from its filter term is written once.
  */
 export function openPalette(command: PaletteCommand, setQuery: (query: string) => void): void {
-  setQuery(`${command} `);
+  setQuery(command === "@" ? "@" : `${command} `);
+  spotlight.open();
+}
+
+/** Show the palette for fuzzy file mentions. */
+export function openPaletteFiles(setQuery: (query: string) => void): void {
+  setQuery("@");
   spotlight.open();
 }
 
@@ -200,10 +208,30 @@ export function openPaletteCommands(setQuery: (query: string) => void): void {
  * listing commands so the typo stays visible and correctable.
  */
 function parseQuery(query: string): ParsedQuery {
-  const match = /^(\/[a-zA-Z]+)(?:\s+([\s\S]*))?$/.exec(query.trimStart());
+  const trimmed = query.trimStart();
+  if (trimmed.startsWith("@")) {
+    return { command: "@", term: trimmed.slice(1).trimStart() };
+  }
+  const match = /^(\/[a-zA-Z]+)(?:\s+([\s\S]*))?$/.exec(trimmed);
   const word = match?.[1];
   if (!word || !Object.hasOwn(COMMAND_SPEC, word)) return { term: query };
   return { command: word as PaletteCommand, term: match?.[2] ?? "" };
+}
+
+function fuzzySubsequence(pattern: string, text: string): boolean {
+  if (!pattern) return true;
+  if (text.includes(pattern)) return true;
+  let pIdx = 0;
+  for (let tIdx = 0; tIdx < text.length && pIdx < pattern.length; tIdx++) {
+    if (text[tIdx] === pattern[pIdx]) pIdx++;
+  }
+  return pIdx === pattern.length;
+}
+
+function fuzzyMatches(action: SpotlightActionData, tokens: string[]): boolean {
+  const keywords = Array.isArray(action.keywords) ? action.keywords.join(" ") : (action.keywords ?? "");
+  const haystack = `${action.label ?? ""} ${action.description ?? ""} ${keywords}`.toLowerCase();
+  return tokens.every(token => fuzzySubsequence(token, haystack));
 }
 
 /** Every whitespace-separated token must appear somewhere in the haystack. */
@@ -278,6 +306,10 @@ export interface CommandPaletteProps {
    * it, so opening the palette is the natural moment to refetch.
    */
   onRefreshWorkspaces: () => void;
+  /** Workspace files available for `@` mentions. */
+  files?: string[];
+  /** Picked a file for an `@` mention. */
+  onPickFile?: (file: string) => void;
 }
 
 export function CommandPalette({
@@ -309,9 +341,10 @@ export function CommandPalette({
   mcpCommands,
   onPickCommand,
   onRefreshWorkspaces,
+  files = [],
+  onPickFile,
 }: CommandPaletteProps) {
   const { command, term } = parseQuery(query);
-
   /** Sessions currently held open by the server, newest workspace first. */
   const liveSessions = useMemo(
     () =>
@@ -393,6 +426,28 @@ export function CommandPalette({
   const newDescription = activeProject ? `Start a session in ${activeProject}` : "Pick a workspace first";
 
   /** The command list: what the palette shows before a command is chosen. */
+  /** `@`: every file in the active workspace. */
+  const fileActions = useMemo<PaletteAction[]>(() => {
+    if (!files || files.length === 0) return [];
+    return [
+      {
+        group: `Files in workspace (${files.length})`,
+        actions: files.map(file => {
+          const parts = file.split("/");
+          const fileName = parts.pop() ?? file;
+          const dir = parts.join("/");
+          return {
+            id: `file-${file}`,
+            label: file,
+            description: dir ? `in ${dir}` : "workspace root",
+            keywords: [fileName, dir, file],
+            leftSection: <IconFile size={16} />,
+            onClick: () => onPickFile?.(file),
+          };
+        }),
+      },
+    ];
+  }, [files, onPickFile]);
   const commandActions = useMemo<PaletteAction[]>(
     () => [
       {
@@ -536,6 +591,15 @@ export function CommandPalette({
             leftSection: <IconTrash size={16} />,
             closeSpotlightOnTrigger: false,
             onClick: () => onQueryChange(`${PALETTE_COMMAND.delete} `),
+          },
+          {
+            id: "command-file",
+            label: PALETTE_COMMAND.file,
+            description: activeProject ? `Mention a file from ${activeProject}` : "Pick a workspace first",
+            keywords: "file mention disk workspace path @",
+            leftSection: <IconFile size={16} />,
+            closeSpotlightOnTrigger: false,
+            onClick: () => onQueryChange("@"),
           },
         ],
       },
@@ -961,6 +1025,7 @@ export function CommandPalette({
     "/branch": branchActions,
     "/stop": stopActions,
     "/delete": deleteActions,
+    "@": fileActions,
   };
 
   // The command prefix scopes the list rather than searching it, so it is
@@ -976,6 +1041,15 @@ export function CommandPalette({
       .split(/\s+/)
       .filter(token => token.length > 0);
     if (tokens.length === 0) return items;
+    if (parsed.command === "@") {
+      return items
+        .map(item => {
+          if (!isActionsGroup(item)) return fuzzyMatches(item, tokens) ? item : undefined;
+          const kept = item.actions.filter(action => fuzzyMatches(action, tokens));
+          return kept.length > 0 ? { ...item, actions: kept } : undefined;
+        })
+        .filter((item): item is PaletteAction => item !== undefined);
+    }
     return items
       .map(item => {
         if (!isActionsGroup(item)) return matches(item, tokens) ? item : undefined;
@@ -986,15 +1060,17 @@ export function CommandPalette({
   }, []);
 
   const nothingFound =
-    command === PALETTE_COMMAND.session && !activeProject
-      ? "Pick a workspace with /cd first"
-      : command === PALETTE_COMMAND.stop
-        ? "No sessions are live"
-        : command === PALETTE_COMMAND.think && !sessionKey
-          ? "Open a session first"
-          : command === PALETTE_COMMAND.branch
-            ? "No user messages to branch from"
-            : "Nothing matches your search";
+    command === PALETTE_COMMAND.file && (!activeProject || files.length === 0)
+      ? "No files found in this workspace"
+      : command === PALETTE_COMMAND.session && !activeProject
+        ? "Pick a workspace with /cd first"
+        : command === PALETTE_COMMAND.stop
+          ? "No sessions are live"
+          : command === PALETTE_COMMAND.think && !sessionKey
+            ? "Open a session first"
+            : command === PALETTE_COMMAND.branch
+              ? "No user messages to branch from"
+              : "Nothing matches your search";
 
   return (
     <Spotlight
@@ -1005,7 +1081,7 @@ export function CommandPalette({
       nothingFound={nothingFound}
       onSpotlightOpen={onRefreshWorkspaces}
       searchProps={{
-        placeholder: command ? COMMAND_SPEC[command].placeholder : "Type / to see every command…",
+        placeholder: command ? COMMAND_SPEC[command].placeholder : "Type / for commands, @ for files…",
         leftSection: <IconSearch size={18} />,
       }}
       limit={40}

@@ -84,6 +84,7 @@ import {
   type CompactMode,
   openPalette,
   openPaletteCommands,
+  openPaletteFiles,
   PALETTE_COMMAND,
 } from "./components/CommandPalette.tsx";
 import { Composer } from "./components/Composer.tsx";
@@ -146,6 +147,13 @@ export function App() {
   const [pendingUser, setPendingUser] = useState<string[]>([]);
   /** Message text a branch handed back, for the composer to pick up. */
   const [draft, setDraft] = useState<{ text: string } | undefined>(undefined);
+  /**
+   * A file path picked for an `@` mention. Keyed with a counter so picking
+   * the same path twice still reaches the composer as a fresh insert.
+   */
+  const [insertedFile, setInsertedFile] = useState<{ path: string; id: number } | undefined>(
+    undefined,
+  );
 
   // Up to 5 most recently used models, listed first under `/switch`.
   const [recentModels, setRecentModels] = useLocalStorage<string[]>({
@@ -841,6 +849,14 @@ export function App() {
   }, []);
 
   /**
+   * Picking a file — from the `@` palette, the file tree, or the viewer —
+   * hands the path to the composer, which splices it in as an `@` mention.
+   */
+  const handlePickFile = useCallback((path: string): void => {
+    setInsertedFile(current => ({ path, id: (current?.id ?? 0) + 1 }));
+  }, []);
+
+  /**
    * Send a message, echoing it locally at once.
    *
    * The persisted user message only arrives with the next transcript fetch,
@@ -1042,6 +1058,7 @@ export function App() {
             projectKey={project ?? sessionKey ?? ""}
             workspaceName={state.data?.cwd?.split("/").pop()}
             onOpenFile={path => setViewingFile(path)}
+            onInsertRef={handlePickFile}
             onClose={() => setTreeOpen(false)}
             onRefresh={() => {
               void files.refetch();
@@ -1068,6 +1085,7 @@ export function App() {
           projectKey={project ?? sessionKey ?? ""}
           workspaceName={state.data?.cwd?.split("/").pop()}
           onOpenFile={path => setViewingFile(path)}
+          onInsertRef={handlePickFile}
           onClose={() => setTreeOpen(false)}
           onRefresh={() => {
             void files.refetch();
@@ -1091,6 +1109,7 @@ export function App() {
           filePath={viewingFile}
           cwd={state.data?.cwd}
           gitStatus={viewingFile && gitStatus.data?.files ? gitStatus.data.files[viewingFile] : undefined}
+          onInsertRef={handlePickFile}
           onClose={() => setViewingFile(null)}
         />
       </Drawer>
@@ -1165,6 +1184,8 @@ export function App() {
                 queued={queued}
                 onOpenQueue={() => setQueueOpen(true)}
                 onSlash={() => openPaletteCommands(setPaletteQuery)}
+                onAt={() => openPaletteFiles(setPaletteQuery)}
+                insertedFile={insertedFile}
                 compact={narrow}
               />
             </Transcript>
@@ -1224,6 +1245,8 @@ export function App() {
         workspaces={workspaces.data ?? []}
         mcpCommands={mcpCommands.data ?? []}
         onPickCommand={handlePickCommand}
+        files={files.data ?? []}
+        onPickFile={handlePickFile}
         activeProject={project}
         sessionKey={sessionKey}
         state={state.data}
