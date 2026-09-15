@@ -1317,6 +1317,7 @@ export function App() {
                 onSend={handleSend}
                 onPlanMode={handleSetPlanMode}
                 onChangeModel={() => openPalette(PALETTE_COMMAND.model, setPaletteQuery)}
+                onChangeThinking={() => openPalette(PALETTE_COMMAND.think, setPaletteQuery)}
                 onAbort={handleAbort}
                 queued={queued}
                 onOpenQueue={openQueue}

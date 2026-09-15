@@ -25,6 +25,7 @@ import {
 import { useMergedRef, useResizeObserver } from "@mantine/hooks";
 import {
   IconArrowUp,
+  IconBrain,
   IconCpu,
   IconMicrophone,
   IconMicrophoneOff,
@@ -99,6 +100,8 @@ export interface ComposerProps {
   onPlanMode: (enabled: boolean) => void;
   /** Open the model picker; the model is named here rather than in the header. */
   onChangeModel: () => void;
+  /** Open the thinking level picker (/think). */
+  onChangeThinking?: () => void;
   onAbort: () => void;
   /** Messages waiting to be delivered; polled, so fresher than `state.queued`. */
   queued: number;
@@ -136,6 +139,7 @@ export function Composer({
   planPending = false,
   onSend,
   onChangeModel,
+  onChangeThinking,
   onPlanMode,
   onAbort,
   queued,
@@ -505,25 +509,47 @@ export function Composer({
             ) : null}
           </Group>
 
-          <Group gap={8} wrap="nowrap" align="center">
+          <Group gap={6} wrap="nowrap" align="center">
             {state ? (
-              <Tooltip label="Change model (/switch)" position="top-end">
-                <UnstyledButton
-                  onClick={onChangeModel}
-                  aria-label="Change model"
-                  style={{ display: "inline-flex", alignItems: "center", gap: 4, cursor: "pointer" }}
-                >
-                  <IconCpu size={13} />
-                  <Text
-                    size="xs"
-                    c="dimmed"
-                    truncate
-                    style={{ textDecoration: "underline", textUnderlineOffset: "3px" }}
+              <>
+                <Tooltip label="Change model (/switch)" position="top-end">
+                  <UnstyledButton
+                    onClick={onChangeModel}
+                    aria-label="Change model"
+                    style={{ display: "inline-flex", alignItems: "center", gap: 4, cursor: "pointer" }}
                   >
-                    {state.modelName}
-                  </Text>
-                </UnstyledButton>
-              </Tooltip>
+                    <IconCpu size={13} />
+                    <Text
+                      size="xs"
+                      c="dimmed"
+                      truncate
+                      style={{ textDecoration: "underline", textUnderlineOffset: "3px" }}
+                    >
+                      {state.modelName}
+                    </Text>
+                  </UnstyledButton>
+                </Tooltip>
+                <Text size="xs" c="dimmed" style={{ opacity: 0.4 }}>
+                  ·
+                </Text>
+                <Tooltip label="Change thinking level (/think)" position="top-end">
+                  <UnstyledButton
+                    onClick={onChangeThinking}
+                    aria-label="Change thinking level"
+                    style={{ display: "inline-flex", alignItems: "center", gap: 4, cursor: "pointer" }}
+                  >
+                    <IconBrain size={13} />
+                    <Text
+                      size="xs"
+                      c="dimmed"
+                      truncate
+                      style={{ textDecoration: "underline", textUnderlineOffset: "3px" }}
+                    >
+                      {state.thinkingLevel ?? "off"}
+                    </Text>
+                  </UnstyledButton>
+                </Tooltip>
+              </>
             ) : null}
           </Group>
         </Group>
