@@ -99,9 +99,18 @@ export function flattenMessages(messages: readonly AgentMessage[], entryIds?: En
         case "text":
           if (block.text.trim()) parts.push({ kind: "text", text: block.text });
           break;
-        case "thinking":
-          if (block.thinking.trim()) parts.push({ kind: "thinking", text: block.thinking });
+        case "thinking": {
+          const thinkingText = block.thinking.trim();
+          if (thinkingText) {
+            const prev = parts[parts.length - 1];
+            if (prev && prev.kind === "thinking") {
+              prev.text = prev.text ? `${prev.text}\n\n${thinkingText}` : thinkingText;
+            } else {
+              parts.push({ kind: "thinking", text: thinkingText });
+            }
+          }
           break;
+        }
         case "toolCall": {
           let args: string;
           try {

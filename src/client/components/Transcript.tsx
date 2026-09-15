@@ -247,6 +247,21 @@ function groupParts(parts: MessagePart[]): PartSlot[] {
       } else {
         slots.push({ kind: "group", parts: run, baseIndex: start });
       }
+    } else if (current.kind === "thinking") {
+      const start = i;
+      const texts: string[] = [];
+      while (i < parts.length && parts[i]!.kind === "thinking") {
+        const text = parts[i]!.text.trim();
+        if (text) texts.push(text);
+        i++;
+      }
+      if (texts.length > 0) {
+        slots.push({
+          kind: "single",
+          part: { kind: "thinking", text: texts.join("\n\n") },
+          index: start,
+        });
+      }
     } else {
       slots.push({ kind: "single", part: current, index: i });
       i++;
