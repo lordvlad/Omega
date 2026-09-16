@@ -96,15 +96,42 @@ queryClient.setMutationDefaults(getPromptMutationOptions().mutationKey, getPromp
 /**
  * The outbox.
  *
- * Only parked mutations are written: queries have their own transcript cache,
- * and persisting them here would fight it. What survives a reload is exactly
- * what has not been delivered yet.
+ * Only undelivered sends are written: queries have their own transcript
+ * cache, and persisting them here would fight it. What survives a reload is
+ * exactly what has not been delivered yet.
  */
-const persister = createSyncStoragePersister({
+const storage = createSyncStoragePersister({
   storage: window.localStorage,
   key: "omega:outbox",
   throttleTime: 200,
 });
+
+/**
+ * Two tabs share one `localStorage`, and only one of them holds the queue.
+ *
+ * Every tab writes a snapshot whenever its own cache changes, so a second tab
+ * — one that has never queued anything, and whose snapshot is therefore empty
+ * — would overwrite a queue the first tab is still holding, and the messages
+ * in it would never be sent. Measured: an idle tab emptied the outbox 1.2s
+ * after the other tab queued a message.
+ *
+ * A tab may only write an empty queue once it has held one: either because it
+ * queued the message itself, or because it restored it and is now the tab
+ * responsible for delivering it. Anything else leaves the stored queue alone.
+ */
+let heldQueue = false;
+const persister: typeof storage = {
+  persistClient: async client => {
+    if (client.clientState.mutations.length > 0) heldQueue = true;
+    else if (!heldQueue) {
+      const stored = await storage.restoreClient();
+      if (stored && stored.clientState.mutations.length > 0) return;
+    }
+    await storage.persistClient(client);
+  },
+  restoreClient: () => storage.restoreClient(),
+  removeClient: () => storage.removeClient(),
+};
 
 const container = document.getElementById("root");
 if (!container) throw new Error("#root is missing from index.html");

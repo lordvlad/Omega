@@ -105,6 +105,7 @@ import { SubagentPanel } from "./components/SubagentPanel.tsx";
 import { TodoPanel } from "./components/TodoPanel.tsx";
 import { Transcript } from "./components/Transcript.tsx";
 import { useOnline } from "./lib/online.ts";
+import { newSendId } from "./lib/outbox.ts";
 import { useProjectSettings } from "./lib/settings.ts";
 import { useLiveTurn } from "./lib/stream.ts";
 import { forgetTranscript, usePersistedTranscript } from "./lib/transcript-cache.ts";
@@ -983,7 +984,7 @@ export function App() {
     // Identifies this send across every retry the outbox makes, so a message
     // parked with no network is delivered exactly once however many times it
     // is replayed.
-    const idempotencyKey = crypto.randomUUID();
+    const idempotencyKey = newSendId();
     prompt.mutate(
       { path: { key: sessionKey }, body: { message, deliverAs, attachments, idempotencyKey } },
       {

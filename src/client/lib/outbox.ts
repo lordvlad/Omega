@@ -21,3 +21,25 @@ export function useQueuedSends(): number {
   });
   return paused.filter(Boolean).length;
 }
+
+/**
+ * An id for one send, unique enough to deduplicate its own retries.
+ *
+ * `crypto.randomUUID` is unavailable here: it is restricted to secure
+ * contexts, and omega's whole point is being reached over a home LAN at
+ * `http://hostname:4319`. `getRandomValues` carries no such restriction, so
+ * the bytes come from there and are formatted by hand; the `Math.random`
+ * fallback exists only for a browser old enough to have neither, where a
+ * collision costs one dropped duplicate rather than anything worse.
+ */
+export function newSendId(): string {
+  const bytes = new Uint8Array(16);
+  if (typeof crypto !== "undefined" && typeof crypto.getRandomValues === "function") {
+    crypto.getRandomValues(bytes);
+  } else {
+    for (let i = 0; i < bytes.length; i++) bytes[i] = Math.floor(Math.random() * 256);
+  }
+  let hex = "";
+  for (const byte of bytes) hex += byte.toString(16).padStart(2, "0");
+  return hex;
+}

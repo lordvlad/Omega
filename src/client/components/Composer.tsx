@@ -326,6 +326,7 @@ export function Composer({
             color={mode === "plan" ? "cyan" : "plum"}
             disabled={disabled}
             onClick={send}
+            aria-label={offline ? "Queue message" : "Send message"}
           >
             {offline ? <IconClockPause size={22} /> : <IconArrowUp size={22} />}
           </ActionIcon>
