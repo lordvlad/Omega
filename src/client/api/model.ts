@@ -246,6 +246,11 @@ export interface OmfgSaveRequest {
   scope: "project" | "global";
 }
 
+/** Dismiss an A2UI surface from the session. */
+export interface A2uiDismissRequest {
+  surfaceId: string;
+}
+
 /** A user message waiting its turn. */
 export interface QueuedMessage {
   lane: QueueLane;

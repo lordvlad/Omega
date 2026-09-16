@@ -236,6 +236,7 @@ export class A2uiChannel {
   /** Messages emitted before the session attached. */
   readonly #buffered: A2uiMessage[] = [];
   readonly #surfaces = new Set<string>();
+  readonly #dismissed = new Set<string>();
 
   /** Point the channel at a live session and flush whatever it missed. */
   attach(sink: A2uiSink): void {
@@ -255,8 +256,24 @@ export class A2uiChannel {
   }
 
   createSurface(payload: A2uiCreateSurface): void {
+    this.#dismissed.delete(payload.surfaceId);
     this.#surfaces.add(payload.surfaceId);
     this.#emit({ version: A2UI_VERSION, createSurface: payload });
+  }
+
+  recreateSurface(payload: A2uiCreateSurface): void {
+    if (this.#surfaces.has(payload.surfaceId)) {
+      this.#emit({ version: A2UI_VERSION, deleteSurface: { surfaceId: payload.surfaceId } });
+    }
+    this.#dismissed.delete(payload.surfaceId);
+    this.#surfaces.add(payload.surfaceId);
+    this.#emit({ version: A2UI_VERSION, createSurface: payload });
+  }
+
+  dismissSurface(surfaceId: string): void {
+    this.#surfaces.delete(surfaceId);
+    this.#dismissed.add(surfaceId);
+    this.#emit({ version: A2UI_VERSION, deleteSurface: { surfaceId } });
   }
 
   updateComponents(payload: A2uiUpdateComponents): void {
@@ -269,11 +286,16 @@ export class A2uiChannel {
 
   deleteSurface(payload: A2uiDeleteSurface): void {
     this.#surfaces.delete(payload.surfaceId);
+    this.#dismissed.add(payload.surfaceId);
     this.#emit({ version: A2UI_VERSION, deleteSurface: payload });
   }
 
   has(surfaceId: string): boolean {
     return this.#surfaces.has(surfaceId);
+  }
+
+  isDismissed(surfaceId: string): boolean {
+    return this.#dismissed.has(surfaceId);
   }
 }
 
@@ -289,6 +311,12 @@ function say(
 
 /** `No surface …` plus what does exist, so a typo is self-correcting. */
 function missing(channel: A2uiChannel, surfaceId: string): string {
+  if (channel.isDismissed(surfaceId)) {
+    return (
+      `Surface "${surfaceId}" was dismissed and destroyed by the user. You cannot update it. ` +
+      "Start from scratch by creating a new surface with a2ui_createSurface."
+    );
+  }
   const live = channel.surfaces;
   return (
     `No surface "${surfaceId}" exists. ` +

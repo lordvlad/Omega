@@ -187,6 +187,12 @@ const server = serve({
         return json(() => handlers.saveOmfgRule(request.params.key, body));
       },
     },
+    "/api/sessions/:key/a2ui/dismiss": {
+      POST: async request => {
+        const body = await request.json();
+        return json(() => handlers.dismissSurface(request.params.key, body));
+      },
+    },
     "/api/sessions/:key/stop": {
       POST: request => json(() => handlers.stopSession(request.params.key)),
     },

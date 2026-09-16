@@ -2,6 +2,7 @@ import type { ThinkingLevel as OmpThinkingLevel } from "@oh-my-pi/pi-agent-core"
 import type { ImageContent } from "@oh-my-pi/pi-ai";
 
 import type {
+  A2uiDismissRequest,
   Ack,
   AddMcpServerRequest,
   Attachment,
@@ -315,6 +316,14 @@ export class Handlers implements OmpApi {
     } catch (error) {
       throw new HttpError(400, error instanceof Error ? error.message : String(error));
     }
+  }
+
+  async dismissSurface(key: string, body: A2uiDismissRequest): Promise<Ack> {
+    const live = this.#require(key);
+    const surfaceId = body.surfaceId?.trim();
+    if (!surfaceId) throw new HttpError(400, "surfaceId is required.");
+    live.a2ui.dismissSurface(surfaceId);
+    return { ok: true, detail: `Surface "${surfaceId}" dismissed.` };
   }
 
   async listMcpServers(query?: ListMcpServersQuery): Promise<ListMcpServersResult> {

@@ -35,12 +35,11 @@ export async function drawUsageSurface(live: LiveSession): Promise<void> {
     reports = null;
   }
 
-  const surfaceId = `usage-${Date.now()}`;
+  const surfaceId = "session-usage";
 
   if (!reports || reports.length === 0) {
-    live.a2ui.createSurface({
+    live.a2ui.recreateSurface({
       surfaceId,
-      sendDataModel: false,
       components: [
         { id: "root", component: "Card", child: "col", shadow: "xs", p: "md", withBorder: true },
         { id: "col", component: "Column", children: ["title", "info-alert"], gap: "md" },
@@ -169,7 +168,7 @@ export async function drawUsageSurface(live: LiveSession): Promise<void> {
     }
   }
 
-  live.a2ui.createSurface({
+  live.a2ui.recreateSurface({
     surfaceId,
     sendDataModel: false,
     components,
@@ -228,9 +227,9 @@ export async function drawCostSurface(live: LiveSession): Promise<void> {
     { name: "Cache Write", value: totalCacheWrite, color: "yellow" },
   ].filter(d => d.value > 0);
 
-  const surfaceId = `cost-${Date.now()}`;
+  const surfaceId = "session-cost";
 
-  live.a2ui.createSurface({
+  live.a2ui.recreateSurface({
     surfaceId,
     sendDataModel: false,
     components: [
@@ -437,9 +436,9 @@ export async function drawStatsSurface(live: LiveSession): Promise<void> {
       color: ["cyan", "plum", "teal", "yellow", "orange", "red", "gray", "blue"][i % 8],
     }));
 
-  const surfaceId = `stats-${Date.now()}`;
+  const surfaceId = "session-stats";
 
-  live.a2ui.createSurface({
+  live.a2ui.recreateSurface({
     surfaceId,
     sendDataModel: false,
     components: [

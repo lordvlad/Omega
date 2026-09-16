@@ -454,6 +454,11 @@ export interface ListMcpServersQuery {
   cwd?: string;
 }
 
+/** Dismiss an A2UI surface from the session. */
+export interface A2uiDismissRequest {
+  surfaceId: string;
+}
+
 /** Model to switch the live session to. */
 export interface SelectModelRequest {
   /** `provider/id`, as returned in `ModelOption.ref`. */

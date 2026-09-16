@@ -649,6 +649,69 @@
         }
       }
     },
+    "/api/sessions/{key}/a2ui/dismiss": {
+      "post": {
+        "operationId": "dismissSurface",
+        "x-service": "OmpApi",
+        "tags": [
+          "OmpApi"
+        ],
+        "summary": "Dismiss an A2UI surface",
+        "description": "Dismiss an A2UI surface from the session.",
+        "parameters": [
+          {
+            "name": "key",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/A2uiDismissRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Ack"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/sessions/{key}/queue": {
       "get": {
         "operationId": "listQueue",
@@ -2808,6 +2871,18 @@
           "name",
           "fileContent",
           "scope"
+        ]
+      },
+      "A2uiDismissRequest": {
+        "description": "Dismiss an A2UI surface from the session.",
+        "type": "object",
+        "properties": {
+          "surfaceId": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "surfaceId"
         ]
       },
       "QueuedMessage": {

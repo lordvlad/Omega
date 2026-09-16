@@ -66,7 +66,7 @@ import {
   IconTerminal2,
   IconTrash,
 } from "@tabler/icons-react";
-import { useCallback, useMemo } from "react";
+import { useCallback, useEffect, useMemo, useRef } from "react";
 
 import type {
   BranchPoint,
@@ -1281,6 +1281,33 @@ export function CommandPalette({
       .filter((item): item is PaletteAction => item !== undefined);
   }, []);
 
+  /**
+   * Backspace on an empty input closes the palette, but a held-down backspace
+   * that just finished deleting text must not slam the door shut.
+   */
+  const lastNonEmptyAt = useRef(0);
+  useEffect(() => {
+    if (query !== "") {
+      lastNonEmptyAt.current = Date.now();
+    }
+  }, [query]);
+
+  const handleSearchKeyDown = useCallback(
+    (event: React.KeyboardEvent<HTMLInputElement>) => {
+      if (event.key === "Backspace") {
+        if (event.repeat) return;
+        const target = event.target as HTMLInputElement | null;
+        const val = target?.value ?? query;
+        if (val === "" && Date.now() - lastNonEmptyAt.current > 120) {
+          event.preventDefault();
+          spotlight.close();
+          onQueryChange("");
+        }
+      }
+    },
+    [query, onQueryChange],
+  );
+
   const nothingFound =
     command === PALETTE_COMMAND.file && (!activeProject || files.length === 0)
       ? "No files found in this workspace"
@@ -1305,8 +1332,8 @@ export function CommandPalette({
       searchProps={{
         placeholder: command ? COMMAND_SPEC[command].placeholder : "Type / for commands, @ for files…",
         leftSection: <IconSearch size={18} />,
+        onKeyDown: handleSearchKeyDown,
       }}
-      limit={40}
       scrollable
       maxHeight={420}
       shortcut={["mod + shift + K", "meta + shift + K"]}

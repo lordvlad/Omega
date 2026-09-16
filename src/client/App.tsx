@@ -33,6 +33,7 @@ import {
   IconListCheck,
   IconMessage,
   IconSettings,
+  IconTrash,
 } from "@tabler/icons-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useNavigate, useParams } from "@tanstack/react-router";
@@ -62,6 +63,7 @@ import {
   useAskBtw,
   useBranchSession,
   useCompactSession,
+  useDismissSurface,
   useDeleteSession,
   useDropQueued,
   useEditPlan,
@@ -351,7 +353,7 @@ export function App() {
   const addMcp = useAddMcpServer();
   const removeMcp = useRemoveMcpServer();
   const testMcp = useTestMcpServer();
-
+  const dismissSurface = useDismissSurface();
   // A non-2xx response arrives as `ApiError`, whose `message` is only
   // `HTTP 409 for <url>`; the server's own explanation is the `Problem` body,
   // and every session command refuses with one worth reading.
@@ -1112,7 +1114,31 @@ export function App() {
         },
       );
     },
-    [sessionKey],
+    [sessionKey, branchSession, navigateTo, queryClient],
+  );
+
+  /**
+   * Dismiss an A2UI surface.
+   */
+  const handleDismissSurface = useCallback(
+    (surfaceId: string): void => {
+      if (!sessionKey) return;
+      dismissSurface.mutate(
+        { path: { key: sessionKey }, body: { surfaceId } },
+        {
+          onSuccess: () => {
+            notifications.show({
+              color: "plum",
+              title: "Surface dismissed",
+              message: `Dismissed surface "${surfaceId}".`,
+              autoClose: 2000,
+            });
+          },
+          onError: fail,
+        },
+      );
+    },
+    [sessionKey, dismissSurface],
   );
 
   /**
@@ -1310,6 +1336,28 @@ export function App() {
             display={sessionKey ? undefined : "none"}
             style={{ flexShrink: 0 }}
           >
+            {state.data && live.surfaces.length > 0 ? (
+              <Tooltip label={surfaceDrawerOpen ? "Hide UI surface" : "Show UI surface"}>
+                <Indicator
+                  inline
+                  label={live.surfaces.length > 1 ? String(live.surfaces.length) : undefined}
+                  disabled={live.surfaces.length <= 1}
+                  size={13}
+                  color="cyan"
+                  offset={2}
+                >
+                  <ActionIcon
+                    size={narrow ? "md" : "lg"}
+                    variant={surfaceDrawerOpen ? "light" : "subtle"}
+                    color="cyan"
+                    onClick={toggleSurfaceDrawer}
+                    aria-label="Toggle UI surface drawer"
+                  >
+                    <IconLayout2 size={18} />
+                  </ActionIcon>
+                </Indicator>
+              </Tooltip>
+            ) : null}
             {state.data ? (
               <Tooltip label={treeOpen ? "Hide files" : "Show files"}>
                 <ActionIcon
@@ -1334,28 +1382,6 @@ export function App() {
                 >
                   <IconSettings size={18} />
                 </ActionIcon>
-              </Tooltip>
-            ) : null}
-            {state.data && live.surfaces.length > 0 ? (
-              <Tooltip label={surfaceDrawerOpen ? "Hide UI surface" : "Show UI surface"}>
-                <Indicator
-                  inline
-                  label={live.surfaces.length > 1 ? String(live.surfaces.length) : undefined}
-                  disabled={live.surfaces.length <= 1}
-                  size={13}
-                  color="cyan"
-                  offset={2}
-                >
-                  <ActionIcon
-                    size={narrow ? "md" : "lg"}
-                    variant={surfaceDrawerOpen ? "light" : "subtle"}
-                    color="cyan"
-                    onClick={toggleSurfaceDrawer}
-                    aria-label="Toggle UI surface drawer"
-                  >
-                    <IconLayout2 size={18} />
-                  </ActionIcon>
-                </Indicator>
               </Tooltip>
             ) : null}
             {(() => {
@@ -1526,11 +1552,22 @@ export function App() {
         <Stack gap="lg">
           {live.surfaces.map(surface => (
             <Box key={surface.surfaceId}>
-              {live.surfaces.length > 1 ? (
-                <Text size="xs" fw={700} c="dimmed" mb="xs" tt="uppercase">
+              <Group justify="space-between" align="center" mb={6} wrap="nowrap">
+                <Text size="xs" fw={700} c="dimmed" tt="uppercase">
                   {surface.surfaceId}
                 </Text>
-              ) : null}
+                <Tooltip label="Dismiss surface">
+                  <ActionIcon
+                    size="xs"
+                    variant="subtle"
+                    color="gray"
+                    onClick={() => handleDismissSurface(surface.surfaceId)}
+                    aria-label={`Dismiss ${surface.surfaceId}`}
+                  >
+                    <IconTrash size={13} />
+                  </ActionIcon>
+                </Tooltip>
+              </Group>
               <A2UIRenderer
                 surface={surface}
                 onAction={handleSurfaceAction}

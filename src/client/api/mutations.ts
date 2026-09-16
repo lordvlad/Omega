@@ -2,7 +2,7 @@
 // React Query options getters and hooks for mutation operations. Edit the document, not this file.
 
 import { useMutation, type UseMutationOptions } from "@tanstack/react-query";
-import { defaultClient, type Client, type AbortOptions, type AbortResult, type AddMcpServerOptions, type AddMcpServerResult, type AnalyzeOmfgOptions, type AnalyzeOmfgResult, type AskBtwOptions, type AskBtwResult, type BranchSessionOptions, type BranchSessionResult, type CompactSessionOptions, type CompactSessionResult, type DeleteSessionOptions, type DeleteSessionResult, type DropQueuedOptions, type DropQueuedResult, type EditPlanOptions, type EditPlanResult, type EditQueuedOptions, type EditQueuedResult, type ForkSessionOptions, type ForkSessionResult, type OpenSessionOptions, type OpenSessionResult, type PromptOptions, type PromptResult, type RemoveMcpServerOptions, type RemoveMcpServerResult, type RenameSessionOptions, type RenameSessionResult, type RenderMarkdownOptions, type RenderMarkdownResult, type ResolvePlanOptions, type ResolvePlanResult, type RetryTurnOptions, type RetryTurnResult, type SaveOmfgRuleOptions, type SaveOmfgRuleResult, type SelectModelOptions, type SelectModelResult, type SetPlanModeOptions, type SetPlanModeResult, type SetThinkingLevelOptions, type SetThinkingLevelResult, type ShakeSessionOptions, type ShakeSessionResult, type StopSessionOptions, type StopSessionResult, type TestMcpServerOptions, type TestMcpServerResult2 } from "./api.ts";
+import { defaultClient, type Client, type AbortOptions, type AbortResult, type AddMcpServerOptions, type AddMcpServerResult, type AnalyzeOmfgOptions, type AnalyzeOmfgResult, type AskBtwOptions, type AskBtwResult, type BranchSessionOptions, type BranchSessionResult, type CompactSessionOptions, type CompactSessionResult, type DeleteSessionOptions, type DeleteSessionResult, type DismissSurfaceOptions, type DismissSurfaceResult, type DropQueuedOptions, type DropQueuedResult, type EditPlanOptions, type EditPlanResult, type EditQueuedOptions, type EditQueuedResult, type ForkSessionOptions, type ForkSessionResult, type OpenSessionOptions, type OpenSessionResult, type PromptOptions, type PromptResult, type RemoveMcpServerOptions, type RemoveMcpServerResult, type RenameSessionOptions, type RenameSessionResult, type RenderMarkdownOptions, type RenderMarkdownResult, type ResolvePlanOptions, type ResolvePlanResult, type RetryTurnOptions, type RetryTurnResult, type SaveOmfgRuleOptions, type SaveOmfgRuleResult, type SelectModelOptions, type SelectModelResult, type SetPlanModeOptions, type SetPlanModeResult, type SetThinkingLevelOptions, type SetThinkingLevelResult, type ShakeSessionOptions, type ShakeSessionResult, type StopSessionOptions, type StopSessionResult, type TestMcpServerOptions, type TestMcpServerResult2 } from "./api.ts";
 
 /**
  * Open or create a live session
@@ -180,6 +180,35 @@ export function useSaveOmfgRule<
   client: Client = defaultClient()
 ) {
   return useMutation(getSaveOmfgRuleMutationOptions<TError>(mutationOptions, client));
+}
+
+/**
+ * Dismiss an A2UI surface
+ * 
+ * Dismiss an A2UI surface from the session.
+ */
+export function getDismissSurfaceMutationOptions<
+  TError = unknown
+>(
+  mutationOptions?: Omit<UseMutationOptions<DismissSurfaceResult, TError, DismissSurfaceOptions>, "mutationFn">,
+  client: Client = defaultClient()
+) {
+  return {
+    mutationKey: ["/api/sessions/{key}/a2ui/dismiss", "POST"] as const,
+    mutationFn: (options: DismissSurfaceOptions) =>
+      client.dismissSurface(options as any),
+    ...mutationOptions,
+  };
+}
+
+/** React Query hook for `dismissSurface`. */
+export function useDismissSurface<
+  TError = unknown
+>(
+  mutationOptions?: Omit<UseMutationOptions<DismissSurfaceResult, TError, DismissSurfaceOptions>, "mutationFn">,
+  client: Client = defaultClient()
+) {
+  return useMutation(getDismissSurfaceMutationOptions<TError>(mutationOptions, client));
 }
 
 /**
@@ -783,6 +812,12 @@ export function createMutations(client: Client = defaultClient()) {
     useSaveOmfgRule: <TError = unknown>(
       mutationOptions?: Omit<UseMutationOptions<SaveOmfgRuleResult, TError, SaveOmfgRuleOptions>, "mutationFn">
     ) => useSaveOmfgRule<TError>(mutationOptions, client),
+    getDismissSurfaceMutationOptions: <TError = unknown>(
+      mutationOptions?: Omit<UseMutationOptions<DismissSurfaceResult, TError, DismissSurfaceOptions>, "mutationFn">
+    ) => getDismissSurfaceMutationOptions<TError>(mutationOptions, client),
+    useDismissSurface: <TError = unknown>(
+      mutationOptions?: Omit<UseMutationOptions<DismissSurfaceResult, TError, DismissSurfaceOptions>, "mutationFn">
+    ) => useDismissSurface<TError>(mutationOptions, client),
     getTestMcpServerMutationOptions: <TError = unknown>(
       mutationOptions?: Omit<UseMutationOptions<TestMcpServerResult2, TError, TestMcpServerOptions>, "mutationFn">
     ) => getTestMcpServerMutationOptions<TError>(mutationOptions, client),

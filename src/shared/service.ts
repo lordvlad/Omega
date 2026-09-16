@@ -15,6 +15,7 @@
  * @service Omp
  */
 import type {
+  A2uiDismissRequest,
   Ack,
   AddMcpServerRequest,
   BranchPoint,
@@ -197,6 +198,17 @@ export interface OmpApi {
    * @response 404 application/json Problem
    */
   saveOmfgRule(key: string, body: OmfgSaveRequest): Promise<Ack>;
+
+  /**
+   * Dismiss an A2UI surface from the session.
+   *
+   * @post /api/sessions/{key}/a2ui/dismiss
+   * @summary Dismiss an A2UI surface
+   * @response 200 application/json Ack
+   * @response 400 application/json Problem
+   * @response 404 application/json Problem
+   */
+  dismissSurface(key: string, body: A2uiDismissRequest): Promise<Ack>;
 
   /**
    * The user messages waiting to be delivered, steering lane first.
