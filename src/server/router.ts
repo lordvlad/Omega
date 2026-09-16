@@ -203,6 +203,14 @@ export class Handlers implements OmpApi {
     const live = this.#require(key);
     const { text: message, images } = composeAttachments(body.message.trim(), body.attachments);
     if (!message) throw new HttpError(400, "Message is empty.");
+    // The browser's outbox retries until a send is acknowledged, so the same
+    // message can arrive twice: once delivered, once replayed from a snapshot
+    // written before the acknowledgement. Answering a key already seen keeps
+    // that retry honest instead of duplicating the message.
+    if (body.idempotencyKey && live.wasDelivered(body.idempotencyKey)) {
+      return { ok: true, detail: "Already delivered." };
+    }
+    if (body.idempotencyKey) live.markDelivered(body.idempotencyKey);
     // A user message is activity even if the agent never replies, so the idle
     // clock restarts here rather than only on agent events.
     live.touch();

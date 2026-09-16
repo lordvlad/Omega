@@ -184,6 +184,7 @@ export interface PromptRequest {
   message: string;
   deliverAs?: "steer" | "followUp";
   attachments?: Attachment[];
+  idempotencyKey?: string;
 }
 
 /**

@@ -290,6 +290,27 @@ export class LiveSession {
     this.emitCustom(custom("omp.subagents", { subagents: this.subagents }));
   }
 
+  /**
+   * Ids of prompts already delivered, newest last.
+   *
+   * Bounded because it only has to outlive a retry, not the conversation: an
+   * outbox replays within seconds of reconnecting, and a session that has
+   * taken 256 messages since is not going to be handed an older one.
+   */
+  readonly #delivered = new Set<string>();
+
+  wasDelivered(idempotencyKey: string): boolean {
+    return this.#delivered.has(idempotencyKey);
+  }
+
+  markDelivered(idempotencyKey: string): void {
+    this.#delivered.add(idempotencyKey);
+    if (this.#delivered.size > 256) {
+      const oldest = this.#delivered.values().next();
+      if (!oldest.done) this.#delivered.delete(oldest.value);
+    }
+  }
+
   /** The snapshot every session route returns. */
   state(): LiveState {
     const model = this.session.model;

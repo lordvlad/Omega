@@ -14,7 +14,9 @@
         "@oh-my-pi/pi-coding-agent": "file:/home/waldemar/.bun/install/global/node_modules/@oh-my-pi/pi-coding-agent",
         "@tabler/icons-react": "^3.46.0",
         "@tanstack/ai": "^0.53.0",
+        "@tanstack/query-sync-storage-persister": "^5.103.0",
         "@tanstack/react-query": "^5.102.8",
+        "@tanstack/react-query-persist-client": "^5.103.0",
         "@tanstack/react-router": "1.160.0",
         "react": "^19.3.0",
         "react-dom": "^19.3.0",
@@ -312,9 +314,15 @@
 
     "@tanstack/history": ["@tanstack/history@1.154.14", "", {}, "sha512-xyIfof8eHBuub1CkBnbKNKQXeRZC4dClhmzePHVOEel4G7lk/dW+TQ16da7CFdeNLv6u6Owf5VoBQxoo6DFTSA=="],
 
-    "@tanstack/query-core": ["@tanstack/query-core@5.102.8", "", {}, "sha512-ZNjkJ33CqvPNec/6lZBnHqLc3EVGPZ9ySLhYahU9TcuRFdmwXewuj0c4hwSWcGHqEUwcSrKeZ+oGcvPBqXcQcg=="],
+    "@tanstack/query-core": ["@tanstack/query-core@5.103.0", "", {}, "sha512-PfafnHQHEu7mZDsSalxSW/EBxPgF77k3atIJeQbqbb1Z7DmK2mH6YLJyqrvbbDk5M6Ua/egs7LLEs04a8robxA=="],
+
+    "@tanstack/query-persist-client-core": ["@tanstack/query-persist-client-core@5.103.0", "", { "dependencies": { "@tanstack/query-core": "5.103.0" } }, "sha512-lng//DG5dadj4S9rqkxAz8DpkHN5w/V3p5rpdNKCPf/yMRvGlJtl8iB22qKYFyYry6/xFbvL5/UKESteQ7Irmg=="],
+
+    "@tanstack/query-sync-storage-persister": ["@tanstack/query-sync-storage-persister@5.103.0", "", { "dependencies": { "@tanstack/query-core": "5.103.0", "@tanstack/query-persist-client-core": "5.103.0" } }, "sha512-QtdZN48CJxjXzsktFkSw2nEWt4xlNMSMNXi+jqHUgmTdnCYUaMbEHNUNfO427KxMJOo2ucMgWHpLAFfRHjJHVg=="],
 
     "@tanstack/react-query": ["@tanstack/react-query@5.102.8", "", { "dependencies": { "@tanstack/query-core": "5.102.8" }, "peerDependencies": { "react": "^18 || ^19" } }, "sha512-TYBea4OuXWD7MhaSHq069TWbFe7rcwWN6kzT7JF0OKi1K6c1gTv2IzD6A6ExJsCMozdkqBWeuIUZmu4KQg0O5A=="],
+
+    "@tanstack/react-query-persist-client": ["@tanstack/react-query-persist-client@5.103.0", "", { "dependencies": { "@tanstack/query-persist-client-core": "5.103.0" }, "peerDependencies": { "@tanstack/react-query": "^5.103.0", "react": "^18 || ^19" } }, "sha512-tIlbGG5EsF3XWPwnX4Tyxq1nbc4C0jCQWpd2cGVzMgd8gXYYpIR6h6xbrN+R/dP1X+iwURgmgV8ByIGapUSbiw=="],
 
     "@tanstack/react-router": ["@tanstack/react-router@1.160.0", "", { "dependencies": { "@tanstack/history": "1.154.14", "@tanstack/react-store": "^0.8.0", "@tanstack/router-core": "1.160.0", "isbot": "^5.1.22", "tiny-invariant": "^1.3.3", "tiny-warning": "^1.0.3" }, "peerDependencies": { "react": ">=18.0.0 || >=19.0.0", "react-dom": ">=18.0.0 || >=19.0.0" } }, "sha512-leT/nymh9rKFVivy4b/F8/PZiMrLpotNiyemNg0/KjdZNzo5oVEdFnsXVFnBI1lL4WXRbiq7RK8+fI0SKsT6ww=="],
 
@@ -817,6 +825,8 @@
     "@opentelemetry/sdk-trace-node/@opentelemetry/core": ["@opentelemetry/core@2.11.0", "", { "dependencies": { "@opentelemetry/semantic-conventions": "^1.29.0" }, "peerDependencies": { "@opentelemetry/api": ">=1.0.0 <1.10.0" } }, "sha512-7YP44XH0tV6+Mb54x2YGf84i7yi+31MBZlE8JwvozkxyTvXbSp10X7cI7YE49ChJ3shMJoBmCJF3+1QFBJctGA=="],
 
     "@puppeteer/browsers/yargs": ["yargs@18.1.0", "", { "dependencies": { "cliui": "^9.0.1", "escalade": "^3.1.1", "get-caller-file": "^2.0.5", "string-width": "^8.2.1", "y18n": "^5.0.5", "yargs-parser": "^22.0.0" } }, "sha512-2rAgRKu54VsHkqI0/tYkmluGXHD4KW7yZoycuqDQ15QOTnc2VVfy0nN/1eMhnQLO00A+dwtK20xuCnc1YGeUyg=="],
+
+    "@tanstack/react-query/@tanstack/query-core": ["@tanstack/query-core@5.102.8", "", {}, "sha512-ZNjkJ33CqvPNec/6lZBnHqLc3EVGPZ9ySLhYahU9TcuRFdmwXewuj0c4hwSWcGHqEUwcSrKeZ+oGcvPBqXcQcg=="],
 
     "apache-arrow/@types/node": ["@types/node@25.9.6", "", { "dependencies": { "undici-types": ">=7.24.0 <7.24.7" } }, "sha512-JR6Q/PV5DKFvjrGFVqQJdeG0qvsqQQLDa3TzFrqVwhqRXqwNaxPo2KYCtCQXpOdIulCouKwT7a6in9nFthBAzw=="],
 

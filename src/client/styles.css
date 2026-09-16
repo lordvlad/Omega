@@ -434,6 +434,30 @@ body {
   animation: omega-shake 480ms cubic-bezier(0.36, 0.07, 0.19, 0.97);
 }
 
+/* Uncovered by dragging the conversation up past its bottom edge. It sits
+   behind the scroller, which slides over it, so it reads as something
+   revealed rather than something that appeared. */
+.omega-pull-indicator {
+  position: absolute;
+  inset-inline: 0;
+  bottom: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.omega-pull-spin {
+  animation: omega-pull-spin 700ms linear infinite;
+}
+
+@keyframes omega-pull-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .omega-pulse {
     animation: none;

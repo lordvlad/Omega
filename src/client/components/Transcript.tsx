@@ -33,6 +33,7 @@ import {
   IconDots,
   IconGitBranch,
   IconHistory,
+  IconRefresh,
   IconRobot,
   IconTerminal2,
   IconTools,
@@ -495,7 +496,17 @@ export interface TranscriptProps {
   loadingOlder?: boolean;
   /** Fetch another page of older history. */
   onLoadOlder?: () => void;
+  /**
+   * Reload the conversation, as asked for by dragging up past the bottom.
+   *
+   * Awaited, so the indicator spins for exactly as long as the work takes.
+   */
+  onReload?: () => Promise<void> | void;
 }
+
+/** Drag distance that arms the reload, and the furthest the content travels. */
+const PULL_TRIGGER_PX = 64;
+const PULL_MAX_PX = 96;
 
 type TranscriptItem =
   | { kind: "message"; id: string; message: TranscriptMessage; streaming: boolean }
@@ -555,18 +566,21 @@ export function Transcript({
   hasOlder = false,
   loadingOlder = false,
   onLoadOlder,
+  onReload,
   children,
 }: TranscriptProps & { children?: React.ReactNode }) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const pinned = useRef(true);
   const [atBottom, setAtBottom] = useState(true);
+  /** How far the content is dragged up past its bottom edge, in pixels. */
+  const [pull, setPull] = useState(0);
+  /** True while the reload the gesture asked for is in flight. */
+  const [reloading, setReloading] = useState(false);
   /**
    * Which message is showing its actions, and where in it the click landed.
    *
-   * Held here rather than per message because the list is virtualised: a
-   * message scrolled out of view is unmounted, and state living inside it
-   * would be lost on the way back. Holding one also means arming a message
-   * disarms the last, so the conversation never accumulates controls.
+   * Held here rather than per message because arming a message disarms the
+   * last, so the conversation never accumulates controls.
    */
   const [armed, setArmed] = useState<{ id: string; offset: number } | undefined>(undefined);
 
@@ -811,15 +825,116 @@ export function Transcript({
     };
   }, [items.length]);
 
+  /**
+   * Pull up past the bottom to reload.
+   *
+   * The mirror of a browser's pull-to-refresh: this conversation is anchored
+   * at its bottom edge, so the end of the content — not the top — is where
+   * "there is nothing beyond this" lives, and dragging against that edge is
+   * the gesture already in everyone's hands.
+   *
+   * The listeners are attached by hand because the move handler cancels the
+   * touch once the drag is claimed, and React's synthetic touch handlers are
+   * passive.
+   */
+  const pullStart = useRef<number | undefined>(undefined);
+  useEffect(() => {
+    const el = scrollRef.current;
+    if (!el || !onReload) return;
+
+    const atBottomEdge = (): boolean => el.scrollHeight - el.scrollTop - el.clientHeight <= 1;
+
+    const onStart = (event: TouchEvent): void => {
+      if (event.touches.length !== 1 || reloading || !atBottomEdge()) return;
+      pullStart.current = event.touches[0]!.clientY;
+    };
+
+    const onMove = (event: TouchEvent): void => {
+      const start = pullStart.current;
+      if (start === undefined) return;
+      // Upward drag only, and only while the content is still against the
+      // bottom: a downward flick is scrollback and must stay scrollback.
+      const dragged = start - event.touches[0]!.clientY;
+      if (dragged <= 0 || !atBottomEdge()) {
+        pullStart.current = undefined;
+        setPull(0);
+        return;
+      }
+      // Square-root resistance: the first pixels answer freely, the last ones
+      // need real effort, which is what makes the threshold findable.
+      const distance = Math.min(PULL_MAX_PX, Math.sqrt(dragged) * 9);
+      setPull(distance);
+      if (event.cancelable) event.preventDefault();
+    };
+
+    const onEnd = (): void => {
+      const start = pullStart.current;
+      pullStart.current = undefined;
+      if (start === undefined) return;
+      setPull(current => {
+        if (current < PULL_TRIGGER_PX) return 0;
+        setReloading(true);
+        void Promise.resolve(onReload())
+          .catch(() => undefined)
+          .then(() => {
+            setReloading(false);
+            setPull(0);
+          });
+        // Hold the icon at the threshold while the reload runs.
+        return PULL_TRIGGER_PX;
+      });
+    };
+
+    el.addEventListener("touchstart", onStart, { passive: true });
+    el.addEventListener("touchmove", onMove, { passive: false });
+    el.addEventListener("touchend", onEnd, { passive: true });
+    el.addEventListener("touchcancel", onEnd, { passive: true });
+    return () => {
+      el.removeEventListener("touchstart", onStart);
+      el.removeEventListener("touchmove", onMove);
+      el.removeEventListener("touchend", onEnd);
+      el.removeEventListener("touchcancel", onEnd);
+    };
+  }, [onReload, reloading]);
+
   return (
     <Box style={{ position: "relative", flex: 1, minHeight: 0, display: "flex", flexDirection: "column" }}>
+      {onReload ? (
+        // Behind the content, at the bottom edge the drag opens up. Muted on
+        // purpose: it is an affordance being uncovered, not an alert.
+        <Box
+          className="omega-pull-indicator"
+          style={{ height: pull, opacity: Math.min(1, pull / PULL_TRIGGER_PX) }}
+          aria-hidden={pull === 0}
+        >
+          <IconRefresh
+            size={18}
+            className={reloading ? "omega-pull-spin" : undefined}
+            style={{
+              color: "var(--mantine-color-dimmed)",
+              // The icon turns with the drag, so the gesture has a readout
+              // before it commits; past the threshold it stops turning and
+              // holds, which is what says "let go".
+              transform: reloading ? undefined : `rotate(${Math.min(pull, PULL_TRIGGER_PX) * 2.8}deg)`,
+            }}
+          />
+        </Box>
+      ) : null}
       <Box
         ref={scrollRef}
         className="omega-scroll"
         px="sm"
         pt="sm"
         onScroll={handleScroll}
-        style={{ flex: 1, minHeight: 0, overflowY: "scroll", overflowX: "hidden" }}
+        style={{
+          flex: 1,
+          minHeight: 0,
+          overflowY: "scroll",
+          overflowX: "hidden",
+          transform: pull > 0 ? `translateY(${-pull}px)` : undefined,
+          // Snapping back is animated; following a finger is not.
+          transition: pullStart.current === undefined ? "transform 180ms ease-out" : undefined,
+        }}
       >
         {items.length === 0 && loading ? (
           // A session in the URL always has history behind it; "no messages"

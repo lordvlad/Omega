@@ -2288,6 +2288,10 @@
               "$ref": "#/components/schemas/Attachment"
             },
             "description": "Files sent with this message."
+          },
+          "idempotencyKey": {
+            "type": "string",
+            "description": "Client-generated id for this send, used to make delivery exactly-once.\n\nThe browser keeps an outbox so a message typed with no network survives\na closed tab, which makes retries inevitable: a send can succeed after\nthe outbox snapshot that still lists it, and be replayed by whoever\nrestores that snapshot. The server remembers recent ids per session and\nanswers a repeat without prompting the agent again, so \"retry until it\nlands\" cannot turn into the same message twice."
           }
         },
         "required": [

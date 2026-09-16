@@ -337,6 +337,17 @@ export interface PromptRequest {
   deliverAs?: "steer" | "followUp";
   /** Files sent with this message. */
   attachments?: Attachment[];
+  /**
+   * Client-generated id for this send, used to make delivery exactly-once.
+   *
+   * The browser keeps an outbox so a message typed with no network survives
+   * a closed tab, which makes retries inevitable: a send can succeed after
+   * the outbox snapshot that still lists it, and be replayed by whoever
+   * restores that snapshot. The server remembers recent ids per session and
+   * answers a repeat without prompting the agent again, so "retry until it
+   * lands" cannot turn into the same message twice.
+   */
+  idempotencyKey?: string;
 }
 
 /** Model to switch the live session to. */

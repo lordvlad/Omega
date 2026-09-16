@@ -26,6 +26,7 @@ import { useMergedRef, useResizeObserver } from "@mantine/hooks";
 import {
   IconArrowUp,
   IconBrain,
+  IconClockPause,
   IconMicrophone,
   IconMicrophoneOff,
   IconPaperclip,
@@ -35,6 +36,7 @@ import {
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import type { Attachment, LiveState } from "../api/model.ts";
+import { useQueuedSends } from "../lib/outbox.ts";
 import { useDictation } from "../lib/speech.ts";
 
 /** How the next message is delivered, and what the agent is allowed to do with it. */
@@ -149,6 +151,7 @@ export function Composer({
   compact = false,
   offline = false,
 }: ComposerProps) {
+  const outbox = useQueuedSends();
   const [text, setText] = useState("");
   const [deliverAs, setDeliverAs] = useState<"steer" | "followUp">("steer");
   const [files, setFiles] = useState<Attached[]>([]);
@@ -234,9 +237,9 @@ export function Composer({
   const send = (): void => {
     const message = text.trim();
     if (!message || !state) return;
-    // Clearing the input is what makes this unsafe offline: the request would
-    // fail and take the message with it. Ctrl+Enter lands here too.
-    if (offline) return;
+    // Offline is no longer a reason to refuse. The send is parked in the
+    // outbox and delivered when the network returns, so clearing the input
+    // does not lose the message — it hands it over.
     // Encoding is async, so the input is not cleared until the bytes are in
     // hand — a read that fails must not take the message with it either.
     void Promise.all(files.map(entry => encode(entry.file)))
@@ -308,16 +311,23 @@ export function Composer({
   const actionButton =
     running && text.trim() ? (
       <>
-        <Tooltip label={offline ? "No network..." : `${MODE_HINT[mode]} Ctrl+Enter sends.`} position="left">
+        <Tooltip
+          label={
+            offline
+              ? "No network. This will be sent when it is back."
+              : `${MODE_HINT[mode]} Ctrl+Enter sends.`
+          }
+          position="left"
+        >
           <ActionIcon
             size="xl"
             radius="md"
             variant="filled"
             color={mode === "plan" ? "cyan" : "plum"}
-            disabled={disabled || offline}
+            disabled={disabled}
             onClick={send}
           >
-            <IconArrowUp size={22} />
+            {offline ? <IconClockPause size={22} /> : <IconArrowUp size={22} />}
           </ActionIcon>
         </Tooltip>
         <Tooltip label="Interrupt the assistant" position="left">
@@ -343,7 +353,7 @@ export function Composer({
       <Tooltip
         label={
           offline
-            ? "No network. Your message stays in the box until the connection is back."
+            ? "No network. Your message is queued and sent as soon as the connection is back."
             : `${MODE_HINT[mode]} Ctrl+Enter sends.`
         }
         position="left"
@@ -355,11 +365,11 @@ export function Composer({
           radius="md"
           variant="filled"
           color={mode === "plan" ? "cyan" : "plum"}
-          disabled={disabled || offline}
+          disabled={disabled}
           onClick={send}
-          aria-label="Send message"
+          aria-label={offline ? "Queue message" : "Send message"}
         >
-          <IconArrowUp size={22} />
+          {offline ? <IconClockPause size={22} /> : <IconArrowUp size={22} />}
         </ActionIcon>
       </Tooltip>
     ) : dictation.supported && !compact ? (
@@ -504,6 +514,23 @@ export function Composer({
                     {queued} queued
                   </Text>
                 </UnstyledButton>
+              </Tooltip>
+            ) : null}
+            {outbox > 0 ? (
+              // Distinct from the queue above it: those are waiting for the
+              // agent, these are waiting for a network.
+              <Tooltip
+                label="Sent while offline. These go out as soon as the connection is back, even if you close this tab."
+                position="top"
+                multiline
+                w={240}
+              >
+                <Group gap={4} wrap="nowrap" style={{ cursor: "default" }}>
+                  <IconClockPause size={13} style={{ color: "var(--mantine-color-orange-4)" }} />
+                  <Text size="xs" c="orange.4">
+                    {outbox} waiting for network
+                  </Text>
+                </Group>
               </Tooltip>
             ) : null}
           </Group>

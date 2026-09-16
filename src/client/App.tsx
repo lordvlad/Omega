@@ -299,6 +299,7 @@ export function App() {
     });
     void queryClient.invalidateQueries({ queryKey: getGetPlanQueryOptions(path).queryKey });
   }, [queryClient, sessionKey, transcriptOptions]);
+
   const openSession = useOpenSession();
   const prompt = usePrompt();
   const abort = useAbort();
@@ -347,6 +348,19 @@ export function App() {
   );
 
   const live = useLiveTurn(sessionKey, refresh);
+  /**
+   * What the pull-up gesture asks for.
+   *
+   * Refetching rather than invalidating, and awaited: the gesture's indicator
+   * spins until this settles, so it has to describe the work actually done.
+   * The socket is re-dialled too — a reload that left a dead stream in place
+   * would look successful and then never move again.
+   */
+  const handleReload = useCallback(async () => {
+    if (!sessionKey) return;
+    live.reconnect();
+    await queryClient.refetchQueries({ type: "active" });
+  }, [queryClient, sessionKey, live]);
   const knownSurfaces = useRef<Set<string>>(new Set());
   useEffect(() => {
     if (live.surfaces.length === 0) {
@@ -484,7 +498,7 @@ export function App() {
         autoClose: false,
         title: offline ? "Offline" : "Connection lost",
         message: offline
-          ? "This device has no network. Conversations you have opened before are still readable; sending waits for the network."
+          ? "This device has no network. Conversations you have opened before are still readable, and anything you send is queued and delivered when the network returns — closing the tab is safe."
           : "Reconnecting. Messages still send, but replies will not stream until it is back.",
       };
     };
@@ -966,8 +980,12 @@ export function App() {
     if (!sessionKey) return;
     if (live.status !== "open") live.reconnect();
     setPendingUser(current => [...current, message]);
+    // Identifies this send across every retry the outbox makes, so a message
+    // parked with no network is delivered exactly once however many times it
+    // is replayed.
+    const idempotencyKey = crypto.randomUUID();
     prompt.mutate(
-      { path: { key: sessionKey }, body: { message, deliverAs, attachments } },
+      { path: { key: sessionKey }, body: { message, deliverAs, attachments, idempotencyKey } },
       {
         // Pull the persisted copy in immediately rather than waiting for the
         // turn to settle.
@@ -1392,6 +1410,7 @@ export function App() {
               hasOlder={transcript.data?.hasMore === true}
               loadingOlder={transcript.isFetching}
               onLoadOlder={() => setTranscriptLimit(current => current + TRANSCRIPT_PAGE)}
+              onReload={handleReload}
             >
               <Composer
                 state={state.data}
