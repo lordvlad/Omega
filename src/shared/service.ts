@@ -16,10 +16,11 @@
  */
 import type {
   Ack,
-  Attachment,
   BranchPoint,
   BranchRequest,
   BranchResult,
+  BtwRequest,
+  BtwResult,
   CompactRequest,
   GitStatusQuery,
   GitStatusResult,
@@ -27,23 +28,28 @@ import type {
   LiveState,
   MarkdownRequest,
   ModelOption,
+  OmfgAnalyzeRequest,
+  OmfgRuleCandidate,
+  OmfgSaveRequest,
   OpenSessionRequest,
   PlanActionRequest,
   PlanDocument,
   PlanEditRequest,
   PlanModeRequest,
+  PlanState,
   PromptRequest,
   QueueDropRequest,
   QueueEditRequest,
   QueuedMessage,
   ReadFileQuery,
   ReadFileResult,
+  ThinkingRequest,
   RenameRequest,
   RenderedMarkdown,
   SelectModelRequest,
+  SessionSummary,
   ShakeRequest,
   SlashCommand,
-  ThinkingRequest,
   Transcript,
   TranscriptQuery,
   Workspace,
@@ -152,6 +158,39 @@ export interface OmpApi {
    * @response 404 application/json Problem
    */
   abort(key: string): Promise<Ack>;
+
+  /**
+   * Ask a transient side question against this session's context.
+   *
+   * @post /api/sessions/{key}/btw
+   * @summary Ask an ephemeral side question
+   * @response 200 application/json BtwResult
+   * @response 400 application/json Problem
+   * @response 404 application/json Problem
+   */
+  askBtw(key: string, body: BtwRequest): Promise<BtwResult>;
+
+  /**
+   * Analyze a recurring mistake and synthesize a TTSR rule candidate.
+   *
+   * @post /api/sessions/{key}/omfg
+   * @summary Generate a candidate stream rule from a complaint
+   * @response 200 application/json OmfgRuleCandidate
+   * @response 400 application/json Problem
+   * @response 404 application/json Problem
+   */
+  analyzeOmfg(key: string, body: OmfgAnalyzeRequest): Promise<OmfgRuleCandidate>;
+
+  /**
+   * Save a synthesized rule to project or global rules directory.
+   *
+   * @post /api/sessions/{key}/omfg/save
+   * @summary Save a rule to disk and register it live
+   * @response 200 application/json Ack
+   * @response 400 application/json Problem
+   * @response 404 application/json Problem
+   */
+  saveOmfgRule(key: string, body: OmfgSaveRequest): Promise<Ack>;
 
   /**
    * The user messages waiting to be delivered, steering lane first.

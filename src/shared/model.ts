@@ -350,6 +350,44 @@ export interface PromptRequest {
   idempotencyKey?: string;
 }
 
+/** Ask a transient side question without polluting session history. */
+export interface BtwRequest {
+  question: string;
+}
+
+/** Answer to an ephemeral side question. */
+export interface BtwResult {
+  answer: string;
+}
+
+/** Analyze a mistake from the previous turn and synthesize a TTSR rule. */
+export interface OmfgAnalyzeRequest {
+  complaint: string;
+  feedback?: string;
+  previousRule?: string;
+}
+
+/** A synthesized rule candidate. */
+export interface OmfgRuleCandidate {
+  name: string;
+  description: string;
+  condition: string[];
+  scope?: string[];
+  body: string;
+  fileContent: string;
+  suggestedPath: {
+    project: string;
+    global: string;
+  };
+}
+
+/** Save a generated rule into project or global rules directory. */
+export interface OmfgSaveRequest {
+  name: string;
+  fileContent: string;
+  scope: "project" | "global";
+}
+
 /** Model to switch the live session to. */
 export interface SelectModelRequest {
   /** `provider/id`, as returned in `ModelOption.ref`. */

@@ -143,6 +143,24 @@ const server = serve({
     "/api/sessions/:key/abort": {
       POST: request => json(() => handlers.abort(request.params.key)),
     },
+    "/api/sessions/:key/btw": {
+      POST: async request => {
+        const body = await request.json();
+        return json(() => handlers.askBtw(request.params.key, body));
+      },
+    },
+    "/api/sessions/:key/omfg": {
+      POST: async request => {
+        const body = await request.json();
+        return json(() => handlers.analyzeOmfg(request.params.key, body));
+      },
+    },
+    "/api/sessions/:key/omfg/save": {
+      POST: async request => {
+        const body = await request.json();
+        return json(() => handlers.saveOmfgRule(request.params.key, body));
+      },
+    },
     "/api/sessions/:key/stop": {
       POST: request => json(() => handlers.stopSession(request.params.key)),
     },

@@ -51,14 +51,16 @@ import {
   IconGitFork,
   IconHistory,
   IconMessage,
+  IconMessageQuestion,
   IconPencil,
   IconPlayerStopFilled,
+  IconPlugConnected,
   IconPlus,
   IconRefresh,
   IconRoute,
-  IconPlugConnected,
   IconSearch,
   IconSettings,
+  IconShield,
   IconTerminal2,
   IconTrash,
 } from "@tabler/icons-react";
@@ -94,6 +96,8 @@ export const PALETTE_COMMAND = {
   compact: "/compact",
   shake: "/shake",
   think: "/think",
+  btw: "/btw",
+  omfg: "/omfg",
   rename: "/rename",
   retry: "/retry",
   abort: "/abort",
@@ -133,6 +137,12 @@ const COMMAND_SPEC: Record<
   },
   "/shake": { kind: "scope", placeholder: "Pick what to drop from context…" },
   "/think": { kind: "scope", placeholder: "Filter thinking levels…" },
+  "/btw": { kind: "scope", placeholder: "Type a side question to ask the model…", termIsInput: true },
+  "/omfg": {
+    kind: "scope",
+    placeholder: "Describe what the agent got wrong to generate a rule…",
+    termIsInput: true,
+  },
   "/rename": { kind: "scope", placeholder: "Type the new session title…", termIsInput: true },
   "/retry": { kind: "run", placeholder: "Retry the last failed turn…" },
   "/abort": { kind: "run", placeholder: "Interrupt the current turn…" },
@@ -262,10 +272,8 @@ export interface CommandPaletteProps {
   query: string;
   onQueryChange: (query: string) => void;
   models: ModelOption[];
-  /** Most-recently-selected model refs, newest first. */
   recentModels: string[];
   workspaces: Workspace[];
-  /** Workspace cwd from the URL; scopes `/resume` and `/new`. */
   activeProject?: string;
   /** Session key from the URL; `/switch` needs a live session to act on. */
   sessionKey?: string;
@@ -282,6 +290,8 @@ export interface CommandPaletteProps {
   onCompact: (mode: CompactMode | undefined, focus: string) => void;
   onShake: (mode: ShakeMode) => void;
   onSetThinking: (level: ThinkingLevel) => void;
+  onBtw?: (question: string) => void;
+  onOmfg?: (complaint: string) => void;
   onRename: (title: string) => void;
   onRetry: () => void;
   onAbort: () => void;
@@ -342,6 +352,8 @@ export function CommandPalette({
   onRetry,
   onAbort,
   onTogglePlanMode,
+  onBtw,
+  onOmfg,
   onFork,
   onBranch,
   onStopSession,
@@ -533,6 +545,24 @@ export function CommandPalette({
             keywords: "retry again failed",
             leftSection: <IconRefresh size={16} />,
             onClick: onRetry,
+          },
+          {
+            id: "command-btw",
+            label: PALETTE_COMMAND.btw,
+            description: "Ask a transient side-question without polluting history",
+            keywords: "btw side question ask ephemeral",
+            leftSection: <IconMessageQuestion size={16} color="var(--mantine-color-cyan-4)" />,
+            closeSpotlightOnTrigger: false,
+            onClick: () => onQueryChange(`${PALETTE_COMMAND.btw} `),
+          },
+          {
+            id: "command-omfg",
+            label: PALETTE_COMMAND.omfg,
+            description: "Create a rule (TTSR) from a recurring mistake in this session",
+            keywords: "omfg rule mistake fix ttsr stream",
+            leftSection: <IconShield size={16} color="var(--mantine-color-orange-4)" />,
+            closeSpotlightOnTrigger: false,
+            onClick: () => onQueryChange(`${PALETTE_COMMAND.omfg} `),
           },
           {
             id: "command-abort",
@@ -883,6 +913,48 @@ export function CommandPalette({
     [settings.showThinking, settings.showToolCalls, onToggleSetting],
   );
 
+  /** `/btw`: ask a transient side question. */
+  const btwActions = useMemo<PaletteAction[]>(() => {
+    const question = term.trim();
+    return [
+      {
+        group: "Side question (/btw)",
+        actions: [
+          {
+            id: "btw-ask",
+            label: question ? `Ask: “${question}”` : "Type a side question",
+            description: "Answers transiently without adding to conversation history",
+            keywords: "btw question side ephemeral",
+            leftSection: <IconMessageQuestion size={16} color="var(--mantine-color-cyan-4)" />,
+            disabled: question.length === 0,
+            onClick: () => onBtw?.(question),
+          },
+        ],
+      },
+    ];
+  }, [term, onBtw]);
+
+  /** `/omfg`: synthesize a rule from an agent mistake. */
+  const omfgActions = useMemo<PaletteAction[]>(() => {
+    const complaint = term.trim();
+    return [
+      {
+        group: "Create rule from mistake (/omfg)",
+        actions: [
+          {
+            id: "omfg-analyze",
+            label: complaint ? `Analyze mistake: “${complaint}”` : "Describe what went wrong",
+            description: "Synthesizes a TTSR stream rule from conversation history",
+            keywords: "omfg rule mistake fix ttsr",
+            leftSection: <IconShield size={16} color="var(--mantine-color-orange-4)" />,
+            disabled: complaint.length === 0,
+            onClick: () => onOmfg?.(complaint),
+          },
+        ],
+      },
+    ];
+  }, [term, onOmfg]);
+
   /** `/rename`: the term is the new title, so there is one action to confirm it. */
   const renameActions = useMemo<PaletteAction[]>(() => {
     const title = term.trim();
@@ -1081,6 +1153,8 @@ export function CommandPalette({
     "/compact": compactActions,
     "/shake": shakeActions,
     "/think": thinkActions,
+    "/btw": btwActions,
+    "/omfg": omfgActions,
     "/rename": renameActions,
     "/retry": retryActions,
     "/abort": abortActions,

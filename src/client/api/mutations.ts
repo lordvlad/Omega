@@ -2,7 +2,7 @@
 // React Query options getters and hooks for mutation operations. Edit the document, not this file.
 
 import { useMutation, type UseMutationOptions } from "@tanstack/react-query";
-import { defaultClient, type Client, type AbortOptions, type AbortResult, type BranchSessionOptions, type BranchSessionResult, type CompactSessionOptions, type CompactSessionResult, type DeleteSessionOptions, type DeleteSessionResult, type DropQueuedOptions, type DropQueuedResult, type EditPlanOptions, type EditPlanResult, type EditQueuedOptions, type EditQueuedResult, type ForkSessionOptions, type ForkSessionResult, type OpenSessionOptions, type OpenSessionResult, type PromptOptions, type PromptResult, type RenameSessionOptions, type RenameSessionResult, type RenderMarkdownOptions, type RenderMarkdownResult, type ResolvePlanOptions, type ResolvePlanResult, type RetryTurnOptions, type RetryTurnResult, type SelectModelOptions, type SelectModelResult, type SetPlanModeOptions, type SetPlanModeResult, type SetThinkingLevelOptions, type SetThinkingLevelResult, type ShakeSessionOptions, type ShakeSessionResult, type StopSessionOptions, type StopSessionResult } from "./api.ts";
+import { defaultClient, type Client, type AbortOptions, type AbortResult, type AnalyzeOmfgOptions, type AnalyzeOmfgResult, type AskBtwOptions, type AskBtwResult, type BranchSessionOptions, type BranchSessionResult, type CompactSessionOptions, type CompactSessionResult, type DeleteSessionOptions, type DeleteSessionResult, type DropQueuedOptions, type DropQueuedResult, type EditPlanOptions, type EditPlanResult, type EditQueuedOptions, type EditQueuedResult, type ForkSessionOptions, type ForkSessionResult, type OpenSessionOptions, type OpenSessionResult, type PromptOptions, type PromptResult, type RenameSessionOptions, type RenameSessionResult, type RenderMarkdownOptions, type RenderMarkdownResult, type ResolvePlanOptions, type ResolvePlanResult, type RetryTurnOptions, type RetryTurnResult, type SaveOmfgRuleOptions, type SaveOmfgRuleResult, type SelectModelOptions, type SelectModelResult, type SetPlanModeOptions, type SetPlanModeResult, type SetThinkingLevelOptions, type SetThinkingLevelResult, type ShakeSessionOptions, type ShakeSessionResult, type StopSessionOptions, type StopSessionResult } from "./api.ts";
 
 /**
  * Open or create a live session
@@ -93,6 +93,93 @@ export function useAbort<
   client: Client = defaultClient()
 ) {
   return useMutation(getAbortMutationOptions<TError>(mutationOptions, client));
+}
+
+/**
+ * Ask an ephemeral side question
+ * 
+ * Ask a transient side question against this session's context.
+ */
+export function getAskBtwMutationOptions<
+  TError = unknown
+>(
+  mutationOptions?: Omit<UseMutationOptions<AskBtwResult, TError, AskBtwOptions>, "mutationFn">,
+  client: Client = defaultClient()
+) {
+  return {
+    mutationKey: ["/api/sessions/{key}/btw", "POST"] as const,
+    mutationFn: (options: AskBtwOptions) =>
+      client.askBtw(options as any),
+    ...mutationOptions,
+  };
+}
+
+/** React Query hook for `askBtw`. */
+export function useAskBtw<
+  TError = unknown
+>(
+  mutationOptions?: Omit<UseMutationOptions<AskBtwResult, TError, AskBtwOptions>, "mutationFn">,
+  client: Client = defaultClient()
+) {
+  return useMutation(getAskBtwMutationOptions<TError>(mutationOptions, client));
+}
+
+/**
+ * Generate a candidate stream rule from a complaint
+ * 
+ * Analyze a recurring mistake and synthesize a TTSR rule candidate.
+ */
+export function getAnalyzeOmfgMutationOptions<
+  TError = unknown
+>(
+  mutationOptions?: Omit<UseMutationOptions<AnalyzeOmfgResult, TError, AnalyzeOmfgOptions>, "mutationFn">,
+  client: Client = defaultClient()
+) {
+  return {
+    mutationKey: ["/api/sessions/{key}/omfg", "POST"] as const,
+    mutationFn: (options: AnalyzeOmfgOptions) =>
+      client.analyzeOmfg(options as any),
+    ...mutationOptions,
+  };
+}
+
+/** React Query hook for `analyzeOmfg`. */
+export function useAnalyzeOmfg<
+  TError = unknown
+>(
+  mutationOptions?: Omit<UseMutationOptions<AnalyzeOmfgResult, TError, AnalyzeOmfgOptions>, "mutationFn">,
+  client: Client = defaultClient()
+) {
+  return useMutation(getAnalyzeOmfgMutationOptions<TError>(mutationOptions, client));
+}
+
+/**
+ * Save a rule to disk and register it live
+ * 
+ * Save a synthesized rule to project or global rules directory.
+ */
+export function getSaveOmfgRuleMutationOptions<
+  TError = unknown
+>(
+  mutationOptions?: Omit<UseMutationOptions<SaveOmfgRuleResult, TError, SaveOmfgRuleOptions>, "mutationFn">,
+  client: Client = defaultClient()
+) {
+  return {
+    mutationKey: ["/api/sessions/{key}/omfg/save", "POST"] as const,
+    mutationFn: (options: SaveOmfgRuleOptions) =>
+      client.saveOmfgRule(options as any),
+    ...mutationOptions,
+  };
+}
+
+/** React Query hook for `saveOmfgRule`. */
+export function useSaveOmfgRule<
+  TError = unknown
+>(
+  mutationOptions?: Omit<UseMutationOptions<SaveOmfgRuleResult, TError, SaveOmfgRuleOptions>, "mutationFn">,
+  client: Client = defaultClient()
+) {
+  return useMutation(getSaveOmfgRuleMutationOptions<TError>(mutationOptions, client));
 }
 
 /**
@@ -591,6 +678,24 @@ export function createMutations(client: Client = defaultClient()) {
     useAbort: <TError = unknown>(
       mutationOptions?: Omit<UseMutationOptions<AbortResult, TError, AbortOptions>, "mutationFn">
     ) => useAbort<TError>(mutationOptions, client),
+    getAskBtwMutationOptions: <TError = unknown>(
+      mutationOptions?: Omit<UseMutationOptions<AskBtwResult, TError, AskBtwOptions>, "mutationFn">
+    ) => getAskBtwMutationOptions<TError>(mutationOptions, client),
+    useAskBtw: <TError = unknown>(
+      mutationOptions?: Omit<UseMutationOptions<AskBtwResult, TError, AskBtwOptions>, "mutationFn">
+    ) => useAskBtw<TError>(mutationOptions, client),
+    getAnalyzeOmfgMutationOptions: <TError = unknown>(
+      mutationOptions?: Omit<UseMutationOptions<AnalyzeOmfgResult, TError, AnalyzeOmfgOptions>, "mutationFn">
+    ) => getAnalyzeOmfgMutationOptions<TError>(mutationOptions, client),
+    useAnalyzeOmfg: <TError = unknown>(
+      mutationOptions?: Omit<UseMutationOptions<AnalyzeOmfgResult, TError, AnalyzeOmfgOptions>, "mutationFn">
+    ) => useAnalyzeOmfg<TError>(mutationOptions, client),
+    getSaveOmfgRuleMutationOptions: <TError = unknown>(
+      mutationOptions?: Omit<UseMutationOptions<SaveOmfgRuleResult, TError, SaveOmfgRuleOptions>, "mutationFn">
+    ) => getSaveOmfgRuleMutationOptions<TError>(mutationOptions, client),
+    useSaveOmfgRule: <TError = unknown>(
+      mutationOptions?: Omit<UseMutationOptions<SaveOmfgRuleResult, TError, SaveOmfgRuleOptions>, "mutationFn">
+    ) => useSaveOmfgRule<TError>(mutationOptions, client),
     getEditQueuedMutationOptions: <TError = unknown>(
       mutationOptions?: Omit<UseMutationOptions<EditQueuedResult, TError, EditQueuedOptions>, "mutationFn">
     ) => getEditQueuedMutationOptions<TError>(mutationOptions, client),

@@ -7,6 +7,8 @@ import type {
   BranchPoint,
   BranchRequest,
   BranchResult,
+  BtwRequest,
+  BtwResult,
   CompactRequest,
   GitStatusQuery,
   GitStatusResult,
@@ -14,6 +16,9 @@ import type {
   LiveState,
   MarkdownRequest,
   ModelOption,
+  OmfgAnalyzeRequest,
+  OmfgRuleCandidate,
+  OmfgSaveRequest,
   OpenSessionRequest,
   PlanActionRequest,
   PlanDocument,
@@ -46,6 +51,7 @@ import type { OmpApi } from "../shared/service.ts";
 import { listFiles, readFileContent } from "./files.ts";
 import { getGitStatus } from "./git.ts";
 import { renderMarkdownServer } from "./markdown.ts";
+import { analyzeOmfgRule, saveOmfgRule } from "./omfg.ts";
 import { planDocument, resolvePlan, writePlan } from "./plan.ts";
 import { dropQueued, editQueued, listQueue } from "./queue.ts";
 import { type LiveSession, registry } from "./registry.ts";
@@ -253,6 +259,38 @@ export class Handlers implements OmpApi {
     if (!live.session.isStreaming) return { ok: true, detail: "Nothing to abort." };
     await live.session.abort({ reason: "user interrupt" });
     return { ok: true, detail: "Turn aborted." };
+  }
+
+  async askBtw(key: string, body: BtwRequest): Promise<BtwResult> {
+    const live = this.#require(key);
+    const question = body.question?.trim();
+    if (!question) throw new HttpError(400, "Question is required for /btw.");
+    const promptText = `<btw>\nEphemeral side question for current interactive session.\nAnswer briefly, directly; use conversation context already provided.\nNEVER use tools.\nNEVER ask follow-up questions.\nQuestion:\n${question}\n</btw>`;
+    try {
+      const { replyText } = await live.session.runEphemeralTurn({ promptText, dedupeReply: false });
+      return { answer: replyText };
+    } catch (error) {
+      throw new HttpError(500, error instanceof Error ? error.message : String(error));
+    }
+  }
+
+  async analyzeOmfg(key: string, body: OmfgAnalyzeRequest): Promise<OmfgRuleCandidate> {
+    const live = this.#require(key);
+    try {
+      return await analyzeOmfgRule(live, body);
+    } catch (error) {
+      throw new HttpError(400, error instanceof Error ? error.message : String(error));
+    }
+  }
+
+  async saveOmfgRule(key: string, body: OmfgSaveRequest): Promise<Ack> {
+    const live = this.#require(key);
+    try {
+      const result = await saveOmfgRule(live, body);
+      return { ok: true, detail: result.detail };
+    } catch (error) {
+      throw new HttpError(400, error instanceof Error ? error.message : String(error));
+    }
   }
 
   async stopSession(key: string): Promise<Ack> {

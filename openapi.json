@@ -460,6 +460,195 @@
         }
       }
     },
+    "/api/sessions/{key}/btw": {
+      "post": {
+        "operationId": "askBtw",
+        "x-service": "OmpApi",
+        "tags": [
+          "OmpApi"
+        ],
+        "summary": "Ask an ephemeral side question",
+        "description": "Ask a transient side question against this session's context.",
+        "parameters": [
+          {
+            "name": "key",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BtwRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BtwResult"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/sessions/{key}/omfg": {
+      "post": {
+        "operationId": "analyzeOmfg",
+        "x-service": "OmpApi",
+        "tags": [
+          "OmpApi"
+        ],
+        "summary": "Generate a candidate stream rule from a complaint",
+        "description": "Analyze a recurring mistake and synthesize a TTSR rule candidate.",
+        "parameters": [
+          {
+            "name": "key",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OmfgAnalyzeRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OmfgRuleCandidate"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/sessions/{key}/omfg/save": {
+      "post": {
+        "operationId": "saveOmfgRule",
+        "x-service": "OmpApi",
+        "tags": [
+          "OmpApi"
+        ],
+        "summary": "Save a rule to disk and register it live",
+        "description": "Save a synthesized rule to project or global rules directory.",
+        "parameters": [
+          {
+            "name": "key",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OmfgSaveRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Ack"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/sessions/{key}/queue": {
       "get": {
         "operationId": "listQueue",
@@ -2338,6 +2527,125 @@
         },
         "required": [
           "ok"
+        ]
+      },
+      "BtwRequest": {
+        "description": "Ask a transient side question without polluting session history.",
+        "type": "object",
+        "properties": {
+          "question": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "question"
+        ]
+      },
+      "BtwResult": {
+        "description": "Answer to an ephemeral side question.",
+        "type": "object",
+        "properties": {
+          "answer": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "answer"
+        ]
+      },
+      "OmfgAnalyzeRequest": {
+        "description": "Analyze a mistake from the previous turn and synthesize a TTSR rule.",
+        "type": "object",
+        "properties": {
+          "complaint": {
+            "type": "string"
+          },
+          "feedback": {
+            "type": "string"
+          },
+          "previousRule": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "complaint"
+        ]
+      },
+      "OmfgRuleCandidate": {
+        "description": "A synthesized rule candidate.",
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "condition": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "scope": {
+            "$ref": "#/components/schemas/t_3"
+          },
+          "body": {
+            "type": "string"
+          },
+          "fileContent": {
+            "type": "string"
+          },
+          "suggestedPath": {
+            "type": "object",
+            "properties": {
+              "project": {
+                "type": "string"
+              },
+              "global": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "project",
+              "global"
+            ]
+          }
+        },
+        "required": [
+          "name",
+          "description",
+          "condition",
+          "body",
+          "fileContent",
+          "suggestedPath"
+        ]
+      },
+      "OmfgSaveRequest": {
+        "description": "Save a generated rule into project or global rules directory.",
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "fileContent": {
+            "type": "string"
+          },
+          "scope": {
+            "anyOf": [
+              {
+                "const": "project"
+              },
+              {
+                "const": "global"
+              }
+            ]
+          }
+        },
+        "required": [
+          "name",
+          "fileContent",
+          "scope"
         ]
       },
       "QueuedMessage": {

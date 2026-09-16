@@ -42,7 +42,8 @@ import type { A2uiActionEvent } from "../shared/a2ui.ts";
 import { ApiError } from "./api/api.ts";
 import type {
   Attachment,
-  BranchPoint,
+  LiveState,
+  OmfgRuleCandidate,
   PlanAction,
   Problem,
   QueuedMessage,
@@ -52,6 +53,8 @@ import type {
 } from "./api/model.ts";
 import {
   useAbort,
+  useAnalyzeOmfg,
+  useAskBtw,
   useBranchSession,
   useCompactSession,
   useDeleteSession,
@@ -65,6 +68,7 @@ import {
   useRenderMarkdown,
   useResolvePlan,
   useRetryTurn,
+  useSaveOmfgRule,
   useSelectModel,
   useSetPlanMode,
   useSetThinkingLevel,
@@ -88,6 +92,7 @@ import {
   useListFiles,
 } from "./api/queries.ts";
 import { A2UIRenderer } from "./components/A2UIRenderer.tsx";
+import { BtwPanel, type BtwTurn } from "./components/BtwPanel.tsx";
 import {
   CommandPalette,
   type CompactMode,
@@ -99,6 +104,7 @@ import {
 import { Composer } from "./components/Composer.tsx";
 import { FileTreePanel } from "./components/FileTreePanel.tsx";
 import { FileViewer } from "./components/FileViewer.tsx";
+import { OmfgPanel } from "./components/OmfgPanel.tsx";
 import { Planning } from "./components/Planning.tsx";
 import { QueuePanel, queueSummary } from "./components/QueuePanel.tsx";
 import { SubagentPanel } from "./components/SubagentPanel.tsx";
@@ -158,6 +164,14 @@ export function App() {
   const navigate = useNavigate();
 
   const [planOpen, { open: openPlan, close: closePlan }] = useDisclosure(false);
+  /** The BTW transient side-question drawer. */
+  const [btwDrawerOpen, { open: openBtw, close: closeBtw }] = useDisclosure(false);
+  const [btwTurns, setBtwTurns] = useState<BtwTurn[]>([]);
+
+  /** The OMFG rule synthesizer drawer. */
+  const [omfgDrawerOpen, { open: openOmfg, close: closeOmfg }] = useDisclosure(false);
+  const [omfgComplaint, setOmfgComplaint] = useState("");
+  const [omfgCandidate, setOmfgCandidate] = useState<OmfgRuleCandidate | undefined>(undefined);
   /** Controlled palette query; a header hyperlink prefills the command. */
   const [paletteQuery, setPaletteQuery] = useState("");
   const [todoOpen, { toggle: toggleTodo, close: closeTodo }] = useDisclosure(false);
@@ -319,6 +333,9 @@ export function App() {
   const branchSession = useBranchSession();
   const editQueued = useEditQueued();
   const dropQueued = useDropQueued();
+  const askBtw = useAskBtw();
+  const analyzeOmfg = useAnalyzeOmfg();
+  const saveOmfg = useSaveOmfgRule();
 
   // A non-2xx response arrives as `ApiError`, whose `message` is only
   // `HTTP 409 for <url>`; the server's own explanation is the `Problem` body,
@@ -915,6 +932,115 @@ export function App() {
       },
     );
   };
+  /**
+   * Ask a transient side question against the current context.
+   */
+  const handleAskBtw = useCallback(
+    (question: string): void => {
+      if (!sessionKey) return;
+      const q = question.trim();
+      if (!q) return;
+      setBtwTurns(prev => [...prev, { question: q, loading: true }]);
+      openBtw();
+      askBtw.mutate(
+        { path: { key: sessionKey }, body: { question: q } },
+        {
+          onSuccess: result => {
+            setBtwTurns(prev =>
+              prev.map(turn =>
+                turn.question === q && turn.loading
+                  ? { ...turn, answer: result.answer, loading: false }
+                  : turn,
+              ),
+            );
+          },
+          onError: error => {
+            const problem = error instanceof ApiError ? (error.body as Problem | undefined) : undefined;
+            setBtwTurns(prev =>
+              prev.map(turn =>
+                turn.question === q && turn.loading
+                  ? {
+                      ...turn,
+                      error: problem?.detail ?? (error instanceof Error ? error.message : String(error)),
+                      loading: false,
+                    }
+                  : turn,
+              ),
+            );
+          },
+        },
+      );
+    },
+    [sessionKey, askBtw, openBtw],
+  );
+
+  /**
+   * Synthesize a TTSR stream rule from an agent mistake.
+   */
+  const handleStartOmfg = useCallback(
+    (complaint: string): void => {
+      if (!sessionKey) return;
+      const c = complaint.trim();
+      if (!c) return;
+      setOmfgComplaint(c);
+      setOmfgCandidate(undefined);
+      openOmfg();
+      analyzeOmfg.mutate(
+        { path: { key: sessionKey }, body: { complaint: c } },
+        {
+          onSuccess: candidate => {
+            setOmfgCandidate(candidate);
+          },
+          onError: fail,
+        },
+      );
+    },
+    [sessionKey, analyzeOmfg, openOmfg],
+  );
+
+  const handleAmendOmfg = useCallback(
+    (feedback: string): void => {
+      if (!sessionKey) return;
+      analyzeOmfg.mutate(
+        {
+          path: { key: sessionKey },
+          body: {
+            complaint: omfgComplaint,
+            feedback,
+            previousRule: omfgCandidate?.fileContent,
+          },
+        },
+        {
+          onSuccess: candidate => {
+            setOmfgCandidate(candidate);
+          },
+          onError: fail,
+        },
+      );
+    },
+    [sessionKey, analyzeOmfg, omfgComplaint, omfgCandidate],
+  );
+
+  const handleSaveOmfg = useCallback(
+    (name: string, fileContent: string, scope: "project" | "global"): void => {
+      if (!sessionKey) return;
+      saveOmfg.mutate(
+        { path: { key: sessionKey }, body: { name, fileContent, scope } },
+        {
+          onSuccess: result => {
+            notifications.show({
+              color: "cyan",
+              title: "Rule saved",
+              message: result.detail ?? `Saved rule "${name}".`,
+            });
+            closeOmfg();
+          },
+          onError: fail,
+        },
+      );
+    },
+    [sessionKey, saveOmfg, closeOmfg],
+  );
 
   /**
    * Branch: same re-keying as a fork, plus the message text to re-edit.
@@ -1385,6 +1511,36 @@ export function App() {
           onClose={closeSubagents}
         />
       </Drawer>
+      <Drawer
+        opened={btwDrawerOpen}
+        onClose={closeBtw}
+        position={narrow ? "bottom" : "right"}
+        size={narrow ? "90%" : 460}
+        title={null}
+        withCloseButton={false}
+        padding={0}
+      >
+        <BtwPanel turns={btwTurns} onAsk={handleAskBtw} onClose={closeBtw} />
+      </Drawer>
+      <Drawer
+        opened={omfgDrawerOpen}
+        onClose={closeOmfg}
+        position={narrow ? "bottom" : "right"}
+        size={narrow ? "90%" : 540}
+        title={null}
+        withCloseButton={false}
+        padding={0}
+      >
+        <OmfgPanel
+          complaint={omfgComplaint}
+          candidate={omfgCandidate}
+          loading={analyzeOmfg.isPending}
+          saving={saveOmfg.isPending}
+          onSave={handleSaveOmfg}
+          onAmend={handleAmendOmfg}
+          onClose={closeOmfg}
+        />
+      </Drawer>
 
       <AppShell.Main>
         {sessionKey ? (
@@ -1506,6 +1662,8 @@ export function App() {
         onCompact={handleCompact}
         onShake={handleShake}
         onSetThinking={handleSetThinking}
+        onBtw={handleAskBtw}
+        onOmfg={handleStartOmfg}
         onRename={handleRename}
         onRetry={handleRetry}
         onAbort={handleAbort}
