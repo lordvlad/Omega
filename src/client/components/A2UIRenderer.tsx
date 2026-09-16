@@ -1,4 +1,14 @@
-import { AreaChart, BarChart, DonutChart, LineChart, PieChart, RadarChart, Sparkline } from "@mantine/charts";
+import {
+  AreaChart,
+  BarChart,
+  CompositeChart,
+  DonutChart,
+  LineChart,
+  PieChart,
+  RadarChart,
+  ScatterChart,
+  Sparkline,
+} from "@mantine/charts";
 /**
  * A2UI v1.0 renderer over Mantine components.
  *
@@ -1054,6 +1064,54 @@ export function A2UIRenderer({ surface, onAction, onUpdateData }: A2UIRendererPr
               withTooltip={withTooltip}
               withDots={withDots}
             />
+          </Box>
+        );
+      }
+      case "CompositeChart": {
+        const rawData = resolveDynamic<any[]>(comp.data as any, dataModel, scope, index);
+        const chartData = Array.isArray(rawData) ? rawData : [];
+        const dataKey = (comp.dataKey as string) ?? "x";
+        const rawSeries =
+          (comp.series as Array<{
+            name: string;
+            color?: string;
+            type?: "line" | "area" | "bar";
+            label?: string;
+          }>) ?? [];
+        const series = rawSeries.map((s, i) => ({
+          name: s.name,
+          color: s.color || (i === 0 ? "cyan" : i === 1 ? "plum" : "teal"),
+          type: s.type || "line",
+          label: s.label,
+        }));
+        const height = typeof comp.height === "number" ? comp.height : 240;
+        const curveType = (comp.curveType as any) ?? "monotone";
+        const withLegend = comp.withLegend === true;
+        const withTooltip = comp.withTooltip !== false;
+        return (
+          <Box key={key} style={{ width: "100%", ...style }}>
+            <CompositeChart
+              h={height}
+              data={chartData}
+              dataKey={dataKey}
+              series={series}
+              curveType={curveType}
+              withLegend={withLegend}
+              withTooltip={withTooltip}
+            />
+          </Box>
+        );
+      }
+
+      case "ScatterChart": {
+        const rawData = resolveDynamic<any[]>(comp.data as any, dataModel, scope, index);
+        const chartData = Array.isArray(rawData) ? rawData : [];
+        const dataKey = (comp.dataKey as { x: string; y: string }) ?? { x: "x", y: "y" };
+        const height = typeof comp.height === "number" ? comp.height : 240;
+        const withTooltip = comp.withTooltip !== false;
+        return (
+          <Box key={key} style={{ width: "100%", ...style }}>
+            <ScatterChart h={height} data={chartData} dataKey={dataKey} withTooltip={withTooltip} />
           </Box>
         );
       }

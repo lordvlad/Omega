@@ -58,6 +58,7 @@ export class LiveSession {
   #key: string;
   readonly session: AgentSession;
   readonly manager: SessionManager;
+  readonly a2ui: A2uiChannel;
   #translator: AguiTranslator;
   readonly #sinks = new Set<FrameSink>();
   readonly #closeListeners = new Set<() => void>();
@@ -72,14 +73,14 @@ export class LiveSession {
   #lastError: string | undefined;
   readonly #subagents = new Map<string, SubagentTask>();
 
-  constructor(key: string, session: AgentSession, manager: SessionManager) {
+  constructor(key: string, session: AgentSession, manager: SessionManager, a2ui: A2uiChannel) {
     this.#key = key;
     this.session = session;
     this.manager = manager;
+    this.a2ui = a2ui;
     this.#translator = new AguiTranslator(key);
   }
 
-  /** omp session UUID this live agent is registered under. */
   get key(): string {
     return this.#key;
   }
@@ -512,7 +513,7 @@ export class Registry {
       return existing;
     }
 
-    const live = new LiveSession(key, session, manager);
+    const live = new LiveSession(key, session, manager, a2uiChannel);
     live.start();
     live.armPlanProposals();
     this.#sessions.set(key, live);

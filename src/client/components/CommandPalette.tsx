@@ -41,6 +41,8 @@ import {
 import {
   IconArchive,
   IconBrain,
+  IconChartBar,
+  IconCoin,
   IconCpu,
   IconFile,
   IconFilterX,
@@ -99,6 +101,9 @@ export const PALETTE_COMMAND = {
   btw: "/btw",
   omfg: "/omfg",
   mcp: "/mcp",
+  cost: "/cost",
+  stats: "/stats",
+  usage: "/usage",
   rename: "/rename",
   retry: "/retry",
   abort: "/abort",
@@ -145,6 +150,9 @@ const COMMAND_SPEC: Record<
     termIsInput: true,
   },
   "/mcp": { kind: "scope", placeholder: "Manage and configure MCP servers…" },
+  "/cost": { kind: "run", placeholder: "Render token usage and cost breakdown…" },
+  "/stats": { kind: "run", placeholder: "Render session metrics and latency stats…" },
+  "/usage": { kind: "run", placeholder: "Render token usage and cost breakdown…" },
   "/rename": { kind: "scope", placeholder: "Type the new session title…", termIsInput: true },
   "/retry": { kind: "run", placeholder: "Retry the last failed turn…" },
   "/abort": { kind: "run", placeholder: "Interrupt the current turn…" },
@@ -297,6 +305,7 @@ export interface CommandPaletteProps {
   onRename: (title: string) => void;
   onOpenMcp?: () => void;
   onRetry: () => void;
+  onShowStats?: () => void;
   onAbort: () => void;
   onTogglePlanMode: (enabled: boolean) => void;
   onFork: () => void;
@@ -357,6 +366,7 @@ export function CommandPalette({
   onTogglePlanMode,
   onBtw,
   onOpenMcp,
+  onShowStats,
   onOmfg,
   onFork,
   onBranch,
@@ -584,6 +594,24 @@ export function CommandPalette({
             keywords: "abort interrupt stop escape cancel",
             leftSection: <IconPlayerStopFilled size={16} />,
             onClick: onAbort,
+          },
+          {
+            id: "command-cost",
+            label: PALETTE_COMMAND.cost,
+            description: "Render session token economics, costs, and tool invocation stats",
+            keywords: "cost usage stats tokens economics breakdown",
+            leftSection: <IconCoin size={16} color="var(--mantine-color-yellow-4)" />,
+            closeSpotlightOnTrigger: true,
+            onClick: () => onShowStats?.(),
+          },
+          {
+            id: "command-stats",
+            label: PALETTE_COMMAND.stats,
+            description: "Render session latency and tool usage dashboard",
+            keywords: "stats metrics latency performance dashboard",
+            leftSection: <IconChartBar size={16} color="var(--mantine-color-cyan-4)" />,
+            closeSpotlightOnTrigger: true,
+            onClick: () => onShowStats?.(),
           },
           {
             id: "command-plan",
@@ -986,6 +1014,24 @@ export function CommandPalette({
       },
     ];
   }, [onOpenMcp]);
+  const costActions = useMemo<PaletteAction[]>(
+    () => [
+      {
+        group: "Token Economics & Stats",
+        actions: [
+          {
+            id: "cost-render",
+            label: "Render Session Stats Dashboard",
+            description: "Visualizes token burn rate, dollar cost, and tool call frequency",
+            keywords: "cost usage stats tokens economics",
+            leftSection: <IconCoin size={16} color="var(--mantine-color-yellow-4)" />,
+            onClick: () => onShowStats?.(),
+          },
+        ],
+      },
+    ],
+    [onShowStats],
+  );
 
   /** `/rename`: the term is the new title, so there is one action to confirm it. */
   const renameActions = useMemo<PaletteAction[]>(() => {
@@ -1188,6 +1234,9 @@ export function CommandPalette({
     "/btw": btwActions,
     "/omfg": omfgActions,
     "/mcp": mcpServerActions,
+    "/cost": costActions,
+    "/stats": costActions,
+    "/usage": costActions,
     "/rename": renameActions,
     "/retry": retryActions,
     "/abort": abortActions,

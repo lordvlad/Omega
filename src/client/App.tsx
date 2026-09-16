@@ -1731,6 +1731,7 @@ export function App() {
         onRename={handleRename}
         onRetry={handleRetry}
         onAbort={handleAbort}
+        onShowStats={() => handleSend("/cost", undefined, undefined)}
         onTogglePlanMode={handleSetPlanMode}
         onFork={handleFork}
         onBranch={point => handleBranch(point.entryId)}
