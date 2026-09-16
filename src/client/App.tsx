@@ -384,16 +384,15 @@ export function App() {
   /**
    * What the pull-up gesture asks for.
    *
-   * Refetching rather than invalidating, and awaited: the gesture's indicator
-   * spins until this settles, so it has to describe the work actually done.
-   * The socket is re-dialled too — a reload that left a dead stream in place
-   * would look successful and then never move again.
+   * A full page reload, matching native browser pull-to-refresh: re-executes
+   * the page lifecycle, clears transient DOM state, reconnects the WebSocket,
+   * and refetches all session data fresh.
    */
-  const handleReload = useCallback(async () => {
-    if (!sessionKey) return;
-    live.reconnect();
-    await queryClient.refetchQueries({ type: "active" });
-  }, [queryClient, sessionKey, live]);
+  const handleReload = useCallback((): void => {
+    setTimeout(() => {
+      window.location.reload();
+    }, 50);
+  }, []);
   const knownSurfaces = useRef<Set<string>>(new Set());
   useEffect(() => {
     if (live.surfaces.length === 0) {
