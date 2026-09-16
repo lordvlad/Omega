@@ -750,6 +750,30 @@ export function Transcript({
   }, [loading, items.length, delayedTail]);
 
   /**
+   * Focusing the composer means the reader is joining the conversation at the
+   * end of it.
+   *
+   * On a phone this is also the moment the keyboard opens: the column gets
+   * shorter underneath a stationary scroll position, and the last thing said
+   * slides out of view. Re-pinning here, with passes spread across the
+   * keyboard's animation, is what keeps the newest message above the field
+   * being typed into without anyone scrolling for it.
+   */
+  useEffect(() => {
+    const el = scrollRef.current?.parentElement ?? scrollRef.current;
+    if (!el) return;
+    const onFocusIn = (event: FocusEvent): void => {
+      const target = event.target;
+      if (!(target instanceof HTMLElement) || !target.closest(".omega-composer")) return;
+      pinned.current = true;
+      setAtBottom(true);
+      delayedTail([0, 150, 350, 600]);
+    };
+    el.addEventListener("focusin", onFocusIn);
+    return () => el.removeEventListener("focusin", onFocusIn);
+  }, [delayedTail]);
+
+  /**
    * Keep the reader's place when older history is prepended.
    *
    * Growing the window inserts messages *above* the viewport, which moves

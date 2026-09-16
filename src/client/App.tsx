@@ -108,6 +108,7 @@ import { useOnline } from "./lib/online.ts";
 import { useProjectSettings } from "./lib/settings.ts";
 import { useLiveTurn } from "./lib/stream.ts";
 import { forgetTranscript, usePersistedTranscript } from "./lib/transcript-cache.ts";
+import { useVisualViewport } from "./lib/viewport.ts";
 
 /**
  * Header hyperlinks. Every piece of session identity in the header — session
@@ -181,6 +182,10 @@ export function App() {
   const [insertedFile, setInsertedFile] = useState<{ path: string; id: number } | undefined>(undefined);
 
   const [settings, toggleSetting] = useProjectSettings(project);
+
+  // Publishes the visible viewport height, so the on-screen keyboard shortens
+  // the chat column instead of covering the composer.
+  useVisualViewport();
 
   // Up to 5 most recently used models, listed first under `/switch`.
   const [recentModels, setRecentModels] = useLocalStorage<string[]>({
@@ -782,6 +787,13 @@ export function App() {
     );
   };
 
+  /**
+   * A shake drops content the reader cannot see being dropped.
+   *
+   * The notification says what happened; the shake is what makes it felt.
+   * The class is removed on animation end so the next shake replays it.
+   */
+  const [shaking, setShaking] = useState(false);
   const handleShake = (mode: ShakeMode): void => {
     if (!sessionKey) return;
     shakeSession.mutate(
@@ -789,6 +801,7 @@ export function App() {
       {
         onSuccess: result => {
           notifications.show({ color: "cyan", title: "Context shaken", message: result.detail ?? "Done." });
+          setShaking(true);
           refresh();
         },
         onError: fail,
@@ -1355,7 +1368,11 @@ export function App() {
 
       <AppShell.Main>
         {sessionKey ? (
-          <Stack gap={0} className="omega-main">
+          <Stack
+            gap={0}
+            className={shaking ? "omega-main omega-shaking" : "omega-main"}
+            onAnimationEnd={() => setShaking(false)}
+          >
             <Transcript
               messages={transcript.data?.messages ?? []}
               liveParts={live.parts}

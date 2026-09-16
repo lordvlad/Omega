@@ -26,7 +26,6 @@ import { useMergedRef, useResizeObserver } from "@mantine/hooks";
 import {
   IconArrowUp,
   IconBrain,
-  IconCpu,
   IconMicrophone,
   IconMicrophoneOff,
   IconPaperclip,
@@ -511,14 +510,17 @@ export function Composer({
 
           <Group gap={6} wrap="nowrap" align="center">
             {state ? (
+              // One icon for the pair, not one each: the model and how hard it
+              // thinks are a single setting in the reader's head, and two
+              // glyphs six pixels apart read as two unrelated controls.
               <>
+                <IconBrain size={13} style={{ color: "var(--mantine-color-dimmed)", flexShrink: 0 }} />
                 <Tooltip label="Change model (/switch)" position="top-end">
                   <UnstyledButton
                     onClick={onChangeModel}
                     aria-label="Change model"
-                    style={{ display: "inline-flex", alignItems: "center", gap: 4, cursor: "pointer" }}
+                    style={{ display: "inline-flex", alignItems: "center", cursor: "pointer", minWidth: 0 }}
                   >
-                    <IconCpu size={13} />
                     <Text
                       size="xs"
                       c="dimmed"
@@ -529,20 +531,18 @@ export function Composer({
                     </Text>
                   </UnstyledButton>
                 </Tooltip>
-                <Text size="xs" c="dimmed" style={{ opacity: 0.4 }}>
+                <Text size="xs" c="dimmed" style={{ opacity: 0.4, flexShrink: 0 }}>
                   ·
                 </Text>
                 <Tooltip label="Change thinking level (/think)" position="top-end">
                   <UnstyledButton
                     onClick={onChangeThinking}
                     aria-label="Change thinking level"
-                    style={{ display: "inline-flex", alignItems: "center", gap: 4, cursor: "pointer" }}
+                    style={{ display: "inline-flex", alignItems: "center", cursor: "pointer" }}
                   >
-                    <IconBrain size={13} />
                     <Text
                       size="xs"
                       c="dimmed"
-                      truncate
                       style={{ textDecoration: "underline", textUnderlineOffset: "3px" }}
                     >
                       {state.thinkingLevel ?? "off"}

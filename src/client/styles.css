@@ -35,9 +35,18 @@ body {
   overscroll-behavior-y: none;
 }
 
-/* `100dvh` tracks the visible viewport as mobile browser chrome hides. */
+/*
+ * `--omega-vvh` is the visible viewport height, published by
+ * `useVisualViewport`. On mobile the on-screen keyboard shrinks the *visual*
+ * viewport without changing the layout viewport, so `100dvh` keeps the
+ * composer sitting behind the keyboard and leaves the reader to scroll it
+ * back into view by hand. Sizing to the visible height instead means the
+ * keyboard opening simply makes the column shorter, with the composer at its
+ * bottom edge where it already was. `100dvh` remains the fallback for
+ * browsers without the API.
+ */
 .omega-main {
-  height: calc(100dvh - 56px);
+  height: calc(var(--omega-vvh, 100dvh) - 56px);
   min-height: 0;
   scrollbar-gutter: stable;
 }
@@ -394,8 +403,42 @@ body {
   animation: omega-pulse 1.4s ease-in-out infinite;
 }
 
+/* A literal shake for `/shake`: content left the context, and the window it
+   was in says so. Translation only, so no layout is invalidated. */
+@keyframes omega-shake {
+  0%,
+  100% {
+    transform: translate3d(0, 0, 0);
+  }
+  12% {
+    transform: translate3d(-7px, 0, 0);
+  }
+  25% {
+    transform: translate3d(6px, 0, 0);
+  }
+  40% {
+    transform: translate3d(-5px, 0, 0);
+  }
+  55% {
+    transform: translate3d(4px, 0, 0);
+  }
+  70% {
+    transform: translate3d(-2px, 0, 0);
+  }
+  85% {
+    transform: translate3d(1px, 0, 0);
+  }
+}
+
+.omega-shaking {
+  animation: omega-shake 480ms cubic-bezier(0.36, 0.07, 0.19, 0.97);
+}
+
 @media (prefers-reduced-motion: reduce) {
   .omega-pulse {
+    animation: none;
+  }
+  .omega-shaking {
     animation: none;
   }
   .omega-foldable-chevron {
