@@ -67,7 +67,7 @@ import { analyzeOmfgRule, saveOmfgRule } from "./omfg.ts";
 import { planDocument, resolvePlan, writePlan } from "./plan.ts";
 import { dropQueued, editQueued, listQueue } from "./queue.ts";
 import { type LiveSession, registry } from "./registry.ts";
-import { drawStatsSurface } from "./stats.ts";
+import { drawCostSurface, drawStatsSurface, drawUsageSurface } from "./stats.ts";
 import { flattenSession, pageTranscript } from "./transcript.ts";
 import { listWorkspaces } from "./workspaces.ts";
 /** Raised by handlers to select a non-200 status. */
@@ -221,9 +221,17 @@ export class Handlers implements OmpApi {
     const live = this.#require(key);
     const { text: message, images } = composeAttachments(body.message.trim(), body.attachments);
 
-    if (message === "/cost" || message === "/usage" || message === "/stats") {
+    if (message === "/usage") {
+      await drawUsageSurface(live);
+      return { ok: true, detail: "Provider usage limits rendered." };
+    }
+    if (message === "/cost") {
+      await drawCostSurface(live);
+      return { ok: true, detail: "Token economics rendered." };
+    }
+    if (message === "/stats") {
       await drawStatsSurface(live);
-      return { ok: true, detail: "Usage dashboard rendered." };
+      return { ok: true, detail: "Session statistics rendered." };
     }
     // The browser's outbox retries until a send is acknowledged, so the same
     // message can arrive twice: once delivered, once replayed from a snapshot
