@@ -32,6 +32,7 @@ import type {
   SlashCommand,
   ThinkingRequest,
   Transcript,
+  TranscriptQuery,
   Workspace,
 } from "../shared/model.ts";
 /**
@@ -48,7 +49,7 @@ import { renderMarkdownServer } from "./markdown.ts";
 import { planDocument, resolvePlan, writePlan } from "./plan.ts";
 import { dropQueued, editQueued, listQueue } from "./queue.ts";
 import { type LiveSession, registry } from "./registry.ts";
-import { flattenSession } from "./transcript.ts";
+import { flattenSession, pageTranscript } from "./transcript.ts";
 import { listWorkspaces } from "./workspaces.ts";
 
 /** Raised by handlers to select a non-200 status. */
@@ -188,12 +189,14 @@ export class Handlers implements OmpApi {
     return this.#require(key).state();
   }
 
-  async getTranscript(key: string): Promise<Transcript> {
+  async getTranscript(key: string, query?: TranscriptQuery): Promise<Transcript> {
     const live = this.#require(key);
     // The agent's messages are what render; the session entries carry the ids
     // and the failures the agent dropped. They hold the same message objects,
     // so identity correlates them without either list being re-derived.
-    return { key, messages: flattenSession(live.session.messages, live.manager.getEntries()) };
+    const all = flattenSession(live.session.messages, live.manager.getEntries());
+    const window = pageTranscript(all, query);
+    return { key, messages: window.messages, hasMore: window.hasMore };
   }
 
   async prompt(key: string, body: PromptRequest): Promise<Ack> {
@@ -429,7 +432,10 @@ export class Handlers implements OmpApi {
   }
 
   async renderMarkdown(body: MarkdownRequest): Promise<RenderedMarkdown> {
-    const html = await renderMarkdownServer(body.text);
+    const texts = body.texts ?? [];
+    // One pass per text, but a single round trip: the parse is native and the
+    // highlighter is shared, so the cost is in the request, not the render.
+    const html = await Promise.all(texts.map(text => renderMarkdownServer(text)));
     return { html };
   }
 

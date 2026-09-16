@@ -194,7 +194,11 @@ export function useGetState<
 /**
  * Read the session transcript
  * 
- * The session transcript, flattened into renderable parts.
+ * One page of the session transcript, flattened into renderable parts.
+ * 
+ * The newest `limit` messages by default; `before` walks backwards through
+ * older history. Thinking and tool parts are dropped server-side when the
+ * client says it will not draw them.
  */
 export function getGetTranscriptQueryOptions<
   TData = GetTranscriptResult,

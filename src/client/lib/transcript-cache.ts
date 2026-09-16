@@ -35,12 +35,20 @@
 import { useQueryClient } from "@tanstack/react-query";
 import { useEffect, useRef } from "react";
 
+import type { GetTranscriptOptions } from "../api/api.ts";
 import type { Transcript, TranscriptMessage } from "../api/model.ts";
 import { getGetTranscriptQueryOptions } from "../api/queries.ts";
 
-/** The shape the query cache holds, rebuilt from a cached message list. */
+/**
+ * The shape the query cache holds, rebuilt from a cached message list.
+ *
+ * `hasMore: false` on purpose: a seed is what the browser last saw, and
+ * offering "load older" against a cached window the server has not confirmed
+ * would promise history this record cannot produce. The refetch that follows
+ * carries the real answer.
+ */
 function toTranscript(key: string, messages: TranscriptMessage[]): Transcript {
-  return { key, messages };
+  return { key, messages, hasMore: false };
 }
 
 const DB_NAME = "omega";
@@ -190,17 +198,27 @@ export async function forgetTranscript(key: string): Promise<void> {
  * scroll-tailing effect — sees one value with one meaning. The fetch that
  * follows is an ordinary background refetch.
  */
-export function usePersistedTranscript(sessionKey: string | undefined, data: Transcript | undefined): void {
+export function usePersistedTranscript(
+  sessionKey: string | undefined,
+  data: Transcript | undefined,
+  query: GetTranscriptOptions["query"],
+): void {
   const queryClient = useQueryClient();
   /** Messages already written, so a seed is not echoed straight back to disk. */
   const written = useRef<TranscriptMessage[] | undefined>(undefined);
+  /** The window the seed has to land on; a different one is a different key. */
+  const queryRef = useRef(query);
+  queryRef.current = query;
 
   useEffect(() => {
     written.current = undefined;
     if (!sessionKey) return;
 
     let cancelled = false;
-    const { queryKey } = getGetTranscriptQueryOptions({ path: { key: sessionKey } });
+    const { queryKey } = getGetTranscriptQueryOptions({
+      path: { key: sessionKey },
+      query: queryRef.current,
+    });
 
     void readTranscript(sessionKey).then(messages => {
       // The fetch can win the race, and a cached transcript is by definition

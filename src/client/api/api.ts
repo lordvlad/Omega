@@ -373,7 +373,12 @@ export type GetStateOptions = { path: { key: string } };
 /** What `getState` resolves to. */
 export type GetStateResult = LiveState;
 /** Call options for `getTranscript`. */
-export type GetTranscriptOptions = { path: { key: string } };
+export type GetTranscriptOptions = { path: { key: string }; query?: { /** Newest messages to return. Defaults to 1000, which is what one page of
+this UI renders without virtualisation.
+
+Older history is read by asking for a larger window rather than by
+walking a cursor: the window is the whole tail of the conversation, so
+one request describes what is on screen and a reload reproduces it. */ limit?: number; /** Include the agent's thinking blocks. Default true. */ thinking?: false | true; /** Include tool calls and their results. Default true. */ toolCalls?: false | true } };
 /** What `getTranscript` resolves to. */
 export type GetTranscriptResult = Transcript;
 /** Call options for `prompt`. */
@@ -509,7 +514,11 @@ export interface Client {
   /**
    * Read the session transcript
    * 
-   * The session transcript, flattened into renderable parts.
+   * One page of the session transcript, flattened into renderable parts.
+   * 
+   * The newest `limit` messages by default; `before` walks backwards through
+   * older history. Thinking and tool parts are dropped server-side when the
+   * client says it will not draw them.
    */
   getTranscript(options: GetTranscriptOptions, callOptions?: HttpCallOptions): Promise<GetTranscriptResult>;
   /**
@@ -728,7 +737,7 @@ export function createClient(overrides: Partial<ClientConfig> = {}): Client {
     async getTranscript(options, callOptions) {
       return decodeTranscript(await send(config, {
         method: "GET",
-        url: `${config.baseUrl}/api/sessions/${encodePath(options.path.key)}/transcript`,
+        url: `${config.baseUrl}/api/sessions/${encodePath(options.path.key)}/transcript${queryString(options.query)}`,
         headers: headerRecord(undefined, undefined, undefined),
       }, callOptions) as string) as Transcript;
     },
@@ -966,7 +975,11 @@ export const getState: Client["getState"] = (options, callOptions) => client.get
 /**
  * Read the session transcript
  * 
- * The session transcript, flattened into renderable parts.
+ * One page of the session transcript, flattened into renderable parts.
+ * 
+ * The newest `limit` messages by default; `before` walks backwards through
+ * older history. Thinking and tool parts are dropped server-side when the
+ * client says it will not draw them.
  */
 export const getTranscript: Client["getTranscript"] = (options, callOptions) => client.getTranscript(options, callOptions);
 

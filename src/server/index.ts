@@ -102,7 +102,19 @@ const server = serve({
       GET: request => json(() => handlers.getState(request.params.key)),
     },
     "/api/sessions/:key/transcript": {
-      GET: request => json(() => handlers.getTranscript(request.params.key)),
+      GET: request => {
+        const url = new URL(request.url);
+        const limitRaw = url.searchParams.get("limit");
+        const limit = limitRaw === null ? undefined : Number(limitRaw);
+        return json(() =>
+          handlers.getTranscript(request.params.key, {
+            limit: Number.isFinite(limit) ? limit : undefined,
+            // Absent means "send everything"; only an explicit `false` hides.
+            thinking: url.searchParams.get("thinking") !== "false",
+            toolCalls: url.searchParams.get("toolCalls") !== "false",
+          }),
+        );
+      },
     },
     "/api/sessions/:key/prompt": {
       POST: async request => {

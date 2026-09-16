@@ -9,7 +9,7 @@
  */
 import type { AgentMessage } from "@oh-my-pi/pi-agent-core";
 
-import type { MessagePart, TranscriptMessage } from "../shared/model.ts";
+import type { MessagePart, TranscriptMessage, TranscriptQuery } from "../shared/model.ts";
 import { toolResultText } from "./agui.ts";
 
 /**
@@ -248,4 +248,66 @@ export function flattenSession(
 /** The error text without the repeat count this module may have appended. */
 function stripCount(text: string): string {
   return text.replace(/ \(×\d+\)$/u, "");
+}
+
+/** Default page size: what one unvirtualised transcript renders comfortably. */
+const DEFAULT_LIMIT = 1000;
+
+/** Largest window a client may ask for, so one request cannot pin the process. */
+const MAX_LIMIT = 20_000;
+
+/** One window of a transcript: its newest messages, and whether older exist. */
+export interface TranscriptWindow {
+  messages: TranscriptMessage[];
+  hasMore: boolean;
+}
+
+/**
+ * Drop the parts this client will not draw, then merge what that leaves
+ * adjacent.
+ *
+ * Filtering here rather than in the browser is the point: hidden thinking and
+ * tool output are most of a long session's bytes. Hiding tool parts can also
+ * leave two thinking blocks next to each other, and two boxes for one
+ * uninterrupted train of thought is an artefact of the parts list, not
+ * something that happened — so they are folded into one.
+ */
+function project(message: TranscriptMessage, thinking: boolean, toolCalls: boolean): TranscriptMessage {
+  const parts: MessagePart[] = [];
+  for (const part of message.parts) {
+    if (part.kind === "thinking" && !thinking) continue;
+    if ((part.kind === "toolCall" || part.kind === "toolResult") && !toolCalls) continue;
+    const previous = parts[parts.length - 1];
+    if (part.kind === "thinking" && previous?.kind === "thinking") {
+      previous.text = `${previous.text}\n\n${part.text}`;
+      continue;
+    }
+    parts.push({ ...part });
+  }
+  return { ...message, parts };
+}
+
+/**
+ * Take the newest `limit` messages.
+ *
+ * The newest messages are the ones worth showing, so the window is measured
+ * backwards from the end and grown when the reader asks for more history. A
+ * message left with no parts by filtering is dropped rather than rendered as
+ * an empty row, and it does not consume a slot in the window either.
+ */
+export function pageTranscript(
+  all: readonly TranscriptMessage[],
+  query: TranscriptQuery | undefined,
+): TranscriptWindow {
+  const thinking = query?.thinking !== false;
+  const toolCalls = query?.toolCalls !== false;
+  const requested = query?.limit ?? DEFAULT_LIMIT;
+  const limit = Math.max(1, Math.min(MAX_LIMIT, Math.trunc(requested) || DEFAULT_LIMIT));
+
+  const visible = all
+    .map(message => project(message, thinking, toolCalls))
+    .filter(message => message.parts.length > 0);
+
+  const start = Math.max(0, visible.length - limit);
+  return { messages: visible.slice(start), hasMore: start > 0 };
 }

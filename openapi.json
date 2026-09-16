@@ -288,7 +288,7 @@
           "OmpApi"
         ],
         "summary": "Read the session transcript",
-        "description": "The session transcript, flattened into renderable parts.",
+        "description": "One page of the session transcript, flattened into renderable parts.\n\nThe newest `limit` messages by default; `before` walks backwards through\nolder history. Thinking and tool parts are dropped server-side when the\nclient says it will not draw them.",
         "parameters": [
           {
             "name": "key",
@@ -297,6 +297,47 @@
             "schema": {
               "type": "string"
             }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "number"
+            },
+            "description": "Newest messages to return. Defaults to 1000, which is what one page of\nthis UI renders without virtualisation.\n\nOlder history is read by asking for a larger window rather than by\nwalking a cursor: the window is the whole tail of the conversation, so\none request describes what is on screen and a reload reproduces it."
+          },
+          {
+            "name": "thinking",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "const": false
+                },
+                {
+                  "const": true
+                }
+              ]
+            },
+            "description": "Include the agent's thinking blocks. Default true."
+          },
+          {
+            "name": "toolCalls",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "const": false
+                },
+                {
+                  "const": true
+                }
+              ]
+            },
+            "description": "Include tool calls and their results. Default true."
           }
         ],
         "responses": {
@@ -2098,7 +2139,7 @@
         ]
       },
       "Transcript": {
-        "description": "A transcript page.",
+        "description": "A transcript window: the newest `limit` messages, and whether older exist.",
         "type": "object",
         "properties": {
           "key": {
@@ -2109,11 +2150,16 @@
             "items": {
               "$ref": "#/components/schemas/TranscriptMessage"
             }
+          },
+          "hasMore": {
+            "type": "boolean",
+            "description": "True when messages older than the first one here were left out."
           }
         },
         "required": [
           "key",
-          "messages"
+          "messages",
+          "hasMore"
         ]
       },
       "TranscriptMessage": {
@@ -2706,23 +2752,29 @@
         ]
       },
       "MarkdownRequest": {
-        "description": "Markdown to render.",
+        "description": "Markdown to render.\n\nA batch rather than a single string: a transcript mounts hundreds of parts\nat once, and one request per part is hundreds of round trips for work the\nserver does in microseconds.",
         "type": "object",
         "properties": {
-          "text": {
-            "type": "string"
+          "texts": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
           }
         },
         "required": [
-          "text"
+          "texts"
         ]
       },
       "RenderedMarkdown": {
-        "description": "Rendered markdown, produced by `Bun.markdown.html` on the server.",
+        "description": "Rendered markdown, produced on the server by `Bun.markdown.react` and React\nSSR. One entry per requested text, in request order.",
         "type": "object",
         "properties": {
           "html": {
-            "type": "string"
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
           }
         },
         "required": [

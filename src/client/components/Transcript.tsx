@@ -12,6 +12,7 @@ import {
   Alert,
   Badge,
   Box,
+  Button,
   Collapse,
   Group,
   Loader,
@@ -31,12 +32,12 @@ import {
   IconCopy,
   IconDots,
   IconGitBranch,
+  IconHistory,
   IconRobot,
   IconTerminal2,
   IconTools,
   IconUser,
 } from "@tabler/icons-react";
-import { useVirtualizer } from "@tanstack/react-virtual";
 import { type MouseEvent as ReactMouseEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import type { MessagePart, SubagentTask, TranscriptMessage } from "../api/model.ts";
@@ -483,6 +484,17 @@ export interface TranscriptProps {
   subagents?: SubagentTask[];
   /** Open the sub-agents drawer. */
   onOpenSubagents?: () => void;
+  /**
+   * True when the server left older messages out of this window.
+   *
+   * The transcript renders plain DOM, so the window is capped rather than
+   * virtualised; this is what earns the control that grows it.
+   */
+  hasOlder?: boolean;
+  /** True while a wider window is being fetched. */
+  loadingOlder?: boolean;
+  /** Fetch another page of older history. */
+  onLoadOlder?: () => void;
 }
 
 type TranscriptItem =
@@ -540,6 +552,9 @@ export function Transcript({
   showToolCalls,
   subagents,
   onOpenSubagents,
+  hasOlder = false,
+  loadingOlder = false,
+  onLoadOlder,
   children,
 }: TranscriptProps & { children?: React.ReactNode }) {
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -607,22 +622,9 @@ export function Transcript({
     return result;
   }, [messages, liveParts, pendingUser, running, notices, error, showThinking, showToolCalls]);
 
-  // Virtualizer dynamically measures element heights via ResizeObserver (measureElement).
-  // Handles variable heights from one-line chats to long code blocks and expanded thinking.
-  const virtualizer = useVirtualizer({
-    count: items.length,
-    getScrollElement: () => scrollRef.current,
-    estimateSize: () => 80,
-    overscan: 5,
-    getItemKey: index => {
-      const item = items[index];
-      if (!item) return index;
-      if (item.kind === "message") return item.id;
-      if (item.kind === "separator") return item.id;
-      if (item.kind === "notice") return `notice-${item.index}`;
-      return item.kind;
-    },
-  });
+  // Virtualizer removed: native DOM scrolling handles dynamic heights (like
+  // markdown and code blocks) much better than virtualization does, allowing
+  // tailing and "scroll to bottom" to work reliably on the first try.
 
   /**
    * Distance from the bottom, in pixels, still counted as "at the bottom".
@@ -640,28 +642,14 @@ export function Transcript({
 
   /** Pin to the bottom, once the frame that measured the rows has finished. */
   const tail = useCallback(() => {
-    // Two deferrals, for two different hazards.
-    //
-    // Coalescing, because the effect below runs on every measured row: a
-    // transcript restored from cache mounts twenty rows in one commit, and
-    // twenty queued writes of the same scrollTop is pure waste.
-    //
-    // Then a second frame, because writing scrollTop is what decides which
-    // rows exist: the virtualizer reacts by mounting and unmounting, which
-    // resizes elements its own ResizeObserver is watching. Landing that
-    // inside the observer's delivery cycle is what produces "ResizeObserver
-    // loop completed with undelivered notifications". The first frame lets
-    // measurement and delivery finish; the write goes in the next one.
-    // `scrollToIndex` is avoided for the same reason — it flushes
-    // synchronously from inside the lifecycle.
+    // Without virtualization, rendering is a standard DOM pass. Only one rAF
+    // is needed to wait for layout before scrolling.
     if (tailFrame.current !== undefined) cancelAnimationFrame(tailFrame.current);
     tailFrame.current = requestAnimationFrame(() => {
-      tailFrame.current = requestAnimationFrame(() => {
-        tailFrame.current = undefined;
-        const el = scrollRef.current;
-        if (!el || !pinned.current) return;
-        el.scrollTop = el.scrollHeight;
-      });
+      tailFrame.current = undefined;
+      const el = scrollRef.current;
+      if (!el || !pinned.current) return;
+      el.scrollTop = el.scrollHeight;
     });
   }, []);
 
@@ -692,21 +680,48 @@ export function Transcript({
     [],
   );
 
+  /**
+   * Release the tail only when the *user* leaves the bottom.
+   *
+   * A scroll event does not mean someone scrolled. Content growing — a
+   * streamed paragraph, markdown replacing raw text, a settled transcript
+   * replacing the streamed copy — moves the bottom away from a stationary
+   * `scrollTop` and fires this handler with a large distance. Treating that
+   * as "the user scrolled up" is what makes tailing give up mid-turn and
+   * never come back.
+   *
+   * So the lock is only dropped when the position actually moved up, or when
+   * a gesture said so. A gap that opened underneath a still viewport is
+   * content arriving, and the answer to that is to follow it.
+   */
+  const lastTop = useRef(0);
   const handleScroll = useCallback(() => {
     const el = scrollRef.current;
     if (!el) return;
-    const distance = el.scrollHeight - el.scrollTop - el.clientHeight;
-    // Scrolling up unlocks tailing; scrolling back into the band re-locks it.
-    const isBottom = distance <= BOTTOM_GRACE_PX;
-    pinned.current = isBottom;
-    setAtBottom(isBottom);
-  }, []);
+    const top = el.scrollTop;
+    const distance = el.scrollHeight - top - el.clientHeight;
+    // A pixel of slack: sub-pixel scroll positions jitter on their own.
+    const movedUp = top < lastTop.current - 1;
+    lastTop.current = top;
+
+    if (distance <= BOTTOM_GRACE_PX) {
+      pinned.current = true;
+      setAtBottom(true);
+      return;
+    }
+    if (movedUp) {
+      pinned.current = false;
+      setAtBottom(false);
+      return;
+    }
+    // Still pinned, but the bottom ran away: chase it.
+    if (pinned.current) tail();
+  }, [tail]);
 
   // New messages, streamed tokens, and height changes from markdown rendering
   // or a toggled thinking block all re-tail — but only while pinned, so a user
   // reading scrollback is never yanked to the end.
-  const totalSize = virtualizer.getTotalSize();
-  useEffect(tail, [items.length, liveParts, totalSize, tail]);
+  useEffect(tail, [items.length, liveParts, tail]);
 
   // A submitted message is the user acting, not just new content arriving —
   // it always snaps the view back to the bottom and re-pins it there, even
@@ -734,6 +749,44 @@ export function Transcript({
     }
   }, [loading, items.length, delayedTail]);
 
+  /**
+   * Keep the reader's place when older history is prepended.
+   *
+   * Growing the window inserts messages *above* the viewport, which moves
+   * everything the reader was looking at down by the height of what arrived.
+   * Distance from the bottom is the invariant that survives a prepend, so it
+   * is what gets restored — and only while unpinned, since a pinned view
+   * wants the bottom rather than its old place.
+   */
+  const restoreFromBottom = useRef<number | undefined>(undefined);
+  const requestOlder = useCallback(() => {
+    const el = scrollRef.current;
+    if (el && !pinned.current) restoreFromBottom.current = el.scrollHeight - el.scrollTop;
+    onLoadOlder?.();
+  }, [onLoadOlder]);
+
+  useEffect(() => {
+    const target = restoreFromBottom.current;
+    if (target === undefined) return;
+    restoreFromBottom.current = undefined;
+
+    // Re-applied rather than written once: the prepended page mounts as raw
+    // text and grows as markdown and highlighting land, so the height the
+    // first frame sees is not the height the reader ends up with. Each pass
+    // re-derives the position from the distance that was saved.
+    const apply = (): void => {
+      const node = scrollRef.current;
+      if (!node) return;
+      node.scrollTop = Math.max(0, node.scrollHeight - target);
+      lastTop.current = node.scrollTop;
+    };
+    apply();
+    const timers = [60, 180, 350, 600].map(delay => window.setTimeout(apply, delay));
+    return () => {
+      for (const timer of timers) window.clearTimeout(timer);
+    };
+  }, [items.length]);
+
   return (
     <Box style={{ position: "relative", flex: 1, minHeight: 0, display: "flex", flexDirection: "column" }}>
       <Box
@@ -758,95 +811,92 @@ export function Transcript({
             No messages yet. Say something below.
           </Text>
         ) : (
-          <div
-            className="omega-measure"
-            style={{ height: `${virtualizer.getTotalSize()}px`, position: "relative" }}
-          >
-            {virtualizer.getVirtualItems().map(virtualItem => {
-              const item = items[virtualItem.index];
-              if (!item) return null;
-              return (
-                <div
-                  key={virtualItem.key}
-                  data-index={virtualItem.index}
-                  ref={virtualizer.measureElement}
-                  style={{
-                    position: "absolute",
-                    top: 0,
-                    left: 0,
-                    width: "100%",
-                    transform: `translateY(${virtualItem.start}px)`,
-                    paddingBottom: 16,
-                  }}
+          <Stack gap="md" pb={16} className="omega-measure">
+            {hasOlder && onLoadOlder ? (
+              // Anchored above the oldest message rather than triggered by
+              // scrolling into it: growing the window moves everything below,
+              // and doing that to someone who was only scrolling up is worse
+              // than asking.
+              <Group justify="center" py="xs">
+                <Button
+                  size="xs"
+                  variant="light"
+                  color="plum"
+                  loading={loadingOlder}
+                  onClick={requestOlder}
+                  leftSection={<IconHistory size={14} />}
                 >
-                  {(() => {
-                    switch (item.kind) {
-                      case "message":
-                        return (
-                          <Message
-                            message={item.message}
-                            streaming={item.streaming}
-                            armedAt={armed?.id === item.id ? armed.offset : undefined}
-                            onArm={offset => setArmed({ id: item.id, offset })}
-                            onFork={onFork}
-                            showThinking={showThinking}
-                            showToolCalls={showToolCalls}
-                            subagents={subagents}
-                            onOpenSubagents={onOpenSubagents}
-                          />
-                        );
-                      case "separator":
-                        return (
-                          <Group gap="sm" align="center" wrap="nowrap" className="omega-separator">
-                            <Box style={{ flex: 1, height: 1 }} className="omega-separator-line" />
-                            <Text size="xs" c="dimmed" style={{ flexShrink: 0 }}>
-                              {item.label}
-                            </Text>
-                            <Box style={{ flex: 1, height: 1 }} className="omega-separator-line" />
-                          </Group>
-                        );
-                      case "working": {
-                        const activeCount = (subagents ?? []).filter(s => s.status === "running").length;
-                        return (
-                          <Group gap="xs">
-                            <Badge
-                              color="plum"
-                              variant="light"
-                              className="omega-pulse"
-                              style={{ cursor: onOpenSubagents ? "pointer" : undefined }}
-                              onClick={onOpenSubagents}
-                              leftSection={activeCount > 0 ? <IconRobot size={14} /> : undefined}
-                            >
-                              {activeCount > 0
-                                ? `working (${activeCount} ${activeCount === 1 ? "sub-agent" : "sub-agents"})`
-                                : "working"}
-                            </Badge>
-                          </Group>
-                        );
-                      }
-                      case "notice":
-                        return (
-                          <Alert variant="light" color="cyan" title="Notice">
-                            {item.notice}
-                          </Alert>
-                        );
-                      case "error":
-                        return (
-                          <Alert
-                            variant="light"
-                            color="red"
-                            icon={<IconAlertTriangle size={16} />}
-                            title="Turn failed"
-                          >
-                            {item.error}
-                          </Alert>
-                        );
-                    }
-                  })()}
-                </div>
-              );
+                  Load 1000 older messages
+                </Button>
+              </Group>
+            ) : null}
+            {items.map((item, index) => {
+              switch (item.kind) {
+                case "message":
+                  return (
+                    <Message
+                      key={item.id}
+                      message={item.message}
+                      streaming={item.streaming}
+                      armedAt={armed?.id === item.id ? armed.offset : undefined}
+                      onArm={offset => setArmed({ id: item.id, offset })}
+                      onFork={onFork}
+                      showThinking={showThinking}
+                      showToolCalls={showToolCalls}
+                      subagents={subagents}
+                      onOpenSubagents={onOpenSubagents}
+                    />
+                  );
+                case "separator":
+                  return (
+                    <Group key={item.id} gap="sm" align="center" wrap="nowrap" className="omega-separator">
+                      <Box style={{ flex: 1, height: 1 }} className="omega-separator-line" />
+                      <Text size="xs" c="dimmed" style={{ flexShrink: 0 }}>
+                        {item.label}
+                      </Text>
+                      <Box style={{ flex: 1, height: 1 }} className="omega-separator-line" />
+                    </Group>
+                  );
+                case "working": {
+                  const activeCount = (subagents ?? []).filter(s => s.status === "running").length;
+                  return (
+                    <Group key="working" gap="xs">
+                      <Badge
+                        color="plum"
+                        variant="light"
+                        className="omega-pulse"
+                        style={{ cursor: onOpenSubagents ? "pointer" : undefined }}
+                        onClick={onOpenSubagents}
+                        leftSection={activeCount > 0 ? <IconRobot size={14} /> : undefined}
+                      >
+                        {activeCount > 0
+                          ? `working (${activeCount} ${activeCount === 1 ? "sub-agent" : "sub-agents"})`
+                          : "working"}
+                      </Badge>
+                    </Group>
+                  );
+                }
+                case "notice":
+                  return (
+                    <Alert key={`notice-${index}`} variant="light" color="cyan" title="Notice">
+                      {item.notice}
+                    </Alert>
+                  );
+                case "error":
+                  return (
+                    <Alert
+                      key={`error-${index}`}
+                      variant="light"
+                      color="red"
+                      icon={<IconAlertTriangle size={16} />}
+                      title="Turn failed"
+                    >
+                      {item.error}
+                    </Alert>
+                  );
+              }
             })}
-          </div>
+          </Stack>
         )}
         {children ? (
           <Box

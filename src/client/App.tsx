@@ -36,7 +36,7 @@ import {
 } from "@tabler/icons-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useNavigate, useParams } from "@tanstack/react-router";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import type { A2uiActionEvent } from "../shared/a2ui.ts";
 import { ApiError } from "./api/api.ts";
@@ -127,6 +127,15 @@ const HEADER_LINK = {
 const HEADER_UNDERLINE = { textDecoration: "underline", textUnderlineOffset: "3px" } as const;
 /** Separators are punctuation: they never absorb the shrinking. */
 const HEADER_SEPARATOR = { flexShrink: 0 } as const;
+
+/**
+ * Messages fetched and rendered at once.
+ *
+ * The transcript is plain DOM, so this is the cap that keeps a very long
+ * conversation from mounting all of itself: a thousand messages render and
+ * scroll without virtualisation, and older history is one button away.
+ */
+const TRANSCRIPT_PAGE = 1000;
 
 /**
  * One id for the connection toast, so the warning and the all-clear are the
@@ -224,10 +233,41 @@ export function App() {
     { query: { cwd: state.data?.cwd } },
     { enabled: Boolean(sessionKey && state.data?.cwd) },
   );
-  const transcript = useGetTranscript({ path: { key: sessionKey ?? "" } }, { enabled: Boolean(sessionKey) });
+  /**
+   * The transcript window.
+   *
+   * Messages render as plain DOM rather than through a virtualiser, so the
+   * number on screen is bounded here instead: one page is the newest 1000
+   * messages, and "load older" grows the window by another page. Thinking and
+   * tool parts the display settings hide are dropped by the server, so a
+   * conversation nobody wants to see the tool output of does not send it.
+   */
+  const [transcriptLimit, setTranscriptLimit] = useState(TRANSCRIPT_PAGE);
+  useEffect(() => {
+    setTranscriptLimit(TRANSCRIPT_PAGE);
+  }, [sessionKey]);
+  const transcriptQuery = useMemo(
+    () => ({
+      limit: transcriptLimit,
+      thinking: settings.showThinking,
+      toolCalls: settings.showToolCalls,
+    }),
+    [transcriptLimit, settings.showThinking, settings.showToolCalls],
+  );
+  const transcriptOptions = useMemo(
+    () => ({ path: { key: sessionKey ?? "" }, query: transcriptQuery }),
+    [sessionKey, transcriptQuery],
+  );
+  const transcript = useGetTranscript(transcriptOptions, {
+    enabled: Boolean(sessionKey),
+    // Widening the window is a new cache key, and an empty transcript between
+    // the two is both a flash of nothing and a scroll position thrown away.
+    // The previous window stands in until the wider one lands.
+    placeholderData: previous => previous,
+  });
   // Show the conversation that was on screen last time while the fetch runs,
   // and while a released session is being re-opened.
-  usePersistedTranscript(sessionKey, transcript.data);
+  usePersistedTranscript(sessionKey, transcript.data, transcriptQuery);
   const plan = useGetPlan({ path: { key: sessionKey ?? "" } }, { enabled: Boolean(sessionKey) });
   const branchPoints = useListBranchPoints(
     { path: { key: sessionKey ?? "" } },
@@ -246,9 +286,14 @@ export function App() {
     if (!sessionKey) return;
     const path = { path: { key: sessionKey } };
     void queryClient.invalidateQueries({ queryKey: getGetStateQueryOptions(path).queryKey });
-    void queryClient.invalidateQueries({ queryKey: getGetTranscriptQueryOptions(path).queryKey });
+    // The transcript key carries its window, so invalidating one window would
+    // leave the others stale; the route prefix covers every window this
+    // session has fetched.
+    void queryClient.invalidateQueries({
+      queryKey: [getGetTranscriptQueryOptions(transcriptOptions).queryKey[0]],
+    });
     void queryClient.invalidateQueries({ queryKey: getGetPlanQueryOptions(path).queryKey });
-  }, [queryClient, sessionKey]);
+  }, [queryClient, sessionKey, transcriptOptions]);
   const openSession = useOpenSession();
   const prompt = usePrompt();
   const abort = useAbort();
@@ -1327,6 +1372,9 @@ export function App() {
               showToolCalls={settings.showToolCalls}
               subagents={live.subagents.length > 0 ? live.subagents : state.data?.subagents}
               onOpenSubagents={openSubagents}
+              hasOlder={transcript.data?.hasMore === true}
+              loadingOlder={transcript.isFetching}
+              onLoadOlder={() => setTranscriptLimit(current => current + TRANSCRIPT_PAGE)}
             >
               <Composer
                 state={state.data}

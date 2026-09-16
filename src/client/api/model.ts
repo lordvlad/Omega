@@ -149,10 +149,11 @@ export interface SubagentTask {
 /** Lifecycle status of a spawned subagent. */
 export type SubagentStatus = "aborted" | "completed" | "running" | "failed";
 
-/** A transcript page. */
+/** A transcript window: the newest `limit` messages, and whether older exist. */
 export interface Transcript {
   key: string;
   messages: TranscriptMessage[];
+  hasMore: boolean;
 }
 
 /** A transcript entry, flattened for rendering. */
@@ -365,12 +366,21 @@ export interface PlanActionRequest {
  */
 export type PlanAction = "execute" | "compact" | "keep" | "refine";
 
-/** Markdown to render. */
+/**
+ * Markdown to render.
+ * 
+ * A batch rather than a single string: a transcript mounts hundreds of parts
+ * at once, and one request per part is hundreds of round trips for work the
+ * server does in microseconds.
+ */
 export interface MarkdownRequest {
-  text: string;
+  texts: string[];
 }
 
-/** Rendered markdown, produced by `Bun.markdown.html` on the server. */
+/**
+ * Rendered markdown, produced on the server by `Bun.markdown.react` and React
+ * SSR. One entry per requested text, in request order.
+ */
 export interface RenderedMarkdown {
-  html: string;
+  html: string[];
 }

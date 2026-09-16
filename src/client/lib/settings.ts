@@ -29,6 +29,10 @@ export function useProjectSettings(
   const [settings, setSettings] = useLocalStorage<ProjectSettings>({
     key: `omega:settings:${projectKey || "root"}`,
     defaultValue: DEFAULT_PROJECT_SETTINGS,
+    // Read on the first render, not in an effect: the transcript request
+    // carries these settings, so a deferred read fetches the unfiltered
+    // window first and then immediately refetches the filtered one.
+    getInitialValueInEffect: false,
     // Spread over the defaults rather than trusting storage outright: a
     // setting added after this was written must not read as `undefined`
     // (falsy) forever for everyone who saved before it existed.

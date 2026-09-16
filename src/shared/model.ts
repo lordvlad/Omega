@@ -250,20 +250,57 @@ export interface MessagePart {
   isError?: boolean;
 }
 
-/** A transcript page. */
+/**
+ * What slice of a transcript to read, and what to leave out of it.
+ *
+ * Filtering is a server concern, not a display toggle applied after the fact:
+ * hidden thinking and tool output are the bulk of a long session's bytes, and
+ * a browser that is never going to draw them should not be sent them.
+ */
+export interface TranscriptQuery {
+  /**
+   * Newest messages to return. Defaults to 1000, which is what one page of
+   * this UI renders without virtualisation.
+   *
+   * Older history is read by asking for a larger window rather than by
+   * walking a cursor: the window is the whole tail of the conversation, so
+   * one request describes what is on screen and a reload reproduces it.
+   *
+   * @minimum 1
+   * @maximum 20000
+   */
+  limit?: number;
+  /** Include the agent's thinking blocks. Default true. */
+  thinking?: boolean;
+  /** Include tool calls and their results. Default true. */
+  toolCalls?: boolean;
+}
+
+/** A transcript window: the newest `limit` messages, and whether older exist. */
 export interface Transcript {
   key: string;
   messages: TranscriptMessage[];
+  /** True when messages older than the first one here were left out. */
+  hasMore: boolean;
 }
 
-/** Rendered markdown, produced by `Bun.markdown.html` on the server. */
+/**
+ * Rendered markdown, produced on the server by `Bun.markdown.react` and React
+ * SSR. One entry per requested text, in request order.
+ */
 export interface RenderedMarkdown {
-  html: string;
+  html: string[];
 }
 
-/** Markdown to render. */
+/**
+ * Markdown to render.
+ *
+ * A batch rather than a single string: a transcript mounts hundreds of parts
+ * at once, and one request per part is hundreds of round trips for work the
+ * server does in microseconds.
+ */
 export interface MarkdownRequest {
-  text: string;
+  texts: string[];
 }
 
 /** Which session to load as a live agent. */

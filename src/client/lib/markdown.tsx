@@ -53,6 +53,69 @@ export function useRenderedHtml(html: string): ReactNode {
 }
 
 /**
+ * Coalesce every render this tick into one request.
+ *
+ * A settled transcript mounts hundreds of parts in a single commit, and one
+ * request per part is hundreds of round trips for work the server finishes in
+ * microseconds. The queue collects the texts each commit asks for, flushes
+ * them as one batch, and hands every waiter its own entry back.
+ */
+const waiting = new Map<string, Array<(html: string) => void>>();
+let flushHandle: number | undefined;
+
+/** Largest batch sent in one request, so a huge transcript stays chunked. */
+const BATCH_LIMIT = 250;
+
+function flush(): void {
+  flushHandle = undefined;
+  const texts = [...waiting.keys()].slice(0, BATCH_LIMIT);
+  if (texts.length === 0) return;
+  const claimed = texts.map(text => {
+    const resolvers = waiting.get(text) ?? [];
+    waiting.delete(text);
+    return { text, resolvers };
+  });
+  // Anything past the limit waits for the next flush rather than being lost.
+  if (waiting.size > 0) schedule();
+
+  void renderMarkdown({ body: { texts } })
+    .then(result => {
+      for (const [index, entry] of claimed.entries()) {
+        const html = result.html[index] ?? "";
+        cache.set(entry.text, html);
+        for (const resolve of entry.resolvers) resolve(html);
+      }
+    })
+    .catch(() => {
+      // A failed batch leaves the raw text on screen; nothing is cached, so
+      // the next mount retries.
+      for (const entry of claimed) {
+        for (const resolve of entry.resolvers) resolve("");
+      }
+    });
+}
+
+function schedule(): void {
+  if (flushHandle !== undefined) return;
+  // A frame, not a microtask: React commits its effects across several
+  // microtasks, and batching across the whole frame is what collapses a
+  // transcript's parts into one request.
+  flushHandle = requestAnimationFrame(flush);
+}
+
+/** Queue one text for the next batch. */
+function renderQueued(text: string): Promise<string> {
+  const cached = cache.get(text);
+  if (cached !== undefined) return Promise.resolve(cached);
+  return new Promise<string>(resolve => {
+    const resolvers = waiting.get(text);
+    if (resolvers) resolvers.push(resolve);
+    else waiting.set(text, [resolve]);
+    schedule();
+  });
+}
+
+/**
  * Render markdown through the server.
  *
  * Streaming text without a server render yet falls back to raw text with line
@@ -68,16 +131,9 @@ export function Markdown({ text }: { text: string }): ReactNode {
       return;
     }
     let active = true;
-    void renderMarkdown({ body: { text } })
-      .then(result => {
-        if (!active) return;
-        cache.set(text, result.html);
-        setHtml(result.html);
-      })
-      .catch(() => {
-        if (!active) return;
-        setHtml("");
-      });
+    void renderQueued(text).then(rendered => {
+      if (active) setHtml(rendered);
+    });
     return () => {
       active = false;
     };

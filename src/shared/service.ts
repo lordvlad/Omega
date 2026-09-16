@@ -45,6 +45,7 @@ import type {
   SlashCommand,
   ThinkingRequest,
   Transcript,
+  TranscriptQuery,
   Workspace,
   WorkspaceFile,
 } from "./model.ts";
@@ -118,14 +119,18 @@ export interface OmpApi {
   getState(key: string): Promise<LiveState>;
 
   /**
-   * The session transcript, flattened into renderable parts.
+   * One page of the session transcript, flattened into renderable parts.
+   *
+   * The newest `limit` messages by default; `before` walks backwards through
+   * older history. Thinking and tool parts are dropped server-side when the
+   * client says it will not draw them.
    *
    * @get /api/sessions/{key}/transcript
    * @summary Read the session transcript
    * @response 200 application/json Transcript
    * @response 404 application/json Problem
    */
-  getTranscript(key: string): Promise<Transcript>;
+  getTranscript(key: string, query?: TranscriptQuery): Promise<Transcript>;
 
   /**
    * Send a message. Returns as soon as the turn is scheduled; the reply
