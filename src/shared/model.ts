@@ -388,6 +388,72 @@ export interface OmfgSaveRequest {
   scope: "project" | "global";
 }
 
+/** MCP server transport type. */
+export type McpServerTransport = "stdio" | "sse" | "http";
+
+/** MCP configuration scope. */
+export type McpServerScope = "project" | "global";
+
+/** MCP server connection / operational status. */
+export type McpServerStatus = "connected" | "disabled" | "configured" | "error";
+
+/** Information about a configured MCP server. */
+export interface McpServerInfo {
+  name: string;
+  scope: McpServerScope;
+  status: McpServerStatus;
+  command?: string;
+  args?: string[];
+  url?: string;
+  env?: Record<string, string>;
+  disabled?: boolean;
+  toolsCount?: number;
+  error?: string;
+}
+
+/** List of configured MCP servers. */
+export interface ListMcpServersResult {
+  servers: McpServerInfo[];
+}
+
+/** Add or update an MCP server. */
+export interface AddMcpServerRequest {
+  name: string;
+  scope: McpServerScope;
+  command?: string;
+  args?: string[];
+  url?: string;
+  env?: Record<string, string>;
+  cwd?: string;
+}
+
+/** Remove an MCP server. */
+export interface RemoveMcpServerRequest {
+  name: string;
+  scope: McpServerScope;
+  cwd?: string;
+}
+/** Test connection to an MCP server. */
+export interface TestMcpServerRequest {
+  name?: string;
+  scope?: McpServerScope;
+  cwd?: string;
+}
+
+/** Outcome of testing an MCP server connection. */
+export interface TestMcpServerResult {
+  name: string;
+  ok: boolean;
+  latencyMs: number;
+  tools: string[];
+  error?: string;
+}
+
+/** Query parameters for listing MCP servers. */
+export interface ListMcpServersQuery {
+  cwd?: string;
+}
+
 /** Model to switch the live session to. */
 export interface SelectModelRequest {
   /** `provider/id`, as returned in `ModelOption.ref`. */

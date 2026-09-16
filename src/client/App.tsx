@@ -41,18 +41,23 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { A2uiActionEvent } from "../shared/a2ui.ts";
 import { ApiError } from "./api/api.ts";
 import type {
+  AddMcpServerRequest,
   Attachment,
   LiveState,
   OmfgRuleCandidate,
   PlanAction,
   Problem,
   QueuedMessage,
+  RemoveMcpServerRequest,
   SessionSummary,
   ShakeMode,
+  TestMcpServerRequest,
+  TestMcpServerResult,
   ThinkingLevel,
 } from "./api/model.ts";
 import {
   useAbort,
+  useAddMcpServer,
   useAnalyzeOmfg,
   useAskBtw,
   useBranchSession,
@@ -64,6 +69,7 @@ import {
   useForkSession,
   useOpenSession,
   usePrompt,
+  useRemoveMcpServer,
   useRenameSession,
   useRenderMarkdown,
   useResolvePlan,
@@ -74,6 +80,7 @@ import {
   useSetThinkingLevel,
   useShakeSession,
   useStopSession,
+  useTestMcpServer,
 } from "./api/mutations.ts";
 import {
   getGetPlanQueryOptions,
@@ -85,6 +92,7 @@ import {
   useGetTranscript,
   useListBranchPoints,
   useListCommands,
+  useListMcpServers,
   useListQueue,
   useListModels,
   useListWorkspaces,
@@ -104,6 +112,7 @@ import {
 import { Composer } from "./components/Composer.tsx";
 import { FileTreePanel } from "./components/FileTreePanel.tsx";
 import { FileViewer } from "./components/FileViewer.tsx";
+import { McpPanel } from "./components/McpPanel.tsx";
 import { OmfgPanel } from "./components/OmfgPanel.tsx";
 import { Planning } from "./components/Planning.tsx";
 import { QueuePanel, queueSummary } from "./components/QueuePanel.tsx";
@@ -186,6 +195,8 @@ export function App() {
   ] = useDisclosure(false);
   /** The sub-agents panel, opened from the working badge in transcript. */
   const [subagentDrawerOpen, { open: openSubagents, close: closeSubagents }] = useDisclosure(false);
+  /** The MCP server management drawer. */
+  const [mcpDrawerOpen, { open: openMcp, close: closeMcp }] = useDisclosure(false);
   /** Sent messages not yet echoed back by the server transcript. */
   const [pendingUser, setPendingUser] = useState<string[]>([]);
   /** Message text a branch handed back, for the composer to pick up. */
@@ -336,6 +347,10 @@ export function App() {
   const askBtw = useAskBtw();
   const analyzeOmfg = useAnalyzeOmfg();
   const saveOmfg = useSaveOmfgRule();
+  const mcpServers = useListMcpServers({ query: { cwd: project } });
+  const addMcp = useAddMcpServer();
+  const removeMcp = useRemoveMcpServer();
+  const testMcp = useTestMcpServer();
 
   // A non-2xx response arrives as `ApiError`, whose `message` is only
   // `HTTP 409 for <url>`; the server's own explanation is the `Problem` body,
@@ -1043,6 +1058,35 @@ export function App() {
   );
 
   /**
+   * Manage MCP servers.
+   */
+  const handleAddMcp = useCallback(
+    async (req: AddMcpServerRequest): Promise<void> => {
+      await addMcp.mutateAsync({ body: { ...req, cwd: project } });
+    },
+    [addMcp, project],
+  );
+
+  const handleRemoveMcp = useCallback(
+    async (req: RemoveMcpServerRequest): Promise<void> => {
+      await removeMcp.mutateAsync({ body: { ...req, cwd: project } });
+    },
+    [removeMcp, project],
+  );
+
+  const handleTestMcp = useCallback(
+    async (req: TestMcpServerRequest): Promise<TestMcpServerResult> => {
+      return await testMcp.mutateAsync({ body: { ...req, cwd: project } });
+    },
+    [testMcp, project],
+  );
+
+  const handleOpenMcp = useCallback((): void => {
+    openMcp();
+    void mcpServers.refetch();
+  }, [openMcp, mcpServers]);
+
+  /**
    * Branch: same re-keying as a fork, plus the message text to re-edit.
    *
    * Keyed on the entry id alone, because both callers already have one: the
@@ -1541,6 +1585,25 @@ export function App() {
           onClose={closeOmfg}
         />
       </Drawer>
+      <Drawer
+        opened={mcpDrawerOpen}
+        onClose={closeMcp}
+        position={narrow ? "bottom" : "right"}
+        size={narrow ? "90%" : 540}
+        title={null}
+        withCloseButton={false}
+        padding={0}
+      >
+        <McpPanel
+          servers={mcpServers.data?.servers ?? []}
+          loading={mcpServers.isFetching}
+          onAddServer={handleAddMcp}
+          onRemoveServer={handleRemoveMcp}
+          onTestServer={handleTestMcp}
+          onRefresh={() => void mcpServers.refetch()}
+          onClose={closeMcp}
+        />
+      </Drawer>
 
       <AppShell.Main>
         {sessionKey ? (
@@ -1658,6 +1721,7 @@ export function App() {
         onSelectProject={cwd => navigateTo({ project: cwd, session: sessionKey })}
         onOpenSession={handleOpen}
         onNewSession={handleNew}
+        onOpenMcp={handleOpenMcp}
         onAddWorkspace={handleAddWorkspace}
         onCompact={handleCompact}
         onShake={handleShake}

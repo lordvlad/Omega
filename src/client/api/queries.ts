@@ -2,7 +2,7 @@
 // React Query options getters and hooks for query operations. Edit the document, not this file.
 
 import { useQuery, type UseQueryOptions } from "@tanstack/react-query";
-import { defaultClient, type Client, type GetFileContentOptions, type GetFileContentResult, type GetGitStatusOptions, type GetGitStatusResult, type GetPlanOptions, type GetPlanResult, type GetStateOptions, type GetStateResult, type GetTranscriptOptions, type GetTranscriptResult, type ListBranchPointsOptions, type ListBranchPointsResult, type ListCommandsOptions, type ListCommandsResult, type ListFilesOptions, type ListFilesResult, type ListModelsOptions, type ListModelsResult, type ListQueueOptions, type ListQueueResult, type ListWorkspacesOptions, type ListWorkspacesResult } from "./api.ts";
+import { defaultClient, type Client, type GetFileContentOptions, type GetFileContentResult, type GetGitStatusOptions, type GetGitStatusResult, type GetPlanOptions, type GetPlanResult, type GetStateOptions, type GetStateResult, type GetTranscriptOptions, type GetTranscriptResult, type ListBranchPointsOptions, type ListBranchPointsResult, type ListCommandsOptions, type ListCommandsResult, type ListFilesOptions, type ListFilesResult, type ListMcpServersOptions, type ListMcpServersResult2, type ListModelsOptions, type ListModelsResult, type ListQueueOptions, type ListQueueResult, type ListWorkspacesOptions, type ListWorkspacesResult } from "./api.ts";
 import { createMutations } from "./mutations.ts";
 
 /**
@@ -301,6 +301,39 @@ export function useListCommands<
 }
 
 /**
+ * List MCP servers
+ * 
+ * List configured MCP servers from project and global settings.
+ */
+export function getListMcpServersQueryOptions<
+  TData = ListMcpServersResult2,
+  TError = unknown
+>(
+  options?: ListMcpServersOptions,
+  queryOptions?: Omit<UseQueryOptions<ListMcpServersResult2, TError, TData>, "queryKey" | "queryFn">,
+  client: Client = defaultClient()
+) {
+  return {
+    queryKey: ["/api/mcp/servers", options] as const,
+    queryFn: ({ signal }: { signal?: AbortSignal }) =>
+      client.listMcpServers(options as any, { signal }),
+    ...queryOptions,
+  };
+}
+
+/** React Query hook for `listMcpServers`. */
+export function useListMcpServers<
+  TData = ListMcpServersResult2,
+  TError = unknown
+>(
+  options?: ListMcpServersOptions,
+  queryOptions?: Omit<UseQueryOptions<ListMcpServersResult2, TError, TData>, "queryKey" | "queryFn">,
+  client: Client = defaultClient()
+) {
+  return useQuery(getListMcpServersQueryOptions(options!, queryOptions, client));
+}
+
+/**
  * List branch points
  * 
  * The user messages this session can branch from, oldest first.
@@ -442,6 +475,14 @@ export function createQueries(client: Client = defaultClient()) {
       options: ListCommandsOptions,
       queryOptions?: Omit<UseQueryOptions<ListCommandsResult, TError, TData>, "queryKey" | "queryFn">
     ) => useListCommands<TData, TError>(options, queryOptions, client),
+    getListMcpServersQueryOptions: <TData = ListMcpServersResult2, TError = unknown>(
+      options?: ListMcpServersOptions,
+      queryOptions?: Omit<UseQueryOptions<ListMcpServersResult2, TError, TData>, "queryKey" | "queryFn">
+    ) => getListMcpServersQueryOptions<TData, TError>(options!, queryOptions, client),
+    useListMcpServers: <TData = ListMcpServersResult2, TError = unknown>(
+      options?: ListMcpServersOptions,
+      queryOptions?: Omit<UseQueryOptions<ListMcpServersResult2, TError, TData>, "queryKey" | "queryFn">
+    ) => useListMcpServers<TData, TError>(options!, queryOptions, client),
     getListBranchPointsQueryOptions: <TData = ListBranchPointsResult, TError = unknown>(
       options: ListBranchPointsOptions,
       queryOptions?: Omit<UseQueryOptions<ListBranchPointsResult, TError, TData>, "queryKey" | "queryFn">

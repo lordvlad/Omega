@@ -91,6 +91,32 @@ const server = serve({
       },
     },
 
+    "/api/mcp/servers": {
+      GET: request => {
+        const url = new URL(request.url);
+        const cwd = url.searchParams.get("cwd") || undefined;
+        return json(() => handlers.listMcpServers({ cwd }));
+      },
+    },
+    "/api/mcp/test": {
+      POST: async request => {
+        const body = await request.json();
+        return json(() => handlers.testMcpServer(body));
+      },
+    },
+    "/api/mcp/add": {
+      POST: async request => {
+        const body = await request.json();
+        return json(() => handlers.addMcpServer(body));
+      },
+    },
+    "/api/mcp/remove": {
+      POST: async request => {
+        const body = await request.json();
+        return json(() => handlers.removeMcpServer(body));
+      },
+    },
+
     "/api/sessions": {
       POST: async request => {
         const body = await request.json();

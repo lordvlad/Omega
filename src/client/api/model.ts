@@ -276,6 +276,65 @@ export interface SlashCommand {
   description: string;
 }
 
+/** List of configured MCP servers. */
+export interface ListMcpServersResult {
+  servers: McpServerInfo[];
+}
+
+/** Information about a configured MCP server. */
+export interface McpServerInfo {
+  name: string;
+  scope: McpServerScope;
+  status: McpServerStatus;
+  command?: string;
+  args?: string[];
+  url?: string;
+  env?: Record<string, string>;
+  disabled?: false | true;
+  toolsCount?: number;
+  error?: string;
+}
+
+/** MCP configuration scope. */
+export type McpServerScope = "project" | "global";
+
+/** MCP server connection / operational status. */
+export type McpServerStatus = "error" | "connected" | "disabled" | "configured";
+
+/** Test connection to an MCP server. */
+export interface TestMcpServerRequest {
+  name?: string;
+  scope?: "project" | "global";
+  cwd?: string;
+}
+
+/** Outcome of testing an MCP server connection. */
+export interface TestMcpServerResult {
+  name: string;
+  ok: boolean;
+  latencyMs: number;
+  tools: string[];
+  error?: string;
+}
+
+/** Add or update an MCP server. */
+export interface AddMcpServerRequest {
+  name: string;
+  scope: McpServerScope;
+  command?: string;
+  args?: string[];
+  url?: string;
+  env?: Record<string, string>;
+  cwd?: string;
+}
+
+/** Remove an MCP server. */
+export interface RemoveMcpServerRequest {
+  name: string;
+  scope: McpServerScope;
+  cwd?: string;
+}
+
 /**
  * Rewrite one queued message.
  * 

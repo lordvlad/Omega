@@ -3,6 +3,7 @@ import type { ImageContent } from "@oh-my-pi/pi-ai";
 
 import type {
   Ack,
+  AddMcpServerRequest,
   Attachment,
   BranchPoint,
   BranchRequest,
@@ -13,6 +14,8 @@ import type {
   GitStatusQuery,
   GitStatusResult,
   ListFilesQuery,
+  ListMcpServersQuery,
+  ListMcpServersResult,
   LiveState,
   MarkdownRequest,
   ModelOption,
@@ -30,11 +33,14 @@ import type {
   QueuedMessage,
   ReadFileQuery,
   ReadFileResult,
+  RemoveMcpServerRequest,
   RenameRequest,
   RenderedMarkdown,
   SelectModelRequest,
   ShakeRequest,
   SlashCommand,
+  TestMcpServerRequest,
+  TestMcpServerResult,
   ThinkingRequest,
   Transcript,
   TranscriptQuery,
@@ -51,6 +57,12 @@ import type { OmpApi } from "../shared/service.ts";
 import { listFiles, readFileContent } from "./files.ts";
 import { getGitStatus } from "./git.ts";
 import { renderMarkdownServer } from "./markdown.ts";
+import {
+  addMcpServerConfig,
+  listAllMcpServers,
+  removeMcpServerConfig,
+  testMcpServerConnection,
+} from "./mcp.ts";
 import { analyzeOmfgRule, saveOmfgRule } from "./omfg.ts";
 import { planDocument, resolvePlan, writePlan } from "./plan.ts";
 import { dropQueued, editQueued, listQueue } from "./queue.ts";
@@ -293,6 +305,29 @@ export class Handlers implements OmpApi {
     }
   }
 
+  async listMcpServers(query?: ListMcpServersQuery): Promise<ListMcpServersResult> {
+    return await listAllMcpServers(query?.cwd);
+  }
+
+  async testMcpServer(body: TestMcpServerRequest): Promise<TestMcpServerResult> {
+    return await testMcpServerConnection(body);
+  }
+
+  async addMcpServer(body: AddMcpServerRequest): Promise<Ack> {
+    try {
+      return await addMcpServerConfig(body.cwd, body);
+    } catch (error) {
+      throw new HttpError(400, error instanceof Error ? error.message : String(error));
+    }
+  }
+
+  async removeMcpServer(body: RemoveMcpServerRequest): Promise<Ack> {
+    try {
+      return await removeMcpServerConfig(body.cwd, body);
+    } catch (error) {
+      throw new HttpError(400, error instanceof Error ? error.message : String(error));
+    }
+  }
   async stopSession(key: string): Promise<Ack> {
     const stopped = await registry.stop(key);
     return {

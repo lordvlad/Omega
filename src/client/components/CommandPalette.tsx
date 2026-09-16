@@ -98,6 +98,7 @@ export const PALETTE_COMMAND = {
   think: "/think",
   btw: "/btw",
   omfg: "/omfg",
+  mcp: "/mcp",
   rename: "/rename",
   retry: "/retry",
   abort: "/abort",
@@ -143,6 +144,7 @@ const COMMAND_SPEC: Record<
     placeholder: "Describe what the agent got wrong to generate a rule…",
     termIsInput: true,
   },
+  "/mcp": { kind: "scope", placeholder: "Manage and configure MCP servers…" },
   "/rename": { kind: "scope", placeholder: "Type the new session title…", termIsInput: true },
   "/retry": { kind: "run", placeholder: "Retry the last failed turn…" },
   "/abort": { kind: "run", placeholder: "Interrupt the current turn…" },
@@ -293,6 +295,7 @@ export interface CommandPaletteProps {
   onBtw?: (question: string) => void;
   onOmfg?: (complaint: string) => void;
   onRename: (title: string) => void;
+  onOpenMcp?: () => void;
   onRetry: () => void;
   onAbort: () => void;
   onTogglePlanMode: (enabled: boolean) => void;
@@ -353,6 +356,7 @@ export function CommandPalette({
   onAbort,
   onTogglePlanMode,
   onBtw,
+  onOpenMcp,
   onOmfg,
   onFork,
   onBranch,
@@ -563,6 +567,15 @@ export function CommandPalette({
             leftSection: <IconShield size={16} color="var(--mantine-color-orange-4)" />,
             closeSpotlightOnTrigger: false,
             onClick: () => onQueryChange(`${PALETTE_COMMAND.omfg} `),
+          },
+          {
+            id: "command-mcp-manage",
+            label: PALETTE_COMMAND.mcp,
+            description: "Manage MCP servers, test connections, and configure tools",
+            keywords: "mcp servers plugins tools manage add test",
+            leftSection: <IconPlugConnected size={16} color="var(--mantine-color-cyan-4)" />,
+            closeSpotlightOnTrigger: false,
+            onClick: () => onOpenMcp?.(),
           },
           {
             id: "command-abort",
@@ -955,6 +968,25 @@ export function CommandPalette({
     ];
   }, [term, onOmfg]);
 
+  /** `/mcp`: manage and configure MCP servers. */
+  const mcpServerActions = useMemo<PaletteAction[]>(() => {
+    return [
+      {
+        group: "MCP Servers (/mcp)",
+        actions: [
+          {
+            id: "mcp-manage-action",
+            label: "Open MCP Server Manager",
+            description: "View configured servers, test connections, and add new ones",
+            keywords: "mcp servers tools plugins connect add test",
+            leftSection: <IconPlugConnected size={16} color="var(--mantine-color-cyan-4)" />,
+            onClick: () => onOpenMcp?.(),
+          },
+        ],
+      },
+    ];
+  }, [onOpenMcp]);
+
   /** `/rename`: the term is the new title, so there is one action to confirm it. */
   const renameActions = useMemo<PaletteAction[]>(() => {
     const title = term.trim();
@@ -1155,6 +1187,7 @@ export function CommandPalette({
     "/think": thinkActions,
     "/btw": btwActions,
     "/omfg": omfgActions,
+    "/mcp": mcpServerActions,
     "/rename": renameActions,
     "/retry": retryActions,
     "/abort": abortActions,

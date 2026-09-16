@@ -2,7 +2,7 @@
 // React Query options getters and hooks for mutation operations. Edit the document, not this file.
 
 import { useMutation, type UseMutationOptions } from "@tanstack/react-query";
-import { defaultClient, type Client, type AbortOptions, type AbortResult, type AnalyzeOmfgOptions, type AnalyzeOmfgResult, type AskBtwOptions, type AskBtwResult, type BranchSessionOptions, type BranchSessionResult, type CompactSessionOptions, type CompactSessionResult, type DeleteSessionOptions, type DeleteSessionResult, type DropQueuedOptions, type DropQueuedResult, type EditPlanOptions, type EditPlanResult, type EditQueuedOptions, type EditQueuedResult, type ForkSessionOptions, type ForkSessionResult, type OpenSessionOptions, type OpenSessionResult, type PromptOptions, type PromptResult, type RenameSessionOptions, type RenameSessionResult, type RenderMarkdownOptions, type RenderMarkdownResult, type ResolvePlanOptions, type ResolvePlanResult, type RetryTurnOptions, type RetryTurnResult, type SaveOmfgRuleOptions, type SaveOmfgRuleResult, type SelectModelOptions, type SelectModelResult, type SetPlanModeOptions, type SetPlanModeResult, type SetThinkingLevelOptions, type SetThinkingLevelResult, type ShakeSessionOptions, type ShakeSessionResult, type StopSessionOptions, type StopSessionResult } from "./api.ts";
+import { defaultClient, type Client, type AbortOptions, type AbortResult, type AddMcpServerOptions, type AddMcpServerResult, type AnalyzeOmfgOptions, type AnalyzeOmfgResult, type AskBtwOptions, type AskBtwResult, type BranchSessionOptions, type BranchSessionResult, type CompactSessionOptions, type CompactSessionResult, type DeleteSessionOptions, type DeleteSessionResult, type DropQueuedOptions, type DropQueuedResult, type EditPlanOptions, type EditPlanResult, type EditQueuedOptions, type EditQueuedResult, type ForkSessionOptions, type ForkSessionResult, type OpenSessionOptions, type OpenSessionResult, type PromptOptions, type PromptResult, type RemoveMcpServerOptions, type RemoveMcpServerResult, type RenameSessionOptions, type RenameSessionResult, type RenderMarkdownOptions, type RenderMarkdownResult, type ResolvePlanOptions, type ResolvePlanResult, type RetryTurnOptions, type RetryTurnResult, type SaveOmfgRuleOptions, type SaveOmfgRuleResult, type SelectModelOptions, type SelectModelResult, type SetPlanModeOptions, type SetPlanModeResult, type SetThinkingLevelOptions, type SetThinkingLevelResult, type ShakeSessionOptions, type ShakeSessionResult, type StopSessionOptions, type StopSessionResult, type TestMcpServerOptions, type TestMcpServerResult2 } from "./api.ts";
 
 /**
  * Open or create a live session
@@ -180,6 +180,93 @@ export function useSaveOmfgRule<
   client: Client = defaultClient()
 ) {
   return useMutation(getSaveOmfgRuleMutationOptions<TError>(mutationOptions, client));
+}
+
+/**
+ * Test an MCP server connection
+ * 
+ * Test an MCP server connection.
+ */
+export function getTestMcpServerMutationOptions<
+  TError = unknown
+>(
+  mutationOptions?: Omit<UseMutationOptions<TestMcpServerResult2, TError, TestMcpServerOptions>, "mutationFn">,
+  client: Client = defaultClient()
+) {
+  return {
+    mutationKey: ["/api/mcp/test", "POST"] as const,
+    mutationFn: (options: TestMcpServerOptions) =>
+      client.testMcpServer(options as any),
+    ...mutationOptions,
+  };
+}
+
+/** React Query hook for `testMcpServer`. */
+export function useTestMcpServer<
+  TError = unknown
+>(
+  mutationOptions?: Omit<UseMutationOptions<TestMcpServerResult2, TError, TestMcpServerOptions>, "mutationFn">,
+  client: Client = defaultClient()
+) {
+  return useMutation(getTestMcpServerMutationOptions<TError>(mutationOptions, client));
+}
+
+/**
+ * Add an MCP server
+ * 
+ * Add or update an MCP server in project (.omp/mcp.json) or global (~/.omp/mcp.json) config.
+ */
+export function getAddMcpServerMutationOptions<
+  TError = unknown
+>(
+  mutationOptions?: Omit<UseMutationOptions<AddMcpServerResult, TError, AddMcpServerOptions>, "mutationFn">,
+  client: Client = defaultClient()
+) {
+  return {
+    mutationKey: ["/api/mcp/add", "POST"] as const,
+    mutationFn: (options: AddMcpServerOptions) =>
+      client.addMcpServer(options as any),
+    ...mutationOptions,
+  };
+}
+
+/** React Query hook for `addMcpServer`. */
+export function useAddMcpServer<
+  TError = unknown
+>(
+  mutationOptions?: Omit<UseMutationOptions<AddMcpServerResult, TError, AddMcpServerOptions>, "mutationFn">,
+  client: Client = defaultClient()
+) {
+  return useMutation(getAddMcpServerMutationOptions<TError>(mutationOptions, client));
+}
+
+/**
+ * Remove an MCP server
+ * 
+ * Remove an MCP server from project or global config.
+ */
+export function getRemoveMcpServerMutationOptions<
+  TError = unknown
+>(
+  mutationOptions?: Omit<UseMutationOptions<RemoveMcpServerResult, TError, RemoveMcpServerOptions>, "mutationFn">,
+  client: Client = defaultClient()
+) {
+  return {
+    mutationKey: ["/api/mcp/remove", "POST"] as const,
+    mutationFn: (options: RemoveMcpServerOptions) =>
+      client.removeMcpServer(options as any),
+    ...mutationOptions,
+  };
+}
+
+/** React Query hook for `removeMcpServer`. */
+export function useRemoveMcpServer<
+  TError = unknown
+>(
+  mutationOptions?: Omit<UseMutationOptions<RemoveMcpServerResult, TError, RemoveMcpServerOptions>, "mutationFn">,
+  client: Client = defaultClient()
+) {
+  return useMutation(getRemoveMcpServerMutationOptions<TError>(mutationOptions, client));
 }
 
 /**
@@ -696,6 +783,24 @@ export function createMutations(client: Client = defaultClient()) {
     useSaveOmfgRule: <TError = unknown>(
       mutationOptions?: Omit<UseMutationOptions<SaveOmfgRuleResult, TError, SaveOmfgRuleOptions>, "mutationFn">
     ) => useSaveOmfgRule<TError>(mutationOptions, client),
+    getTestMcpServerMutationOptions: <TError = unknown>(
+      mutationOptions?: Omit<UseMutationOptions<TestMcpServerResult2, TError, TestMcpServerOptions>, "mutationFn">
+    ) => getTestMcpServerMutationOptions<TError>(mutationOptions, client),
+    useTestMcpServer: <TError = unknown>(
+      mutationOptions?: Omit<UseMutationOptions<TestMcpServerResult2, TError, TestMcpServerOptions>, "mutationFn">
+    ) => useTestMcpServer<TError>(mutationOptions, client),
+    getAddMcpServerMutationOptions: <TError = unknown>(
+      mutationOptions?: Omit<UseMutationOptions<AddMcpServerResult, TError, AddMcpServerOptions>, "mutationFn">
+    ) => getAddMcpServerMutationOptions<TError>(mutationOptions, client),
+    useAddMcpServer: <TError = unknown>(
+      mutationOptions?: Omit<UseMutationOptions<AddMcpServerResult, TError, AddMcpServerOptions>, "mutationFn">
+    ) => useAddMcpServer<TError>(mutationOptions, client),
+    getRemoveMcpServerMutationOptions: <TError = unknown>(
+      mutationOptions?: Omit<UseMutationOptions<RemoveMcpServerResult, TError, RemoveMcpServerOptions>, "mutationFn">
+    ) => getRemoveMcpServerMutationOptions<TError>(mutationOptions, client),
+    useRemoveMcpServer: <TError = unknown>(
+      mutationOptions?: Omit<UseMutationOptions<RemoveMcpServerResult, TError, RemoveMcpServerOptions>, "mutationFn">
+    ) => useRemoveMcpServer<TError>(mutationOptions, client),
     getEditQueuedMutationOptions: <TError = unknown>(
       mutationOptions?: Omit<UseMutationOptions<EditQueuedResult, TError, EditQueuedOptions>, "mutationFn">
     ) => getEditQueuedMutationOptions<TError>(mutationOptions, client),

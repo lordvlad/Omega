@@ -16,6 +16,7 @@
  */
 import type {
   Ack,
+  AddMcpServerRequest,
   BranchPoint,
   BranchRequest,
   BranchResult,
@@ -25,6 +26,8 @@ import type {
   GitStatusQuery,
   GitStatusResult,
   ListFilesQuery,
+  ListMcpServersQuery,
+  ListMcpServersResult,
   LiveState,
   MarkdownRequest,
   ModelOption,
@@ -43,13 +46,16 @@ import type {
   QueuedMessage,
   ReadFileQuery,
   ReadFileResult,
-  ThinkingRequest,
+  RemoveMcpServerRequest,
   RenameRequest,
   RenderedMarkdown,
   SelectModelRequest,
   SessionSummary,
   ShakeRequest,
   SlashCommand,
+  TestMcpServerRequest,
+  TestMcpServerResult,
+  ThinkingRequest,
   Transcript,
   TranscriptQuery,
   Workspace,
@@ -217,6 +223,45 @@ export interface OmpApi {
    * @response 404 application/json Problem
    */
   listCommands(key: string): Promise<SlashCommand[]>;
+
+  /**
+   * List configured MCP servers from project and global settings.
+   *
+   * @get /api/mcp/servers
+   * @summary List MCP servers
+   * @response 200 application/json ListMcpServersResult
+   */
+  listMcpServers(query?: ListMcpServersQuery): Promise<ListMcpServersResult>;
+
+  /**
+   * Test an MCP server connection.
+   *
+   * @post /api/mcp/test
+   * @summary Test an MCP server connection
+   * @response 200 application/json TestMcpServerResult
+   * @response 400 application/json Problem
+   */
+  testMcpServer(body: TestMcpServerRequest): Promise<TestMcpServerResult>;
+
+  /**
+   * Add or update an MCP server in project (.omp/mcp.json) or global (~/.omp/mcp.json) config.
+   *
+   * @post /api/mcp/add
+   * @summary Add an MCP server
+   * @response 200 application/json Ack
+   * @response 400 application/json Problem
+   */
+  addMcpServer(body: AddMcpServerRequest): Promise<Ack>;
+
+  /**
+   * Remove an MCP server from project or global config.
+   *
+   * @post /api/mcp/remove
+   * @summary Remove an MCP server
+   * @response 200 application/json Ack
+   * @response 400 application/json Problem
+   */
+  removeMcpServer(body: RemoveMcpServerRequest): Promise<Ack>;
 
   /**
    * Rewrite a queued message in place, keeping its lane and position.

@@ -741,6 +741,168 @@
         }
       }
     },
+    "/api/mcp/servers": {
+      "get": {
+        "operationId": "listMcpServers",
+        "x-service": "OmpApi",
+        "tags": [
+          "OmpApi"
+        ],
+        "summary": "List MCP servers",
+        "description": "List configured MCP servers from project and global settings.",
+        "parameters": [
+          {
+            "name": "cwd",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ListMcpServersResult"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/mcp/test": {
+      "post": {
+        "operationId": "testMcpServer",
+        "x-service": "OmpApi",
+        "tags": [
+          "OmpApi"
+        ],
+        "summary": "Test an MCP server connection",
+        "description": "Test an MCP server connection.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TestMcpServerRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TestMcpServerResult"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/mcp/add": {
+      "post": {
+        "operationId": "addMcpServer",
+        "x-service": "OmpApi",
+        "tags": [
+          "OmpApi"
+        ],
+        "summary": "Add an MCP server",
+        "description": "Add or update an MCP server in project (.omp/mcp.json) or global (~/.omp/mcp.json) config.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AddMcpServerRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Ack"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/mcp/remove": {
+      "post": {
+        "operationId": "removeMcpServer",
+        "x-service": "OmpApi",
+        "tags": [
+          "OmpApi"
+        ],
+        "summary": "Remove an MCP server",
+        "description": "Remove an MCP server from project or global config.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RemoveMcpServerRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Ack"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/sessions/{key}/queue/edit": {
       "post": {
         "operationId": "editQueued",
@@ -2696,6 +2858,211 @@
         "required": [
           "name",
           "description"
+        ]
+      },
+      "ListMcpServersResult": {
+        "description": "List of configured MCP servers.",
+        "type": "object",
+        "properties": {
+          "servers": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/McpServerInfo"
+            }
+          }
+        },
+        "required": [
+          "servers"
+        ]
+      },
+      "McpServerInfo": {
+        "description": "Information about a configured MCP server.",
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "scope": {
+            "$ref": "#/components/schemas/McpServerScope"
+          },
+          "status": {
+            "$ref": "#/components/schemas/McpServerStatus"
+          },
+          "command": {
+            "type": "string"
+          },
+          "args": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "url": {
+            "type": "string"
+          },
+          "env": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            }
+          },
+          "disabled": {
+            "anyOf": [
+              {
+                "const": false
+              },
+              {
+                "const": true
+              }
+            ]
+          },
+          "toolsCount": {
+            "type": "number"
+          },
+          "error": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "scope",
+          "status"
+        ]
+      },
+      "McpServerScope": {
+        "description": "MCP configuration scope.",
+        "anyOf": [
+          {
+            "const": "project"
+          },
+          {
+            "const": "global"
+          }
+        ]
+      },
+      "McpServerStatus": {
+        "description": "MCP server connection / operational status.",
+        "anyOf": [
+          {
+            "const": "error"
+          },
+          {
+            "const": "connected"
+          },
+          {
+            "const": "disabled"
+          },
+          {
+            "const": "configured"
+          }
+        ]
+      },
+      "TestMcpServerRequest": {
+        "description": "Test connection to an MCP server.",
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "scope": {
+            "anyOf": [
+              {
+                "const": "project"
+              },
+              {
+                "const": "global"
+              }
+            ]
+          },
+          "cwd": {
+            "type": "string"
+          }
+        }
+      },
+      "TestMcpServerResult": {
+        "description": "Outcome of testing an MCP server connection.",
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "ok": {
+            "type": "boolean"
+          },
+          "latencyMs": {
+            "type": "number"
+          },
+          "tools": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "error": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "ok",
+          "latencyMs",
+          "tools"
+        ]
+      },
+      "AddMcpServerRequest": {
+        "description": "Add or update an MCP server.",
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "scope": {
+            "$ref": "#/components/schemas/McpServerScope"
+          },
+          "command": {
+            "type": "string"
+          },
+          "args": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "url": {
+            "type": "string"
+          },
+          "env": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            }
+          },
+          "cwd": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "scope"
+        ]
+      },
+      "RemoveMcpServerRequest": {
+        "description": "Remove an MCP server.",
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "scope": {
+            "$ref": "#/components/schemas/McpServerScope"
+          },
+          "cwd": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "scope"
         ]
       },
       "QueueEditRequest": {
