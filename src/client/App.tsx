@@ -1314,7 +1314,8 @@ export function App() {
           onClose={closeTodo}
           position="right"
           size="85%"
-          title="Tasks & Todos"
+          title={null}
+          withCloseButton={false}
           padding={0}
         >
           <TodoPanel phases={state.data?.todos} onClose={closeTodo} />
