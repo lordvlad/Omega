@@ -446,8 +446,9 @@ export function A2UIRenderer({ surface, onAction, onUpdateData }: A2UIRendererPr
 
       case "Tabs": {
         const tabList = (comp.tabs as Array<{ title: any; child: string }>) ?? [];
+        const defaultValue = (comp.defaultValue as string) ?? "0";
         return (
-          <Tabs key={key} defaultValue="0" style={style}>
+          <Tabs key={key} defaultValue={defaultValue} style={style}>
             <Tabs.List>
               {tabList.map((t, i) => {
                 const title = resolveDynamic<string>(t.title, dataModel, scope, index);
