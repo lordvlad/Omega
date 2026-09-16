@@ -844,14 +844,29 @@ export function Transcript({
 
     const atBottomEdge = (): boolean => el.scrollHeight - el.scrollTop - el.clientHeight <= 1;
 
+    const isInteractiveTarget = (target: EventTarget | null): boolean => {
+      if (!(target instanceof HTMLElement)) return false;
+      return Boolean(
+        target.closest(".omega-composer") ||
+        target.closest("textarea, input, button, select, [contenteditable]"),
+      );
+    };
+
     const onStart = (event: TouchEvent): void => {
-      if (event.touches.length !== 1 || reloading || !atBottomEdge()) return;
+      if (event.touches.length !== 1 || reloading || !atBottomEdge() || isInteractiveTarget(event.target)) {
+        return;
+      }
       pullStart.current = event.touches[0]!.clientY;
     };
 
     const onMove = (event: TouchEvent): void => {
       const start = pullStart.current;
       if (start === undefined) return;
+      if (isInteractiveTarget(event.target)) {
+        pullStart.current = undefined;
+        setPull(0);
+        return;
+      }
       // Upward drag only, and only while the content is still against the
       // bottom: a downward flick is scrollback and must stay scrollback.
       const dragged = start - event.touches[0]!.clientY;
@@ -860,7 +875,6 @@ export function Transcript({
         setPull(0);
         return;
       }
-      // Square-root resistance: the first pixels answer freely, the last ones
       // need real effort, which is what makes the threshold findable.
       const distance = Math.min(PULL_MAX_PX, Math.sqrt(dragged) * 9);
       setPull(distance);
