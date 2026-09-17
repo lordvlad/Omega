@@ -419,6 +419,15 @@ export function CommandPalette({
       ),
     [workspaces],
   );
+  /** Helper to close and clear spotlight when opening an application drawer. */
+  const handleOpenDrawer = useCallback(
+    (openFn?: () => void) => {
+      spotlight.close();
+      onQueryChange("");
+      openFn?.();
+    },
+    [onQueryChange],
+  );
 
   /**
    * One session row, as `/cd` and `/resume` list it.
@@ -614,8 +623,7 @@ export function CommandPalette({
             description: "Manage MCP servers, test connections, and configure tools",
             keywords: "mcp servers plugins tools manage add test",
             leftSection: <IconPlugConnected size={16} color="var(--mantine-color-cyan-4)" />,
-            closeSpotlightOnTrigger: false,
-            onClick: () => onOpenMcp?.(),
+            onClick: () => handleOpenDrawer(onOpenMcp),
           },
           {
             id: "command-abort",
@@ -676,8 +684,7 @@ export function CommandPalette({
             description: "Inspect available tools across built-in, custom, MCP, and xdev",
             keywords: "tools inspect mcp custom xdev parameters schema",
             leftSection: <IconTools size={16} color="var(--mantine-color-teal-4)" />,
-            closeSpotlightOnTrigger: false,
-            onClick: () => onOpenTools?.(),
+            onClick: () => handleOpenDrawer(onOpenTools),
           },
           {
             id: "command-force",
@@ -694,8 +701,7 @@ export function CommandPalette({
             description: "View and manage active stream rules (TTSR) across project and global",
             keywords: "rules stream ttsr regex conditions manage",
             leftSection: <IconShieldCheck size={16} color="var(--mantine-color-orange-4)" />,
-            closeSpotlightOnTrigger: false,
-            onClick: () => onOpenRules?.(),
+            onClick: () => handleOpenDrawer(onOpenRules),
           },
           {
             id: "command-jobs",
@@ -703,8 +709,7 @@ export function CommandPalette({
             description: "Inspect active background jobs and worker pools",
             keywords: "jobs background async workers subagents cancel",
             leftSection: <IconStack2 size={16} color="var(--mantine-color-cyan-4)" />,
-            closeSpotlightOnTrigger: false,
-            onClick: () => onOpenJobs?.(),
+            onClick: () => handleOpenDrawer(onOpenJobs),
           },
           {
             id: "command-ps",
@@ -712,8 +717,7 @@ export function CommandPalette({
             description: "Manage supervised processes, send signals, and inspect daemons",
             keywords: "ps processes daemons services supervisor signal restart stop",
             leftSection: <IconTerminal2 size={16} color="var(--mantine-color-teal-4)" />,
-            closeSpotlightOnTrigger: false,
-            onClick: () => onOpenProcesses?.(),
+            onClick: () => handleOpenDrawer(onOpenProcesses),
           },
           {
             id: "command-branch",
@@ -805,6 +809,12 @@ export function CommandPalette({
       onFork,
       mcpCommands,
       onPickCommand,
+      handleOpenDrawer,
+      onOpenMcp,
+      onOpenTools,
+      onOpenRules,
+      onOpenJobs,
+      onOpenProcesses,
     ],
   );
 
@@ -1042,7 +1052,11 @@ export function CommandPalette({
             keywords: "btw question side ephemeral",
             leftSection: <IconMessageQuestion size={16} color="var(--mantine-color-cyan-4)" />,
             disabled: question.length === 0,
-            onClick: () => onBtw?.(question),
+            onClick: () => {
+              spotlight.close();
+              onQueryChange("");
+              onBtw?.(question);
+            },
           },
         ],
       },
@@ -1063,12 +1077,16 @@ export function CommandPalette({
             keywords: "omfg rule mistake fix ttsr",
             leftSection: <IconShield size={16} color="var(--mantine-color-orange-4)" />,
             disabled: complaint.length === 0,
-            onClick: () => onOmfg?.(complaint),
+            onClick: () => {
+              spotlight.close();
+              onQueryChange("");
+              onOmfg?.(complaint);
+            },
           },
         ],
       },
     ];
-  }, [term, onOmfg]);
+  }, [term, onOmfg, onQueryChange]);
 
   /** `/mcp`: manage and configure MCP servers. */
   const mcpServerActions = useMemo<PaletteAction[]>(() => {
@@ -1082,12 +1100,12 @@ export function CommandPalette({
             description: "View configured servers, test connections, and add new ones",
             keywords: "mcp servers tools plugins connect add test",
             leftSection: <IconPlugConnected size={16} color="var(--mantine-color-cyan-4)" />,
-            onClick: () => onOpenMcp?.(),
+            onClick: () => handleOpenDrawer(onOpenMcp),
           },
         ],
       },
     ];
-  }, [onOpenMcp]);
+  }, [handleOpenDrawer, onOpenMcp]);
   const costActions = useMemo<PaletteAction[]>(
     () => [
       {
@@ -1148,7 +1166,7 @@ export function CommandPalette({
             description: `Inspect ${list.length} available tools across built-in, custom, MCP, and xdev`,
             keywords: "tools active available mcp custom xdev inspect",
             leftSection: <IconTools size={16} color="var(--mantine-color-teal-4)" />,
-            onClick: () => onOpenTools?.(),
+            onClick: () => handleOpenDrawer(onOpenTools),
           },
         ],
       },
@@ -1168,7 +1186,7 @@ export function CommandPalette({
           ]
         : []),
     ];
-  }, [toolsList, onOpenTools, onForceTool]);
+  }, [toolsList, handleOpenDrawer, onOpenTools, onForceTool]);
 
   /** `/force`: force next turn tool. */
   const forceActions = useMemo<PaletteAction[]>(() => {
@@ -1214,13 +1232,12 @@ export function CommandPalette({
             label: "Open Stream Rules Manager",
             description: "View, manage, and delete Time-Traveling Stream Rules (TTSR)",
             keywords: "rules ttsr stream regex conditions delete",
-            leftSection: <IconShieldCheck size={16} color="var(--mantine-color-orange-4)" />,
-            onClick: () => onOpenRules?.(),
+            onClick: () => handleOpenDrawer(onOpenRules),
           },
         ],
       },
     ];
-  }, [onOpenRules]);
+  }, [handleOpenDrawer, onOpenRules]);
   /** `/jobs`: background jobs. */
   const jobsActions = useMemo<PaletteAction[]>(() => {
     return [
@@ -1232,13 +1249,12 @@ export function CommandPalette({
             label: "Open Background Jobs Drawer",
             description: "View active and recent async background jobs",
             keywords: "jobs background async workers subagents cancel",
-            leftSection: <IconStack2 size={16} color="var(--mantine-color-cyan-4)" />,
-            onClick: () => onOpenJobs?.(),
+            onClick: () => handleOpenDrawer(onOpenJobs),
           },
         ],
       },
     ];
-  }, [onOpenJobs]);
+  }, [handleOpenDrawer, onOpenJobs]);
 
   /** `/ps`: supervised processes. */
   const processActions = useMemo<PaletteAction[]>(() => {
@@ -1251,13 +1267,12 @@ export function CommandPalette({
             label: "Open Process Manager",
             description: "View supervised daemons, send signals, and manage services",
             keywords: "ps processes daemons services supervisor signal restart stop",
-            leftSection: <IconTerminal2 size={16} color="var(--mantine-color-teal-4)" />,
-            onClick: () => onOpenProcesses?.(),
+            onClick: () => handleOpenDrawer(onOpenProcesses),
           },
         ],
       },
     ];
-  }, [onOpenProcesses]);
+  }, [handleOpenDrawer, onOpenProcesses]);
 
   /** `/rename`: the term is the new title, so there is one action to confirm it. */
   const renameActions = useMemo<PaletteAction[]>(() => {
@@ -1560,6 +1575,8 @@ export function CommandPalette({
       filter={filter}
       nothingFound={nothingFound}
       onSpotlightOpen={onRefreshWorkspaces}
+      onSpotlightClose={() => onQueryChange("")}
+      clearQueryOnClose
       searchProps={{
         placeholder: command ? COMMAND_SPEC[command].placeholder : "Type / for commands, @ for files…",
         leftSection: <IconSearch size={18} />,
