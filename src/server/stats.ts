@@ -27,6 +27,36 @@ function formatProviderName(provider: string | undefined): string {
     .join(" ");
 }
 
+function formatResetTime(resetsAt: number | undefined, resetLabel = "resets"): string | undefined {
+  if (resetsAt === undefined || Number.isNaN(resetsAt)) return undefined;
+  const now = Date.now();
+  const diffMs = resetsAt - now;
+  if (diffMs <= 0) return `${resetLabel} now`;
+
+  const totalSec = Math.floor(diffMs / 1000);
+  const totalMin = Math.floor(totalSec / 60);
+  const totalHours = Math.floor(totalMin / 60);
+  const totalDays = Math.floor(totalHours / 24);
+
+  let durationText = "";
+  if (totalDays > 0) {
+    const remHours = totalHours % 24;
+    durationText = remHours > 0 ? `${totalDays}d ${remHours}h` : `${totalDays}d`;
+  } else if (totalHours > 0) {
+    const remMin = totalMin % 60;
+    durationText = remMin > 0 ? `${totalHours}h ${remMin}m` : `${totalHours}h`;
+  } else if (totalMin > 0) {
+    const remSec = totalSec % 60;
+    durationText = remSec > 0 ? `${totalMin}m ${remSec}s` : `${totalMin}m`;
+  } else {
+    durationText = `${totalSec}s`;
+  }
+
+  const date = new Date(resetsAt);
+  const timeStr = date.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
+  return `${resetLabel} in ${durationText} (${timeStr})`;
+}
+
 export const METRICS_SURFACE_ID = "session-metrics";
 
 /**
@@ -476,6 +506,9 @@ export async function drawMetricsDashboard(
           desc += ` (${limit.amount.remaining.toLocaleString()} ${limit.amount.unit} left)`;
         }
 
+        const resetText = formatResetTime(limit.window?.resetsAt, limit.window?.resetLabel);
+        const amtText = resetText ? `${pct}% used · ${resetText}` : `${pct}% used`;
+
         components.push(
           { id: lId, component: "Column", children: [lRowId, lProgId], gap: 2 },
           {
@@ -486,7 +519,7 @@ export async function drawMetricsDashboard(
             children: [lLblId, lAmtId],
           },
           { id: lLblId, component: "Text", text: desc, variant: "caption" },
-          { id: lAmtId, component: "Text", text: `${pct}% used`, variant: "caption" },
+          { id: lAmtId, component: "Text", text: amtText, variant: "caption" },
           { id: lProgId, component: "Progress", value: Math.min(100, pct), color, size: "sm" },
         );
       }
