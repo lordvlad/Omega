@@ -1,199 +1,162 @@
 /**
  * MCP server management and diagnostics.
  *
- * Reads and writes Model Context Protocol configurations in `.omp/mcp.json`
- * (project-level) and `~/.omp/agent/mcp.json` (global-level).
+ * Uses omp's official SDK APIs (@oh-my-pi/pi-utils and @oh-my-pi/pi-coding-agent/mcp)
+ * for reading/writing configuration files and testing live server connections.
  */
-import * as fs from "node:fs/promises";
-import * as path from "node:path";
+import { connectToServer, disconnectServer, listTools } from "@oh-my-pi/pi-coding-agent/mcp/client";
+import {
+  readDisabledServers,
+  readMCPConfigFile,
+  removeMCPServer,
+  updateMCPServer,
+} from "@oh-my-pi/pi-coding-agent/mcp/config-writer";
+import type { MCPServerConfig } from "@oh-my-pi/pi-coding-agent/mcp/types";
+import { getMCPConfigPath } from "@oh-my-pi/pi-utils";
 
 import type {
   Ack,
   AddMcpServerRequest,
   ListMcpServersResult,
   McpServerInfo,
-  McpServerScope,
   RemoveMcpServerRequest,
   TestMcpServerRequest,
   TestMcpServerResult,
 } from "../shared/model.ts";
 
-interface RawMcpConfig {
-  mcpServers?: Record<
-    string,
-    {
-      command?: string;
-      args?: string[];
-      url?: string;
-      env?: Record<string, string>;
-      transport?: "stdio" | "sse" | "http";
-      type?: "stdio" | "sse" | "http";
-      disabled?: boolean;
-    }
-  >;
-  disabledServers?: string[];
-}
-
-function getHomeDir(): string {
-  return process.env.HOME || "/home/waldemar";
-}
-
-function getPrimaryGlobalConfigPath(): string {
-  return path.join(getHomeDir(), ".omp", "agent", "mcp.json");
-}
-
-function getGlobalConfigPaths(): string[] {
-  const home = getHomeDir();
-  return [path.join(home, ".omp", "agent", "mcp.json"), path.join(home, ".omp", "mcp.json")];
-}
-
-function getPrimaryProjectConfigPath(cwd: string): string {
-  return path.join(cwd, ".omp", "mcp.json");
-}
-
-function getProjectConfigPaths(cwd: string): string[] {
-  return [path.join(cwd, ".omp", "mcp.json"), path.join(cwd, "mcp.json"), path.join(cwd, ".mcp.json")];
-}
-
-async function readConfigFile(filePath: string): Promise<RawMcpConfig> {
-  try {
-    const raw = await fs.readFile(filePath, "utf8");
-    return JSON.parse(raw) as RawMcpConfig;
-  } catch {
-    return { mcpServers: {}, disabledServers: [] };
-  }
-}
-
-async function writeConfigFile(filePath: string, config: RawMcpConfig): Promise<void> {
-  await fs.mkdir(path.dirname(filePath), { recursive: true });
-  await fs.writeFile(filePath, JSON.stringify(config, null, 2) + "\n", "utf8");
-}
-
 /**
- * List all configured MCP servers across project and global configurations.
+ * List all configured MCP servers using omp's official config paths and readers.
  */
 export async function listAllMcpServers(cwd?: string): Promise<ListMcpServersResult> {
+  const userPath = getMCPConfigPath("user", cwd);
+  const projectPath = getMCPConfigPath("project", cwd);
+
+  const [userConfig, projectConfig] = await Promise.all([
+    readMCPConfigFile(userPath).catch(() => ({ mcpServers: {} })),
+    readMCPConfigFile(projectPath).catch(() => ({ mcpServers: {} })),
+  ]);
+
+  const [userDisabled, projectDisabled] = await Promise.all([
+    readDisabledServers(userPath).catch(() => [] as string[]),
+    readDisabledServers(projectPath).catch(() => [] as string[]),
+  ]);
+
+  const userDisabledSet = new Set(userDisabled);
+  const projectDisabledSet = new Set(projectDisabled);
+
   const servers: McpServerInfo[] = [];
+  const seen = new Set<string>();
 
-  const addServersFromPaths = async (paths: string[], scope: McpServerScope): Promise<void> => {
-    for (const filePath of paths) {
-      const config = await readConfigFile(filePath);
-      const disabledSet = new Set(config.disabledServers ?? []);
-      for (const [name, def] of Object.entries(config.mcpServers ?? {})) {
-        if (!servers.some(s => s.name === name && s.scope === scope)) {
-          const isDisabled = def.disabled === true || disabledSet.has(name);
-          servers.push({
-            name,
-            scope,
-            status: isDisabled ? "disabled" : "configured",
-            command: def.command,
-            args: def.args,
-            url: def.url,
-            env: def.env,
-            disabled: isDisabled,
-          });
-        }
-      }
-    }
-  };
+  // 1. Project-scoped servers (take precedence over global if names collide)
+  for (const [name, rawConfig] of Object.entries(projectConfig.mcpServers ?? {})) {
+    const config = rawConfig as MCPServerConfig;
+    const isDisabled = config.enabled === false || projectDisabledSet.has(name);
+    servers.push({
+      name,
+      scope: "project",
+      status: isDisabled ? "disabled" : "configured",
+      command: "command" in config ? config.command : undefined,
+      args: "args" in config ? config.args : undefined,
+      url: "url" in config ? config.url : undefined,
+      env: "env" in config ? config.env : undefined,
+      disabled: isDisabled,
+    });
+    seen.add(name);
+  }
 
-  // 1. Read global MCP servers (primary: ~/.omp/agent/mcp.json, fallback: ~/.omp/mcp.json)
-  await addServersFromPaths(getGlobalConfigPaths(), "global");
-
-  // 2. Read project MCP servers if cwd is provided
-  if (cwd) {
-    await addServersFromPaths(getProjectConfigPaths(cwd), "project");
+  // 2. Global/User-scoped servers
+  for (const [name, rawConfig] of Object.entries(userConfig.mcpServers ?? {})) {
+    const config = rawConfig as MCPServerConfig;
+    const isDisabled = config.enabled === false || userDisabledSet.has(name);
+    servers.push({
+      name,
+      scope: "global",
+      status: isDisabled ? "disabled" : "configured",
+      command: "command" in config ? config.command : undefined,
+      args: "args" in config ? config.args : undefined,
+      url: "url" in config ? config.url : undefined,
+      env: "env" in config ? config.env : undefined,
+      disabled: isDisabled,
+    });
   }
 
   return { servers };
 }
 
 /**
- * Test connectivity to an MCP server.
+ * Test connectivity and discover tools on an MCP server using omp's native client.
  */
 export async function testMcpServerConnection(request: TestMcpServerRequest): Promise<TestMcpServerResult> {
   const name = request.name?.trim() || "default";
-  const start = performance.now();
+  const userPath = getMCPConfigPath("user", request.cwd);
+  const projectPath = getMCPConfigPath("project", request.cwd);
 
-  const list = await listAllMcpServers(request.cwd);
-  const server = list.servers.find(s => s.name === name && (!request.scope || s.scope === request.scope));
+  const [userConfig, projectConfig] = await Promise.all([
+    readMCPConfigFile(userPath).catch(() => ({ mcpServers: {} })),
+    readMCPConfigFile(projectPath).catch(() => ({ mcpServers: {} })),
+  ]);
 
-  if (!server) {
+  const userServers = (userConfig.mcpServers ?? {}) as Record<string, MCPServerConfig>;
+  const projectServers = (projectConfig.mcpServers ?? {}) as Record<string, MCPServerConfig>;
+
+  let serverConfig: MCPServerConfig | undefined;
+
+  if (request.scope === "project") {
+    serverConfig = projectServers[name];
+  } else if (request.scope === "global") {
+    serverConfig = userServers[name];
+  } else {
+    serverConfig = projectServers[name] || userServers[name];
+  }
+  if (!serverConfig) {
     return {
       name,
       ok: false,
       latencyMs: 0,
       tools: [],
-      error: `Server "${name}" is not configured.`,
+      error: `Server "${name}" not found in MCP configuration.`,
     };
   }
 
-  if (server.url) {
-    const url = server.url;
-    try {
-      const t0 = performance.now();
-      const res = await fetch(url, { method: "HEAD", signal: AbortSignal.timeout(5000) }).catch(() =>
-        fetch(url, { method: "GET", signal: AbortSignal.timeout(5000) }),
-      );
-      const latencyMs = Math.round(performance.now() - t0);
-      return {
-        name,
-        ok: res.ok || res.status === 405 || res.status === 404,
-        latencyMs,
-        tools: [],
-      };
-    } catch (err) {
-      return {
-        name,
-        ok: false,
-        latencyMs: Math.round(performance.now() - start),
-        tools: [],
-        error: err instanceof Error ? err.message : String(err),
-      };
-    }
-  }
+  const start = performance.now();
+  try {
+    const connection = await connectToServer(name, serverConfig, {
+      signal: AbortSignal.timeout(10_000),
+    });
+    const latencyMs = Math.round(performance.now() - start);
 
-  if (server.command) {
+    let tools: string[] = [];
     try {
-      const proc = Bun.spawn(["which", server.command], { stdout: "pipe", stderr: "pipe" });
-      const exitCode = await proc.exited;
-      const latencyMs = Math.round(performance.now() - start);
-      if (exitCode === 0) {
-        return {
-          name,
-          ok: true,
-          latencyMs,
-          tools: [],
-        };
+      const toolsResult = await listTools(connection);
+      if (Array.isArray(toolsResult)) {
+        tools = toolsResult.map(t => t.name);
       }
-      return {
-        name,
-        ok: false,
-        latencyMs,
-        tools: [],
-        error: `Command "${server.command}" not found on PATH.`,
-      };
-    } catch (err) {
-      return {
-        name,
-        ok: false,
-        latencyMs: Math.round(performance.now() - start),
-        tools: [],
-        error: err instanceof Error ? err.message : String(err),
-      };
+    } catch {
+      tools = [];
+    } finally {
+      await disconnectServer(connection).catch(() => {});
     }
-  }
 
-  return {
-    name,
-    ok: true,
-    latencyMs: Math.round(performance.now() - start),
-    tools: [],
-  };
+    return {
+      name,
+      ok: true,
+      latencyMs,
+      tools,
+    };
+  } catch (error) {
+    const latencyMs = Math.round(performance.now() - start);
+    return {
+      name,
+      ok: false,
+      latencyMs,
+      tools: [],
+      error: error instanceof Error ? error.message : String(error),
+    };
+  }
 }
 
 /**
- * Add or update an MCP server configuration.
+ * Add or update an MCP server using omp's config-writer.
  */
 export async function addMcpServerConfig(
   cwd: string | undefined,
@@ -202,27 +165,28 @@ export async function addMcpServerConfig(
   const name = request.name.trim();
   if (!name) throw new Error("Server name is required.");
 
-  const targetPath =
-    request.scope === "project"
-      ? getPrimaryProjectConfigPath(cwd || process.cwd())
-      : getPrimaryGlobalConfigPath();
+  const scope = request.scope === "global" ? "user" : "project";
+  const configPath = getMCPConfigPath(scope, cwd);
 
-  const config = await readConfigFile(targetPath);
-  config.mcpServers ??= {};
+  const serverConfig: Record<string, unknown> = {};
+  if (request.command) {
+    serverConfig.type = "stdio";
+    serverConfig.command = request.command;
+    if (request.args && request.args.length > 0) serverConfig.args = request.args;
+    if (request.env && Object.keys(request.env).length > 0) serverConfig.env = request.env;
+  } else if (request.url) {
+    serverConfig.type = "http";
+    serverConfig.url = request.url;
+  } else {
+    throw new Error("Provide either a command or a URL for the MCP server.");
+  }
 
-  config.mcpServers[name] = {
-    command: request.command?.trim() || undefined,
-    args: request.args,
-    url: request.url?.trim() || undefined,
-    env: request.env,
-  };
-
-  await writeConfigFile(targetPath, config);
+  await updateMCPServer(configPath, name, serverConfig as unknown as MCPServerConfig);
   return { ok: true, detail: `Added MCP server "${name}" to ${request.scope} config.` };
 }
 
 /**
- * Remove an MCP server from configuration.
+ * Remove an MCP server using omp's config-writer.
  */
 export async function removeMcpServerConfig(
   cwd: string | undefined,
@@ -231,26 +195,9 @@ export async function removeMcpServerConfig(
   const name = request.name.trim();
   if (!name) throw new Error("Server name is required.");
 
-  const paths =
-    request.scope === "project" ? getProjectConfigPaths(cwd || process.cwd()) : getGlobalConfigPaths();
+  const scope = request.scope === "global" ? "user" : "project";
+  const configPath = getMCPConfigPath(scope, cwd);
 
-  let removedFromAny = false;
-
-  for (const targetPath of paths) {
-    const config = await readConfigFile(targetPath);
-    if (config.mcpServers?.[name]) {
-      delete config.mcpServers[name];
-      if (config.disabledServers) {
-        config.disabledServers = config.disabledServers.filter(s => s !== name);
-      }
-      await writeConfigFile(targetPath, config);
-      removedFromAny = true;
-    }
-  }
-
-  if (removedFromAny) {
-    return { ok: true, detail: `Removed MCP server "${name}" from ${request.scope} config.` };
-  }
-
-  return { ok: true, detail: `Server "${name}" was not in ${request.scope} config.` };
+  await removeMCPServer(configPath, name);
+  return { ok: true, detail: `Removed MCP server "${name}" from ${request.scope} config.` };
 }
