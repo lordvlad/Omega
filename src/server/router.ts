@@ -12,11 +12,15 @@ import type {
   BtwRequest,
   BtwResult,
   CompactRequest,
+  DeleteRuleRequest,
+  ForceToolRequest,
   GitStatusQuery,
   GitStatusResult,
   ListFilesQuery,
   ListMcpServersQuery,
   ListMcpServersResult,
+  ListRulesResult,
+  ListToolsResult,
   LiveState,
   MarkdownRequest,
   ModelOption,
@@ -69,6 +73,7 @@ import { planDocument, resolvePlan, writePlan } from "./plan.ts";
 import { dropQueued, editQueued, listQueue } from "./queue.ts";
 import { type LiveSession, registry } from "./registry.ts";
 import { drawCostSurface, drawStatsSurface, drawUsageSurface } from "./stats.ts";
+import { deleteSessionRule, forceSessionTool, listSessionRules, listSessionTools } from "./tools-rules.ts";
 import { flattenSession, pageTranscript } from "./transcript.ts";
 import { listWorkspaces } from "./workspaces.ts";
 /** Raised by handlers to select a non-200 status. */
@@ -345,6 +350,30 @@ export class Handlers implements OmpApi {
   async removeMcpServer(body: RemoveMcpServerRequest): Promise<Ack> {
     try {
       return await removeMcpServerConfig(body.cwd, body);
+    } catch (error) {
+      throw new HttpError(400, error instanceof Error ? error.message : String(error));
+    }
+  }
+
+  listTools(key: string): Promise<ListToolsResult> {
+    const live = this.#require(key);
+    return Promise.resolve(listSessionTools(live));
+  }
+
+  forceTool(key: string, body: ForceToolRequest): Promise<Ack> {
+    const live = this.#require(key);
+    return Promise.resolve(forceSessionTool(live, body));
+  }
+
+  async listRules(key: string): Promise<ListRulesResult> {
+    const live = this.#require(key);
+    return await listSessionRules(live);
+  }
+
+  async deleteRule(key: string, body: DeleteRuleRequest): Promise<Ack> {
+    const live = this.#require(key);
+    try {
+      return await deleteSessionRule(live, body);
     } catch (error) {
       throw new HttpError(400, error instanceof Error ? error.message : String(error));
     }

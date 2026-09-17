@@ -12,6 +12,7 @@
  */
 import {
   ActionIcon,
+  Badge,
   Group,
   Paper,
   Pill,
@@ -25,6 +26,7 @@ import {
 import { useMergedRef, useResizeObserver } from "@mantine/hooks";
 import {
   IconArrowUp,
+  IconBolt,
   IconBrain,
   IconClockPause,
   IconMicrophone,
@@ -32,6 +34,7 @@ import {
   IconPaperclip,
   IconPlayerStopFilled,
   IconStack2,
+  IconX,
 } from "@tabler/icons-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 
@@ -130,6 +133,9 @@ export interface ComposerProps {
    * message with it.
    */
   offline?: boolean;
+  /** Active forced tool choice for the next turn. */
+  forcedTool?: string;
+  onClearForcedTool?: () => void;
 }
 
 export function Composer({
@@ -150,6 +156,8 @@ export function Composer({
   insertedFile,
   compact = false,
   offline = false,
+  forcedTool,
+  onClearForcedTool,
 }: ComposerProps) {
   const outbox = useQueuedSends();
   const [text, setText] = useState("");
@@ -532,6 +540,32 @@ export function Composer({
                     {outbox} waiting for network
                   </Text>
                 </Group>
+              </Tooltip>
+            ) : null}
+            {forcedTool ? (
+              <Tooltip label="Next turn is forced to use this tool" position="top">
+                <Badge
+                  color="cyan"
+                  size="xs"
+                  variant="light"
+                  leftSection={<IconBolt size={10} />}
+                  rightSection={
+                    onClearForcedTool ? (
+                      <ActionIcon
+                        size={12}
+                        variant="transparent"
+                        color="cyan"
+                        onClick={onClearForcedTool}
+                        aria-label="Clear forced tool"
+                      >
+                        <IconX size={8} />
+                      </ActionIcon>
+                    ) : undefined
+                  }
+                  style={{ textTransform: "none", fontFamily: "monospace" }}
+                >
+                  {forcedTool}
+                </Badge>
               </Tooltip>
             ) : null}
           </Group>

@@ -322,6 +322,57 @@ export interface TestMcpServerResult {
   error?: string;
 }
 
+/** List of tools available to the session. */
+export interface ListToolsResult {
+  tools: SessionToolInfo[];
+  forcedTool?: string;
+}
+
+/** Information about a tool registered in the session. */
+export interface SessionToolInfo {
+  name: string;
+  description: string;
+  parameters?: Record<string, unknown>;
+  source: ToolSource;
+  active: boolean;
+  forced?: false | true;
+}
+
+/** Source category of an available tool. */
+export type ToolSource = "custom" | "builtin" | "mcp" | "xdev" | "other";
+
+/** Force or clear tool choice for the next turn. */
+export interface ForceToolRequest {
+  toolName?: string;
+  clear?: false | true;
+}
+
+/** List of active/discovered stream rules. */
+export interface ListRulesResult {
+  rules: SessionRuleInfo[];
+}
+
+/** Information about a discovered stream rule (TTSR). */
+export interface SessionRuleInfo {
+  name: string;
+  description: string;
+  condition: string[];
+  scope?: unknown;
+  body: string;
+  filePath: string;
+  scopeType: RuleScopeType;
+  enabled?: false | true;
+}
+
+/** Scope level of a TTSR rule. */
+export type RuleScopeType = "project" | "global";
+
+/** Delete a rule from disk. */
+export interface DeleteRuleRequest {
+  name: string;
+  scopeType: RuleScopeType;
+}
+
 /** Add or update an MCP server. */
 export interface AddMcpServerRequest {
   name: string;

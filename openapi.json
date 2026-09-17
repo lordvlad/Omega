@@ -880,6 +880,218 @@
         }
       }
     },
+    "/api/sessions/{key}/tools": {
+      "get": {
+        "operationId": "listTools",
+        "x-service": "OmpApi",
+        "tags": [
+          "OmpApi"
+        ],
+        "summary": "List session tools",
+        "description": "List tools available to this session.",
+        "parameters": [
+          {
+            "name": "key",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ListToolsResult"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/sessions/{key}/tools/force": {
+      "post": {
+        "operationId": "forceTool",
+        "x-service": "OmpApi",
+        "tags": [
+          "OmpApi"
+        ],
+        "summary": "Force tool choice for next turn",
+        "description": "Force next turn to execute a specific tool.",
+        "parameters": [
+          {
+            "name": "key",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ForceToolRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Ack"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/sessions/{key}/rules": {
+      "get": {
+        "operationId": "listRules",
+        "x-service": "OmpApi",
+        "tags": [
+          "OmpApi"
+        ],
+        "summary": "List stream rules",
+        "description": "List active and discovered stream rules (TTSR).",
+        "parameters": [
+          {
+            "name": "key",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ListRulesResult"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/sessions/{key}/rules/delete": {
+      "post": {
+        "operationId": "deleteRule",
+        "x-service": "OmpApi",
+        "tags": [
+          "OmpApi"
+        ],
+        "summary": "Delete a stream rule",
+        "description": "Delete a stream rule from disk.",
+        "parameters": [
+          {
+            "name": "key",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DeleteRuleRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Ack"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/mcp/add": {
       "post": {
         "operationId": "addMcpServer",
@@ -3082,6 +3294,191 @@
           "ok",
           "latencyMs",
           "tools"
+        ]
+      },
+      "ListToolsResult": {
+        "description": "List of tools available to the session.",
+        "type": "object",
+        "properties": {
+          "tools": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SessionToolInfo"
+            }
+          },
+          "forcedTool": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "tools"
+        ]
+      },
+      "SessionToolInfo": {
+        "description": "Information about a tool registered in the session.",
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "parameters": {
+            "type": "object",
+            "additionalProperties": {}
+          },
+          "source": {
+            "$ref": "#/components/schemas/ToolSource"
+          },
+          "active": {
+            "type": "boolean"
+          },
+          "forced": {
+            "anyOf": [
+              {
+                "const": false
+              },
+              {
+                "const": true
+              }
+            ]
+          }
+        },
+        "required": [
+          "name",
+          "description",
+          "source",
+          "active"
+        ]
+      },
+      "ToolSource": {
+        "description": "Source category of an available tool.",
+        "anyOf": [
+          {
+            "const": "custom"
+          },
+          {
+            "const": "builtin"
+          },
+          {
+            "const": "mcp"
+          },
+          {
+            "const": "xdev"
+          },
+          {
+            "const": "other"
+          }
+        ]
+      },
+      "ForceToolRequest": {
+        "description": "Force or clear tool choice for the next turn.",
+        "type": "object",
+        "properties": {
+          "toolName": {
+            "type": "string"
+          },
+          "clear": {
+            "anyOf": [
+              {
+                "const": false
+              },
+              {
+                "const": true
+              }
+            ]
+          }
+        }
+      },
+      "ListRulesResult": {
+        "description": "List of active/discovered stream rules.",
+        "type": "object",
+        "properties": {
+          "rules": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SessionRuleInfo"
+            }
+          }
+        },
+        "required": [
+          "rules"
+        ]
+      },
+      "SessionRuleInfo": {
+        "description": "Information about a discovered stream rule (TTSR).",
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "condition": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "scope": {
+            "$ref": "#/components/schemas/t_5"
+          },
+          "body": {
+            "type": "string"
+          },
+          "filePath": {
+            "type": "string"
+          },
+          "scopeType": {
+            "$ref": "#/components/schemas/RuleScopeType"
+          },
+          "enabled": {
+            "anyOf": [
+              {
+                "const": false
+              },
+              {
+                "const": true
+              }
+            ]
+          }
+        },
+        "required": [
+          "name",
+          "description",
+          "condition",
+          "body",
+          "filePath",
+          "scopeType"
+        ]
+      },
+      "RuleScopeType": {
+        "description": "Scope level of a TTSR rule.",
+        "anyOf": [
+          {
+            "const": "project"
+          },
+          {
+            "const": "global"
+          }
+        ]
+      },
+      "DeleteRuleRequest": {
+        "description": "Delete a rule from disk.",
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "scopeType": {
+            "$ref": "#/components/schemas/RuleScopeType"
+          }
+        },
+        "required": [
+          "name",
+          "scopeType"
         ]
       },
       "AddMcpServerRequest": {

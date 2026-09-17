@@ -24,11 +24,15 @@ import type {
   BtwRequest,
   BtwResult,
   CompactRequest,
+  DeleteRuleRequest,
+  ForceToolRequest,
   GitStatusQuery,
   GitStatusResult,
   ListFilesQuery,
   ListMcpServersQuery,
   ListMcpServersResult,
+  ListRulesResult,
+  ListToolsResult,
   LiveState,
   MarkdownRequest,
   ModelOption,
@@ -255,6 +259,56 @@ export interface OmpApi {
    */
   testMcpServer(body: TestMcpServerRequest): Promise<TestMcpServerResult>;
 
+  /**
+   * Add or update an MCP server in project (.omp/mcp.json) or global (~/.omp/mcp.json) config.
+   *
+   * @post /api/mcp/add
+   * @summary Add an MCP server
+   * @response 200 application/json Ack
+   * @response 400 application/json Problem
+   */
+
+  /**
+   * List tools available to this session.
+   *
+   * @get /api/sessions/{key}/tools
+   * @summary List session tools
+   * @response 200 application/json ListToolsResult
+   * @response 404 application/json Problem
+   */
+  listTools(key: string): Promise<ListToolsResult>;
+
+  /**
+   * Force next turn to execute a specific tool.
+   *
+   * @post /api/sessions/{key}/tools/force
+   * @summary Force tool choice for next turn
+   * @response 200 application/json Ack
+   * @response 400 application/json Problem
+   * @response 404 application/json Problem
+   */
+  forceTool(key: string, body: ForceToolRequest): Promise<Ack>;
+
+  /**
+   * List active and discovered stream rules (TTSR).
+   *
+   * @get /api/sessions/{key}/rules
+   * @summary List stream rules
+   * @response 200 application/json ListRulesResult
+   * @response 404 application/json Problem
+   */
+  listRules(key: string): Promise<ListRulesResult>;
+
+  /**
+   * Delete a stream rule from disk.
+   *
+   * @post /api/sessions/{key}/rules/delete
+   * @summary Delete a stream rule
+   * @response 200 application/json Ack
+   * @response 400 application/json Problem
+   * @response 404 application/json Problem
+   */
+  deleteRule(key: string, body: DeleteRuleRequest): Promise<Ack>;
   /**
    * Add or update an MCP server in project (.omp/mcp.json) or global (~/.omp/mcp.json) config.
    *

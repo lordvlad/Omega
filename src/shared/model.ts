@@ -459,6 +459,57 @@ export interface A2uiDismissRequest {
   surfaceId: string;
 }
 
+/** Source category of an available tool. */
+export type ToolSource = "builtin" | "custom" | "mcp" | "xdev" | "other";
+
+/** Information about a tool registered in the session. */
+export interface SessionToolInfo {
+  name: string;
+  description: string;
+  parameters?: Record<string, unknown>;
+  source: ToolSource;
+  active: boolean;
+  forced?: boolean;
+}
+
+/** List of tools available to the session. */
+export interface ListToolsResult {
+  tools: SessionToolInfo[];
+  forcedTool?: string;
+}
+
+/** Force or clear tool choice for the next turn. */
+export interface ForceToolRequest {
+  toolName?: string;
+  clear?: boolean;
+}
+
+/** Scope level of a TTSR rule. */
+export type RuleScopeType = "project" | "global";
+
+/** Information about a discovered stream rule (TTSR). */
+export interface SessionRuleInfo {
+  name: string;
+  description: string;
+  condition: string[];
+  scope?: string[];
+  body: string;
+  filePath: string;
+  scopeType: RuleScopeType;
+  enabled?: boolean;
+}
+
+/** List of active/discovered stream rules. */
+export interface ListRulesResult {
+  rules: SessionRuleInfo[];
+}
+
+/** Delete a rule from disk. */
+export interface DeleteRuleRequest {
+  name: string;
+  scopeType: RuleScopeType;
+}
+
 /** Model to switch the live session to. */
 export interface SelectModelRequest {
   /** `provider/id`, as returned in `ModelOption.ref`. */

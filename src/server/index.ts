@@ -193,6 +193,24 @@ const server = serve({
         return json(() => handlers.dismissSurface(request.params.key, body));
       },
     },
+    "/api/sessions/:key/tools": {
+      GET: request => json(() => handlers.listTools(request.params.key)),
+    },
+    "/api/sessions/:key/tools/force": {
+      POST: async request => {
+        const body = await request.json();
+        return json(() => handlers.forceTool(request.params.key, body));
+      },
+    },
+    "/api/sessions/:key/rules": {
+      GET: request => json(() => handlers.listRules(request.params.key)),
+    },
+    "/api/sessions/:key/rules/delete": {
+      POST: async request => {
+        const body = await request.json();
+        return json(() => handlers.deleteRule(request.params.key, body));
+      },
+    },
     "/api/sessions/:key/stop": {
       POST: request => json(() => handlers.stopSession(request.params.key)),
     },

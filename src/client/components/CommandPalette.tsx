@@ -36,10 +36,10 @@ import {
   spotlight,
   type SpotlightActionData,
   type SpotlightActionGroupData,
-  type SpotlightFilterFunction,
 } from "@mantine/spotlight";
 import {
   IconArchive,
+  IconBolt,
   IconBrain,
   IconChartBar,
   IconCoin,
@@ -63,10 +63,12 @@ import {
   IconSearch,
   IconSettings,
   IconShield,
+  IconShieldCheck,
   IconTerminal2,
+  IconTools,
   IconTrash,
 } from "@tabler/icons-react";
-import { useCallback, useEffect, useMemo, useRef } from "react";
+import React, { useCallback, useEffect, useMemo, useRef } from "react";
 
 import type {
   BranchPoint,
@@ -74,8 +76,9 @@ import type {
   LiveState,
   ModelOption,
   SessionSummary,
-  SlashCommand,
+  SessionToolInfo,
   ShakeMode,
+  SlashCommand,
   ThinkingLevel,
   Workspace,
 } from "../api/model.ts";
@@ -106,9 +109,12 @@ export const PALETTE_COMMAND = {
   usage: "/usage",
   context: "/context",
   rename: "/rename",
+  tools: "/tools",
+  force: "/force",
+  rules: "/rules",
+  plan: "/plan",
   retry: "/retry",
   abort: "/abort",
-  plan: "/plan",
   newSession: "/new",
   fork: "/fork",
   branch: "/branch",
@@ -156,6 +162,9 @@ const COMMAND_SPEC: Record<
   "/stats": { kind: "run", placeholder: "Render session metrics and latency stats…" },
   "/usage": { kind: "run", placeholder: "Render token usage and cost breakdown…" },
   "/rename": { kind: "scope", placeholder: "Type the new session title…", termIsInput: true },
+  "/tools": { kind: "scope", placeholder: "Filter available tools or force one…" },
+  "/force": { kind: "scope", placeholder: "Pick a tool to force for next turn…", termIsInput: true },
+  "/rules": { kind: "scope", placeholder: "Filter stream rules (TTSR) or manage…" },
   "/retry": { kind: "run", placeholder: "Retry the last failed turn…" },
   "/abort": { kind: "run", placeholder: "Interrupt the current turn…" },
   "/plan": { kind: "run", placeholder: "Toggle plan mode…" },
@@ -306,6 +315,11 @@ export interface CommandPaletteProps {
   onOmfg?: (complaint: string) => void;
   onRename: (title: string) => void;
   onOpenMcp?: () => void;
+  onOpenTools?: () => void;
+  onOpenRules?: () => void;
+  onForceTool?: (tool: string) => void;
+  toolsList?: SessionToolInfo[];
+  forcedTool?: string;
   onRetry: () => void;
   onShowStats?: () => void;
   onAbort: () => void;
@@ -368,6 +382,11 @@ export function CommandPalette({
   onTogglePlanMode,
   onBtw,
   onOpenMcp,
+  onOpenTools,
+  onOpenRules,
+  onForceTool,
+  toolsList,
+  forcedTool,
   onShowStats,
   onOmfg,
   onFork,
@@ -643,8 +662,34 @@ export function CommandPalette({
             onClick: onFork,
           },
           {
+            id: "command-tools",
+            label: PALETTE_COMMAND.tools,
+            description: "Inspect available tools across built-in, custom, MCP, and xdev",
+            keywords: "tools inspect mcp custom xdev parameters schema",
+            leftSection: <IconTools size={16} color="var(--mantine-color-teal-4)" />,
+            closeSpotlightOnTrigger: false,
+            onClick: () => onOpenTools?.(),
+          },
+          {
+            id: "command-force",
+            label: PALETTE_COMMAND.force,
+            description: "Force the agent to use a specific tool on the next turn",
+            keywords: "force tool choice override hammer",
+            leftSection: <IconBolt size={16} color="var(--mantine-color-cyan-4)" />,
+            closeSpotlightOnTrigger: false,
+            onClick: () => onQueryChange(`${PALETTE_COMMAND.force} `),
+          },
+          {
+            id: "command-rules",
+            label: PALETTE_COMMAND.rules,
+            description: "View and manage active stream rules (TTSR) across project and global",
+            keywords: "rules stream ttsr regex conditions manage",
+            leftSection: <IconShieldCheck size={16} color="var(--mantine-color-orange-4)" />,
+            closeSpotlightOnTrigger: false,
+            onClick: () => onOpenRules?.(),
+          },
+          {
             id: "command-branch",
-            label: PALETTE_COMMAND.branch,
             description:
               branchPoints.length > 0
                 ? `Restart from one of ${branchPoints.length} earlier messages`
@@ -1063,6 +1108,92 @@ export function CommandPalette({
     ],
     [onQueryChange],
   );
+  /** `/tools`: tool inspector and forcing. */
+  const toolsActions = useMemo<PaletteAction[]>(() => {
+    const list = toolsList ?? [];
+    return [
+      {
+        group: "Tool Inspector",
+        actions: [
+          {
+            id: "tools-open-drawer",
+            label: "Open Tool Inspector (/tools)",
+            description: `Inspect ${list.length} available tools across built-in, custom, MCP, and xdev`,
+            keywords: "tools active available mcp custom xdev inspect",
+            leftSection: <IconTools size={16} color="var(--mantine-color-teal-4)" />,
+            onClick: () => onOpenTools?.(),
+          },
+        ],
+      },
+      ...(list.length > 0
+        ? [
+            {
+              group: "Available Tools (click to force next turn)",
+              actions: list.map(tool => ({
+                id: `tool-${tool.name}`,
+                label: tool.name,
+                description: tool.description,
+                keywords: `${tool.name} ${tool.source} ${tool.active ? "active" : ""}`,
+                leftSection: <IconBolt size={16} color="var(--mantine-color-cyan-4)" />,
+                onClick: () => onForceTool?.(tool.name),
+              })),
+            },
+          ]
+        : []),
+    ];
+  }, [toolsList, onOpenTools, onForceTool]);
+
+  /** `/force`: force next turn tool. */
+  const forceActions = useMemo<PaletteAction[]>(() => {
+    const list = toolsList ?? [];
+    const chosen = term.trim();
+    return [
+      {
+        group: "Force Tool Choice (/force)",
+        actions: [
+          ...(chosen
+            ? [
+                {
+                  id: "force-typed-tool",
+                  label: `Force: “${chosen}”`,
+                  description: "Agent will be forced to use this tool on the next turn",
+                  keywords: "force tool choice",
+                  leftSection: <IconBolt size={16} color="var(--mantine-color-cyan-4)" />,
+                  onClick: () => onForceTool?.(chosen),
+                },
+              ]
+            : []),
+          ...list.map(tool => ({
+            id: `force-tool-${tool.name}`,
+            label: `Force: ${tool.name}`,
+            description: tool.description,
+            keywords: `${tool.name} ${tool.source} force`,
+            leftSection: <IconBolt size={16} color="var(--mantine-color-cyan-4)" />,
+            onClick: () => onForceTool?.(tool.name),
+          })),
+        ],
+      },
+    ];
+  }, [toolsList, term, onForceTool]);
+
+  /** `/rules`: stream rules. */
+  const rulesActions = useMemo<PaletteAction[]>(() => {
+    return [
+      {
+        group: "Stream Rules (/rules)",
+        actions: [
+          {
+            id: "rules-open-drawer",
+            label: "Open Stream Rules Manager",
+            description: "View, manage, and delete Time-Traveling Stream Rules (TTSR)",
+            keywords: "rules ttsr stream regex conditions delete",
+            leftSection: <IconShieldCheck size={16} color="var(--mantine-color-orange-4)" />,
+            onClick: () => onOpenRules?.(),
+          },
+        ],
+      },
+    ];
+  }, [onOpenRules]);
 
   /** `/rename`: the term is the new title, so there is one action to confirm it. */
   const renameActions = useMemo<PaletteAction[]>(() => {
@@ -1268,6 +1399,9 @@ export function CommandPalette({
     "/cost": costActions,
     "/stats": costActions,
     "/context": contextActions,
+    "/tools": toolsActions,
+    "/force": forceActions,
+    "/rules": rulesActions,
     "/usage": costActions,
     "/rename": renameActions,
     "/retry": retryActions,
@@ -1284,7 +1418,7 @@ export function CommandPalette({
 
   // The command prefix scopes the list rather than searching it, so it is
   // stripped before matching; otherwise every action would have to contain "/cd".
-  const filter = useCallback<SpotlightFilterFunction>((raw, items) => {
+  const filter = useCallback((raw: string, items: PaletteAction[]): PaletteAction[] => {
     const parsed = parseQuery(raw);
     // `/compact` and `/rename` read their term as content, not as a filter:
     // typing a focus phrase or a new title must not empty their list.

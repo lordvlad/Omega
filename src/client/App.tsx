@@ -44,6 +44,8 @@ import { ApiError } from "./api/api.ts";
 import type {
   AddMcpServerRequest,
   Attachment,
+  DeleteRuleRequest,
+  ForceToolRequest,
   LiveState,
   OmfgRuleCandidate,
   PlanAction,
@@ -63,11 +65,13 @@ import {
   useAskBtw,
   useBranchSession,
   useCompactSession,
-  useDismissSurface,
+  useDeleteRule,
   useDeleteSession,
+  useDismissSurface,
   useDropQueued,
   useEditPlan,
   useEditQueued,
+  useForceTool,
   useForkSession,
   useOpenSession,
   usePrompt,
@@ -95,6 +99,8 @@ import {
   useListBranchPoints,
   useListCommands,
   useListMcpServers,
+  useListRules,
+  useListTools,
   useListQueue,
   useListModels,
   useListWorkspaces,
@@ -118,8 +124,10 @@ import { McpPanel } from "./components/McpPanel.tsx";
 import { OmfgPanel } from "./components/OmfgPanel.tsx";
 import { Planning } from "./components/Planning.tsx";
 import { QueuePanel, queueSummary } from "./components/QueuePanel.tsx";
+import { RulesPanel } from "./components/RulesPanel.tsx";
 import { SubagentPanel } from "./components/SubagentPanel.tsx";
 import { TodoPanel } from "./components/TodoPanel.tsx";
+import { ToolsPanel } from "./components/ToolsPanel.tsx";
 import { Transcript } from "./components/Transcript.tsx";
 import { useOnline } from "./lib/online.ts";
 import { newSendId } from "./lib/outbox.ts";
@@ -189,6 +197,10 @@ export function App() {
   const [treeOpen, { toggle: toggleTree, close: closeTree }] = useDisclosure(false);
   const [viewingFile, setViewingFile] = useState<string | null>(null);
   /** The queue panel, opened from the composer's queued-message hint. */
+  /** The tools inspector and forced-choice drawer. */
+  const [toolsDrawerOpen, { open: openTools, close: closeTools }] = useDisclosure(false);
+  /** The stream rules manager drawer. */
+  const [rulesDrawerOpen, { open: openRules, close: closeRules }] = useDisclosure(false);
   const [queueOpen, { open: openQueue, close: closeQueue }] = useDisclosure(false);
   /** The A2UI surface drawer, opened automatically when a surface arrives. */
   const [
@@ -354,6 +366,11 @@ export function App() {
   const removeMcp = useRemoveMcpServer();
   const testMcp = useTestMcpServer();
   const dismissSurface = useDismissSurface();
+  const toolsQuery = useListTools({ path: { key: sessionKey ?? "" } }, { enabled: Boolean(sessionKey) });
+  const rulesQuery = useListRules({ path: { key: sessionKey ?? "" } }, { enabled: Boolean(sessionKey) });
+  const forceTool = useForceTool();
+  const deleteRule = useDeleteRule();
+
   // A non-2xx response arrives as `ApiError`, whose `message` is only
   // `HTTP 409 for <url>`; the server's own explanation is the `Problem` body,
   // and every session command refuses with one worth reading.
@@ -1142,6 +1159,66 @@ export function App() {
   );
 
   /**
+   * Tool and rule operations.
+   */
+  const handleForceTool = useCallback(
+    (toolName: string): void => {
+      if (!sessionKey) return;
+      forceTool.mutate(
+        { path: { key: sessionKey }, body: { toolName } },
+        {
+          onSuccess: () => {
+            void toolsQuery.refetch();
+            notifications.show({
+              color: "cyan",
+              title: "Tool forced",
+              message: `Next turn forced to use "${toolName}".`,
+            });
+          },
+          onError: fail,
+        },
+      );
+    },
+    [sessionKey, forceTool, toolsQuery],
+  );
+
+  const handleClearForceTool = useCallback((): void => {
+    if (!sessionKey) return;
+    forceTool.mutate(
+      { path: { key: sessionKey }, body: { clear: true } },
+      {
+        onSuccess: () => {
+          void toolsQuery.refetch();
+          notifications.show({
+            color: "plum",
+            title: "Cleared",
+            message: "Cleared forced tool choice.",
+          });
+        },
+        onError: fail,
+      },
+    );
+  }, [sessionKey, forceTool, toolsQuery]);
+
+  const handleDeleteRule = useCallback(
+    async (req: DeleteRuleRequest): Promise<void> => {
+      if (!sessionKey) return;
+      await deleteRule.mutateAsync({ path: { key: sessionKey }, body: req });
+    },
+    [sessionKey, deleteRule],
+  );
+
+  const handleOpenTools = useCallback((): void => {
+    openTools();
+    void toolsQuery.refetch();
+  }, [openTools, toolsQuery]);
+
+  const handleOpenRules = useCallback((): void => {
+    openRules();
+    void rulesQuery.refetch();
+  }, [openRules, rulesQuery]);
+
+  /**
    * Picking an MCP command writes it into the composer rather than sending it.
    *
    * These commands take arguments, and omp expands them server-side when the
@@ -1648,6 +1725,45 @@ export function App() {
           onClose={closeMcp}
         />
       </Drawer>
+      <Drawer
+        opened={toolsDrawerOpen}
+        onClose={closeTools}
+        position={narrow ? "bottom" : "right"}
+        size={narrow ? "90%" : 540}
+        title={null}
+        withCloseButton={false}
+        padding={0}
+      >
+        <ToolsPanel
+          tools={toolsQuery.data?.tools ?? []}
+          forcedTool={toolsQuery.data?.forcedTool}
+          loading={toolsQuery.isFetching}
+          onForceTool={handleForceTool}
+          onClearForce={handleClearForceTool}
+          onClose={closeTools}
+        />
+      </Drawer>
+      <Drawer
+        opened={rulesDrawerOpen}
+        onClose={closeRules}
+        position={narrow ? "bottom" : "right"}
+        size={narrow ? "90%" : 540}
+        title={null}
+        withCloseButton={false}
+        padding={0}
+      >
+        <RulesPanel
+          rules={rulesQuery.data?.rules ?? []}
+          loading={rulesQuery.isFetching}
+          onDeleteRule={handleDeleteRule}
+          onCreateRule={() => {
+            closeRules();
+            openOmfg();
+          }}
+          onRefresh={() => void rulesQuery.refetch()}
+          onClose={closeRules}
+        />
+      </Drawer>
 
       <AppShell.Main>
         {sessionKey ? (
@@ -1693,6 +1809,8 @@ export function App() {
                 onOpenQueue={openQueue}
                 onSlash={() => openPaletteCommands(setPaletteQuery)}
                 onAt={() => openPaletteFiles(setPaletteQuery)}
+                forcedTool={toolsQuery.data?.forcedTool}
+                onClearForcedTool={handleClearForceTool}
                 insertedFile={insertedFile}
                 compact={narrow}
               />
@@ -1765,8 +1883,13 @@ export function App() {
         onSelectProject={cwd => navigateTo({ project: cwd, session: sessionKey })}
         onOpenSession={handleOpen}
         onNewSession={handleNew}
-        onOpenMcp={handleOpenMcp}
         onAddWorkspace={handleAddWorkspace}
+        onOpenMcp={handleOpenMcp}
+        onOpenTools={handleOpenTools}
+        onOpenRules={handleOpenRules}
+        onForceTool={handleForceTool}
+        toolsList={toolsQuery.data?.tools}
+        forcedTool={toolsQuery.data?.forcedTool}
         onCompact={handleCompact}
         onShake={handleShake}
         onSetThinking={handleSetThinking}

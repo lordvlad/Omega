@@ -2,7 +2,7 @@
 // React Query options getters and hooks for query operations. Edit the document, not this file.
 
 import { useQuery, type UseQueryOptions } from "@tanstack/react-query";
-import { defaultClient, type Client, type GetFileContentOptions, type GetFileContentResult, type GetGitStatusOptions, type GetGitStatusResult, type GetPlanOptions, type GetPlanResult, type GetStateOptions, type GetStateResult, type GetTranscriptOptions, type GetTranscriptResult, type ListBranchPointsOptions, type ListBranchPointsResult, type ListCommandsOptions, type ListCommandsResult, type ListFilesOptions, type ListFilesResult, type ListMcpServersOptions, type ListMcpServersResult2, type ListModelsOptions, type ListModelsResult, type ListQueueOptions, type ListQueueResult, type ListWorkspacesOptions, type ListWorkspacesResult } from "./api.ts";
+import { defaultClient, type Client, type GetFileContentOptions, type GetFileContentResult, type GetGitStatusOptions, type GetGitStatusResult, type GetPlanOptions, type GetPlanResult, type GetStateOptions, type GetStateResult, type GetTranscriptOptions, type GetTranscriptResult, type ListBranchPointsOptions, type ListBranchPointsResult, type ListCommandsOptions, type ListCommandsResult, type ListFilesOptions, type ListFilesResult, type ListMcpServersOptions, type ListMcpServersResult2, type ListModelsOptions, type ListModelsResult, type ListQueueOptions, type ListQueueResult, type ListRulesOptions, type ListRulesResult2, type ListToolsOptions, type ListToolsResult2, type ListWorkspacesOptions, type ListWorkspacesResult } from "./api.ts";
 import { createMutations } from "./mutations.ts";
 
 /**
@@ -334,6 +334,72 @@ export function useListMcpServers<
 }
 
 /**
+ * List session tools
+ * 
+ * List tools available to this session.
+ */
+export function getListToolsQueryOptions<
+  TData = ListToolsResult2,
+  TError = unknown
+>(
+  options: ListToolsOptions,
+  queryOptions?: Omit<UseQueryOptions<ListToolsResult2, TError, TData>, "queryKey" | "queryFn">,
+  client: Client = defaultClient()
+) {
+  return {
+    queryKey: ["/api/sessions/{key}/tools", options] as const,
+    queryFn: ({ signal }: { signal?: AbortSignal }) =>
+      client.listTools(options as any, { signal }),
+    ...queryOptions,
+  };
+}
+
+/** React Query hook for `listTools`. */
+export function useListTools<
+  TData = ListToolsResult2,
+  TError = unknown
+>(
+  options: ListToolsOptions,
+  queryOptions?: Omit<UseQueryOptions<ListToolsResult2, TError, TData>, "queryKey" | "queryFn">,
+  client: Client = defaultClient()
+) {
+  return useQuery(getListToolsQueryOptions(options, queryOptions, client));
+}
+
+/**
+ * List stream rules
+ * 
+ * List active and discovered stream rules (TTSR).
+ */
+export function getListRulesQueryOptions<
+  TData = ListRulesResult2,
+  TError = unknown
+>(
+  options: ListRulesOptions,
+  queryOptions?: Omit<UseQueryOptions<ListRulesResult2, TError, TData>, "queryKey" | "queryFn">,
+  client: Client = defaultClient()
+) {
+  return {
+    queryKey: ["/api/sessions/{key}/rules", options] as const,
+    queryFn: ({ signal }: { signal?: AbortSignal }) =>
+      client.listRules(options as any, { signal }),
+    ...queryOptions,
+  };
+}
+
+/** React Query hook for `listRules`. */
+export function useListRules<
+  TData = ListRulesResult2,
+  TError = unknown
+>(
+  options: ListRulesOptions,
+  queryOptions?: Omit<UseQueryOptions<ListRulesResult2, TError, TData>, "queryKey" | "queryFn">,
+  client: Client = defaultClient()
+) {
+  return useQuery(getListRulesQueryOptions(options, queryOptions, client));
+}
+
+/**
  * List branch points
  * 
  * The user messages this session can branch from, oldest first.
@@ -483,6 +549,22 @@ export function createQueries(client: Client = defaultClient()) {
       options?: ListMcpServersOptions,
       queryOptions?: Omit<UseQueryOptions<ListMcpServersResult2, TError, TData>, "queryKey" | "queryFn">
     ) => useListMcpServers<TData, TError>(options!, queryOptions, client),
+    getListToolsQueryOptions: <TData = ListToolsResult2, TError = unknown>(
+      options: ListToolsOptions,
+      queryOptions?: Omit<UseQueryOptions<ListToolsResult2, TError, TData>, "queryKey" | "queryFn">
+    ) => getListToolsQueryOptions<TData, TError>(options, queryOptions, client),
+    useListTools: <TData = ListToolsResult2, TError = unknown>(
+      options: ListToolsOptions,
+      queryOptions?: Omit<UseQueryOptions<ListToolsResult2, TError, TData>, "queryKey" | "queryFn">
+    ) => useListTools<TData, TError>(options, queryOptions, client),
+    getListRulesQueryOptions: <TData = ListRulesResult2, TError = unknown>(
+      options: ListRulesOptions,
+      queryOptions?: Omit<UseQueryOptions<ListRulesResult2, TError, TData>, "queryKey" | "queryFn">
+    ) => getListRulesQueryOptions<TData, TError>(options, queryOptions, client),
+    useListRules: <TData = ListRulesResult2, TError = unknown>(
+      options: ListRulesOptions,
+      queryOptions?: Omit<UseQueryOptions<ListRulesResult2, TError, TData>, "queryKey" | "queryFn">
+    ) => useListRules<TData, TError>(options, queryOptions, client),
     getListBranchPointsQueryOptions: <TData = ListBranchPointsResult, TError = unknown>(
       options: ListBranchPointsOptions,
       queryOptions?: Omit<UseQueryOptions<ListBranchPointsResult, TError, TData>, "queryKey" | "queryFn">

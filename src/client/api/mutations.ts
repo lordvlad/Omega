@@ -2,7 +2,7 @@
 // React Query options getters and hooks for mutation operations. Edit the document, not this file.
 
 import { useMutation, type UseMutationOptions } from "@tanstack/react-query";
-import { defaultClient, type Client, type AbortOptions, type AbortResult, type AddMcpServerOptions, type AddMcpServerResult, type AnalyzeOmfgOptions, type AnalyzeOmfgResult, type AskBtwOptions, type AskBtwResult, type BranchSessionOptions, type BranchSessionResult, type CompactSessionOptions, type CompactSessionResult, type DeleteSessionOptions, type DeleteSessionResult, type DismissSurfaceOptions, type DismissSurfaceResult, type DropQueuedOptions, type DropQueuedResult, type EditPlanOptions, type EditPlanResult, type EditQueuedOptions, type EditQueuedResult, type ForkSessionOptions, type ForkSessionResult, type OpenSessionOptions, type OpenSessionResult, type PromptOptions, type PromptResult, type RemoveMcpServerOptions, type RemoveMcpServerResult, type RenameSessionOptions, type RenameSessionResult, type RenderMarkdownOptions, type RenderMarkdownResult, type ResolvePlanOptions, type ResolvePlanResult, type RetryTurnOptions, type RetryTurnResult, type SaveOmfgRuleOptions, type SaveOmfgRuleResult, type SelectModelOptions, type SelectModelResult, type SetPlanModeOptions, type SetPlanModeResult, type SetThinkingLevelOptions, type SetThinkingLevelResult, type ShakeSessionOptions, type ShakeSessionResult, type StopSessionOptions, type StopSessionResult, type TestMcpServerOptions, type TestMcpServerResult2 } from "./api.ts";
+import { defaultClient, type Client, type AbortOptions, type AbortResult, type AddMcpServerOptions, type AddMcpServerResult, type AnalyzeOmfgOptions, type AnalyzeOmfgResult, type AskBtwOptions, type AskBtwResult, type BranchSessionOptions, type BranchSessionResult, type CompactSessionOptions, type CompactSessionResult, type DeleteRuleOptions, type DeleteRuleResult, type DeleteSessionOptions, type DeleteSessionResult, type DismissSurfaceOptions, type DismissSurfaceResult, type DropQueuedOptions, type DropQueuedResult, type EditPlanOptions, type EditPlanResult, type EditQueuedOptions, type EditQueuedResult, type ForceToolOptions, type ForceToolResult, type ForkSessionOptions, type ForkSessionResult, type OpenSessionOptions, type OpenSessionResult, type PromptOptions, type PromptResult, type RemoveMcpServerOptions, type RemoveMcpServerResult, type RenameSessionOptions, type RenameSessionResult, type RenderMarkdownOptions, type RenderMarkdownResult, type ResolvePlanOptions, type ResolvePlanResult, type RetryTurnOptions, type RetryTurnResult, type SaveOmfgRuleOptions, type SaveOmfgRuleResult, type SelectModelOptions, type SelectModelResult, type SetPlanModeOptions, type SetPlanModeResult, type SetThinkingLevelOptions, type SetThinkingLevelResult, type ShakeSessionOptions, type ShakeSessionResult, type StopSessionOptions, type StopSessionResult, type TestMcpServerOptions, type TestMcpServerResult2 } from "./api.ts";
 
 /**
  * Open or create a live session
@@ -238,6 +238,64 @@ export function useTestMcpServer<
   client: Client = defaultClient()
 ) {
   return useMutation(getTestMcpServerMutationOptions<TError>(mutationOptions, client));
+}
+
+/**
+ * Force tool choice for next turn
+ * 
+ * Force next turn to execute a specific tool.
+ */
+export function getForceToolMutationOptions<
+  TError = unknown
+>(
+  mutationOptions?: Omit<UseMutationOptions<ForceToolResult, TError, ForceToolOptions>, "mutationFn">,
+  client: Client = defaultClient()
+) {
+  return {
+    mutationKey: ["/api/sessions/{key}/tools/force", "POST"] as const,
+    mutationFn: (options: ForceToolOptions) =>
+      client.forceTool(options as any),
+    ...mutationOptions,
+  };
+}
+
+/** React Query hook for `forceTool`. */
+export function useForceTool<
+  TError = unknown
+>(
+  mutationOptions?: Omit<UseMutationOptions<ForceToolResult, TError, ForceToolOptions>, "mutationFn">,
+  client: Client = defaultClient()
+) {
+  return useMutation(getForceToolMutationOptions<TError>(mutationOptions, client));
+}
+
+/**
+ * Delete a stream rule
+ * 
+ * Delete a stream rule from disk.
+ */
+export function getDeleteRuleMutationOptions<
+  TError = unknown
+>(
+  mutationOptions?: Omit<UseMutationOptions<DeleteRuleResult, TError, DeleteRuleOptions>, "mutationFn">,
+  client: Client = defaultClient()
+) {
+  return {
+    mutationKey: ["/api/sessions/{key}/rules/delete", "POST"] as const,
+    mutationFn: (options: DeleteRuleOptions) =>
+      client.deleteRule(options as any),
+    ...mutationOptions,
+  };
+}
+
+/** React Query hook for `deleteRule`. */
+export function useDeleteRule<
+  TError = unknown
+>(
+  mutationOptions?: Omit<UseMutationOptions<DeleteRuleResult, TError, DeleteRuleOptions>, "mutationFn">,
+  client: Client = defaultClient()
+) {
+  return useMutation(getDeleteRuleMutationOptions<TError>(mutationOptions, client));
 }
 
 /**
@@ -824,6 +882,18 @@ export function createMutations(client: Client = defaultClient()) {
     useTestMcpServer: <TError = unknown>(
       mutationOptions?: Omit<UseMutationOptions<TestMcpServerResult2, TError, TestMcpServerOptions>, "mutationFn">
     ) => useTestMcpServer<TError>(mutationOptions, client),
+    getForceToolMutationOptions: <TError = unknown>(
+      mutationOptions?: Omit<UseMutationOptions<ForceToolResult, TError, ForceToolOptions>, "mutationFn">
+    ) => getForceToolMutationOptions<TError>(mutationOptions, client),
+    useForceTool: <TError = unknown>(
+      mutationOptions?: Omit<UseMutationOptions<ForceToolResult, TError, ForceToolOptions>, "mutationFn">
+    ) => useForceTool<TError>(mutationOptions, client),
+    getDeleteRuleMutationOptions: <TError = unknown>(
+      mutationOptions?: Omit<UseMutationOptions<DeleteRuleResult, TError, DeleteRuleOptions>, "mutationFn">
+    ) => getDeleteRuleMutationOptions<TError>(mutationOptions, client),
+    useDeleteRule: <TError = unknown>(
+      mutationOptions?: Omit<UseMutationOptions<DeleteRuleResult, TError, DeleteRuleOptions>, "mutationFn">
+    ) => useDeleteRule<TError>(mutationOptions, client),
     getAddMcpServerMutationOptions: <TError = unknown>(
       mutationOptions?: Omit<UseMutationOptions<AddMcpServerResult, TError, AddMcpServerOptions>, "mutationFn">
     ) => getAddMcpServerMutationOptions<TError>(mutationOptions, client),
