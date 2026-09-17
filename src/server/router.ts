@@ -370,7 +370,7 @@ export class Handlers implements OmpApi {
     const live = this.#require(key);
     try {
       const model = await registry.resolveModel(body.ref);
-      const level = body.thinkingLevel as OmpThinkingLevel | undefined;
+      const level = body.thinkingLevel as any;
       await live.session.setModel(model, "default", { thinkingLevel: level });
       if (level) live.session.setThinkingLevel(level);
     } catch (error) {
@@ -423,7 +423,7 @@ export class Handlers implements OmpApi {
 
   async setThinkingLevel(key: string, body: ThinkingRequest): Promise<LiveState> {
     const live = this.#require(key);
-    live.session.setThinkingLevel(body.level as OmpThinkingLevel);
+    live.session.setThinkingLevel(body.level as any);
     return live.state();
   }
 

@@ -2,7 +2,7 @@
  * MCP server management and diagnostics.
  *
  * Reads and writes Model Context Protocol configurations in `.omp/mcp.json`
- * (project-level) and `~/.omp/mcp.json` (global-level).
+ * (project-level) and `~/.omp/agent/mcp.json` (global-level).
  */
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
@@ -27,6 +27,7 @@ interface RawMcpConfig {
       url?: string;
       env?: Record<string, string>;
       transport?: "stdio" | "sse" | "http";
+      type?: "stdio" | "sse" | "http";
       disabled?: boolean;
     }
   >;
@@ -37,12 +38,21 @@ function getHomeDir(): string {
   return process.env.HOME || "/home/waldemar";
 }
 
-function getGlobalConfigPath(): string {
-  return path.join(getHomeDir(), ".omp", "mcp.json");
+function getPrimaryGlobalConfigPath(): string {
+  return path.join(getHomeDir(), ".omp", "agent", "mcp.json");
 }
 
-function getProjectConfigPath(cwd: string): string {
+function getGlobalConfigPaths(): string[] {
+  const home = getHomeDir();
+  return [path.join(home, ".omp", "agent", "mcp.json"), path.join(home, ".omp", "mcp.json")];
+}
+
+function getPrimaryProjectConfigPath(cwd: string): string {
   return path.join(cwd, ".omp", "mcp.json");
+}
+
+function getProjectConfigPaths(cwd: string): string[] {
+  return [path.join(cwd, ".omp", "mcp.json"), path.join(cwd, "mcp.json"), path.join(cwd, ".mcp.json")];
 }
 
 async function readConfigFile(filePath: string): Promise<RawMcpConfig> {
@@ -63,56 +73,36 @@ async function writeConfigFile(filePath: string, config: RawMcpConfig): Promise<
  * List all configured MCP servers across project and global configurations.
  */
 export async function listAllMcpServers(cwd?: string): Promise<ListMcpServersResult> {
-  const globalPath = getGlobalConfigPath();
-  const globalConfig = await readConfigFile(globalPath);
-
   const servers: McpServerInfo[] = [];
 
-  const addServersFromConfig = (config: RawMcpConfig, scope: McpServerScope): void => {
-    const disabledSet = new Set(config.disabledServers ?? []);
-    for (const [name, def] of Object.entries(config.mcpServers ?? {})) {
-      const isDisabled = def.disabled === true || disabledSet.has(name);
-      servers.push({
-        name,
-        scope,
-        status: isDisabled ? "disabled" : "configured",
-        command: def.command,
-        args: def.args,
-        url: def.url,
-        env: def.env,
-        disabled: isDisabled,
-      });
-    }
-  };
-
-  // Add global servers
-  addServersFromConfig(globalConfig, "global");
-
-  // Add project servers if cwd is provided
-  if (cwd) {
-    const projectPath = getProjectConfigPath(cwd);
-    const projectConfig = await readConfigFile(projectPath);
-    addServersFromConfig(projectConfig, "project");
-
-    // Also check standalone mcp.json / .mcp.json fallback in project root
-    for (const fallbackFile of ["mcp.json", ".mcp.json"]) {
-      const fallbackPath = path.join(cwd, fallbackFile);
-      const fallbackConfig = await readConfigFile(fallbackPath);
-      for (const [name, def] of Object.entries(fallbackConfig.mcpServers ?? {})) {
-        if (!servers.some(s => s.name === name)) {
+  const addServersFromPaths = async (paths: string[], scope: McpServerScope): Promise<void> => {
+    for (const filePath of paths) {
+      const config = await readConfigFile(filePath);
+      const disabledSet = new Set(config.disabledServers ?? []);
+      for (const [name, def] of Object.entries(config.mcpServers ?? {})) {
+        if (!servers.some(s => s.name === name && s.scope === scope)) {
+          const isDisabled = def.disabled === true || disabledSet.has(name);
           servers.push({
             name,
-            scope: "project",
-            status: def.disabled ? "disabled" : "configured",
+            scope,
+            status: isDisabled ? "disabled" : "configured",
             command: def.command,
             args: def.args,
             url: def.url,
             env: def.env,
-            disabled: def.disabled,
+            disabled: isDisabled,
           });
         }
       }
     }
+  };
+
+  // 1. Read global MCP servers (primary: ~/.omp/agent/mcp.json, fallback: ~/.omp/mcp.json)
+  await addServersFromPaths(getGlobalConfigPaths(), "global");
+
+  // 2. Read project MCP servers if cwd is provided
+  if (cwd) {
+    await addServersFromPaths(getProjectConfigPaths(cwd), "project");
   }
 
   return { servers };
@@ -164,7 +154,6 @@ export async function testMcpServerConnection(request: TestMcpServerRequest): Pr
   }
 
   if (server.command) {
-    // For command-based servers, verify command exists on PATH
     try {
       const proc = Bun.spawn(["which", server.command], { stdout: "pipe", stderr: "pipe" });
       const exitCode = await proc.exited;
@@ -214,7 +203,9 @@ export async function addMcpServerConfig(
   if (!name) throw new Error("Server name is required.");
 
   const targetPath =
-    request.scope === "project" ? getProjectConfigPath(cwd || process.cwd()) : getGlobalConfigPath();
+    request.scope === "project"
+      ? getPrimaryProjectConfigPath(cwd || process.cwd())
+      : getPrimaryGlobalConfigPath();
 
   const config = await readConfigFile(targetPath);
   config.mcpServers ??= {};
@@ -240,16 +231,24 @@ export async function removeMcpServerConfig(
   const name = request.name.trim();
   if (!name) throw new Error("Server name is required.");
 
-  const targetPath =
-    request.scope === "project" ? getProjectConfigPath(cwd || process.cwd()) : getGlobalConfigPath();
+  const paths =
+    request.scope === "project" ? getProjectConfigPaths(cwd || process.cwd()) : getGlobalConfigPaths();
 
-  const config = await readConfigFile(targetPath);
-  if (config.mcpServers?.[name]) {
-    delete config.mcpServers[name];
-    if (config.disabledServers) {
-      config.disabledServers = config.disabledServers.filter(s => s !== name);
+  let removedFromAny = false;
+
+  for (const targetPath of paths) {
+    const config = await readConfigFile(targetPath);
+    if (config.mcpServers?.[name]) {
+      delete config.mcpServers[name];
+      if (config.disabledServers) {
+        config.disabledServers = config.disabledServers.filter(s => s !== name);
+      }
+      await writeConfigFile(targetPath, config);
+      removedFromAny = true;
     }
-    await writeConfigFile(targetPath, config);
+  }
+
+  if (removedFromAny) {
     return { ok: true, detail: `Removed MCP server "${name}" from ${request.scope} config.` };
   }
 
