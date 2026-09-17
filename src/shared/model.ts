@@ -796,4 +796,6 @@ export interface ReadFileResult {
   content?: string;
   /** Data URL for image rendering. */
   dataUrl?: string;
+  /** True when file exceeds inline preview threshold (500 KB). */
+  isTooLarge?: boolean;
 }

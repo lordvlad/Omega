@@ -58,6 +58,7 @@ export interface ReadFileResult {
   isImage: boolean;
   content?: string;
   dataUrl?: string;
+  isTooLarge?: false | true;
 }
 
 /** Summary of git workspace status. */

@@ -13,6 +13,7 @@ import { serve, type ServerWebSocket } from "bun";
 
 import index from "../client/index.html";
 import type { AguiFrame } from "./agui.ts";
+import { resolveDownloadPath } from "./files.ts";
 import { registry } from "./registry.ts";
 import { handlers, HttpError } from "./router.ts";
 
@@ -81,6 +82,26 @@ const server = serve({
         const path = url.searchParams.get("path") || "";
         const cwd = url.searchParams.get("cwd") || undefined;
         return json(() => handlers.getFileContent({ path, cwd }));
+      },
+    },
+    "/api/files/download": {
+      GET: async request => {
+        const url = new URL(request.url);
+        const relPath = url.searchParams.get("path");
+        const cwd = url.searchParams.get("cwd") || undefined;
+        if (!relPath) return new Response("Path is required.", { status: 400 });
+        try {
+          const { fullPath, fileName, size, mimeType } = await resolveDownloadPath(relPath, cwd);
+          return new Response(Bun.file(fullPath), {
+            headers: {
+              "Content-Type": mimeType,
+              "Content-Disposition": `attachment; filename="${encodeURIComponent(fileName)}"`,
+              "Content-Length": String(size),
+            },
+          });
+        } catch (error) {
+          return new Response(error instanceof Error ? error.message : "File not found", { status: 404 });
+        }
       },
     },
     "/api/git/status": {

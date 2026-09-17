@@ -97,6 +97,9 @@ const TEXT_MIME_TYPES: Record<string, string> = {
   ".toml": "text/toml",
 };
 
+/** Largest file size (500 KB) rendered inline as text/syntax-highlighted code. */
+const MAX_PREVIEW_BYTES = 500_000;
+
 /**
  * Read the content and metadata of a file within the workspace.
  */
@@ -130,9 +133,22 @@ export async function readFileContent(relPath: string, cwd?: string): Promise<Re
       dataUrl: `data:${imageMime};base64,${buffer.toString("base64")}`,
     };
   }
+  const mimeType = TEXT_MIME_TYPES[ext] ?? "text/plain";
+
+  // Files larger than 500 KB are not read into memory as strings to keep
+  // wire payloads lightweight and avoid freezing browser syntax highlighters.
+  if (stat.size > MAX_PREVIEW_BYTES) {
+    return {
+      path: relPath,
+      size: stat.size,
+      mimeType,
+      isBinary: false,
+      isImage: false,
+      isTooLarge: true,
+    };
+  }
 
   const content = await fs.readFile(fullPath, "utf-8");
-  const mimeType = TEXT_MIME_TYPES[ext] ?? "text/plain";
 
   return {
     path: relPath,
@@ -141,5 +157,35 @@ export async function readFileContent(relPath: string, cwd?: string): Promise<Re
     isBinary: false,
     isImage: ext === ".svg",
     content,
+  };
+}
+
+/**
+ * Resolve and validate a workspace file for raw download streaming.
+ */
+export async function resolveDownloadPath(
+  relPath: string,
+  cwd?: string,
+): Promise<{ fullPath: string; fileName: string; size: number; mimeType: string }> {
+  const root = path.resolve(cwd || process.cwd());
+  const fullPath = path.resolve(root, relPath);
+
+  if (fullPath !== root && !fullPath.startsWith(root + path.sep)) {
+    throw new Error("Path is outside workspace directory.");
+  }
+
+  const stat = await fs.stat(fullPath);
+  if (!stat.isFile() && !stat.isSymbolicLink()) {
+    throw new Error("Target is not a downloadable file.");
+  }
+
+  const ext = path.extname(relPath).toLowerCase();
+  const mimeType = IMAGE_EXTENSIONS[ext] ?? TEXT_MIME_TYPES[ext] ?? "application/octet-stream";
+
+  return {
+    fullPath,
+    fileName: path.basename(relPath),
+    size: stat.size,
+    mimeType,
   };
 }

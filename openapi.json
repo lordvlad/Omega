@@ -2666,6 +2666,17 @@
           "dataUrl": {
             "type": "string",
             "description": "Data URL for image rendering."
+          },
+          "isTooLarge": {
+            "anyOf": [
+              {
+                "const": false
+              },
+              {
+                "const": true
+              }
+            ],
+            "description": "True when file exceeds inline preview threshold (500 KB)."
           }
         },
         "required": [

@@ -10,6 +10,7 @@ import {
   Alert,
   Badge,
   Box,
+  Button,
   Center,
   Group,
   Loader,
@@ -32,6 +33,7 @@ import {
   IconBraces,
   IconCheck,
   IconCopy,
+  IconDownload,
   IconFile,
   IconFileText,
   IconPhoto,
@@ -229,6 +231,21 @@ export function FileViewer({ filePath, cwd, gitStatus, onInsertRef, onClose }: F
                 </ActionIcon>
               </Tooltip>
             ) : null}
+            {filePath ? (
+              <Tooltip label="Download file">
+                <ActionIcon
+                  size="sm"
+                  variant="subtle"
+                  color="slate"
+                  component="a"
+                  href={`/api/files/download?path=${encodeURIComponent(filePath)}${cwd ? `&cwd=${encodeURIComponent(cwd)}` : ""}`}
+                  download={fileName}
+                  aria-label="Download file"
+                >
+                  <IconDownload size={16} />
+                </ActionIcon>
+              </Tooltip>
+            ) : null}
 
             {fileData?.content ? (
               <Tooltip label={copiedContent ? "Copied!" : "Copy content"}>
@@ -288,6 +305,43 @@ export function FileViewer({ filePath, cwd, gitStatus, onInsertRef, onClose }: F
                 boxShadow: "0 4px 12px rgba(0, 0, 0, 0.4)",
               }}
             />
+          </Center>
+        ) : fileData?.isTooLarge ? (
+          <Center h="100%" p="md">
+            <Stack align="center" gap="sm" style={{ maxWidth: 420 }}>
+              <ThemeIcon size={48} radius="xl" variant="light" color="orange">
+                <IconDownload size={26} />
+              </ThemeIcon>
+              <Text size="sm" fw={600} ta="center">
+                File is too large to preview inline ({formatBytes(fileData.size)})
+              </Text>
+              <Text size="xs" c="dimmed" ta="center">
+                Inline preview is capped at 500 KB to keep the browser responsive. You can download the full
+                file to view or edit locally.
+              </Text>
+              <Button
+                size="sm"
+                color="cyan"
+                variant="filled"
+                leftSection={<IconDownload size={16} />}
+                component="a"
+                href={`/api/files/download?path=${encodeURIComponent(filePath ?? "")}${cwd ? `&cwd=${encodeURIComponent(cwd)}` : ""}`}
+                download={fileName}
+              >
+                Download File ({formatBytes(fileData.size)})
+              </Button>
+              {onInsertRef && filePath ? (
+                <Button
+                  size="xs"
+                  variant="subtle"
+                  color="plum"
+                  leftSection={<IconPlus size={14} />}
+                  onClick={() => onInsertRef(filePath)}
+                >
+                  Insert @{filePath} reference
+                </Button>
+              ) : null}
+            </Stack>
           </Center>
         ) : fileData?.isBinary ? (
           <Center h="100%" p="md">

@@ -29,6 +29,7 @@ import {
   IconBrandTypescript,
   IconChevronDown,
   IconChevronRight,
+  IconDownload,
   IconEye,
   IconFile,
   IconFileText,
@@ -523,6 +524,21 @@ export function FileTreePanel({
                     </ActionIcon>
                   </Tooltip>
                 ) : null}
+                <Tooltip label="Download file">
+                  <ActionIcon
+                    size="xs"
+                    variant="subtle"
+                    color="gray"
+                    className="omega-filetree-action-btn"
+                    component="a"
+                    href={`/api/files/download?path=${encodeURIComponent(node.path)}${projectKey && projectKey !== "root" ? `&cwd=${encodeURIComponent(projectKey)}` : ""}`}
+                    download={node.name}
+                    onClick={e => e.stopPropagation()}
+                    aria-label={`Download ${node.path}`}
+                  >
+                    <IconDownload size={13} />
+                  </ActionIcon>
+                </Tooltip>
               </Group>
             ) : null}
           </Group>
