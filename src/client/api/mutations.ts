@@ -2,7 +2,7 @@
 // React Query options getters and hooks for mutation operations. Edit the document, not this file.
 
 import { useMutation, type UseMutationOptions } from "@tanstack/react-query";
-import { defaultClient, type Client, type AbortOptions, type AbortResult, type AddMcpServerOptions, type AddMcpServerResult, type AnalyzeOmfgOptions, type AnalyzeOmfgResult, type AskBtwOptions, type AskBtwResult, type BranchSessionOptions, type BranchSessionResult, type CompactSessionOptions, type CompactSessionResult, type DeleteRuleOptions, type DeleteRuleResult, type DeleteSessionOptions, type DeleteSessionResult, type DismissSurfaceOptions, type DismissSurfaceResult, type DropQueuedOptions, type DropQueuedResult, type EditPlanOptions, type EditPlanResult, type EditQueuedOptions, type EditQueuedResult, type ForceToolOptions, type ForceToolResult, type ForkSessionOptions, type ForkSessionResult, type OpenSessionOptions, type OpenSessionResult, type PromptOptions, type PromptResult, type RemoveMcpServerOptions, type RemoveMcpServerResult, type RenameSessionOptions, type RenameSessionResult, type RenderMarkdownOptions, type RenderMarkdownResult, type ResolvePlanOptions, type ResolvePlanResult, type RetryTurnOptions, type RetryTurnResult, type SaveOmfgRuleOptions, type SaveOmfgRuleResult, type SelectModelOptions, type SelectModelResult, type SetPlanModeOptions, type SetPlanModeResult, type SetThinkingLevelOptions, type SetThinkingLevelResult, type ShakeSessionOptions, type ShakeSessionResult, type StopSessionOptions, type StopSessionResult, type TestMcpServerOptions, type TestMcpServerResult2 } from "./api.ts";
+import { defaultClient, type Client, type AbortOptions, type AbortResult, type AddMcpServerOptions, type AddMcpServerResult, type AnalyzeOmfgOptions, type AnalyzeOmfgResult, type AskBtwOptions, type AskBtwResult, type BranchSessionOptions, type BranchSessionResult, type CancelJobOptions, type CancelJobResult, type CompactSessionOptions, type CompactSessionResult, type DeleteRuleOptions, type DeleteRuleResult, type DeleteSessionOptions, type DeleteSessionResult, type DismissSurfaceOptions, type DismissSurfaceResult, type DropQueuedOptions, type DropQueuedResult, type EditPlanOptions, type EditPlanResult, type EditQueuedOptions, type EditQueuedResult, type ForceToolOptions, type ForceToolResult, type ForkSessionOptions, type ForkSessionResult, type OpenSessionOptions, type OpenSessionResult, type PromptOptions, type PromptResult, type RemoveMcpServerOptions, type RemoveMcpServerResult, type RenameSessionOptions, type RenameSessionResult, type RenderMarkdownOptions, type RenderMarkdownResult, type ResolvePlanOptions, type ResolvePlanResult, type RestartProcessOptions, type RestartProcessResult, type RetryTurnOptions, type RetryTurnResult, type SaveOmfgRuleOptions, type SaveOmfgRuleResult, type SelectModelOptions, type SelectModelResult, type SetPlanModeOptions, type SetPlanModeResult, type SetThinkingLevelOptions, type SetThinkingLevelResult, type ShakeSessionOptions, type ShakeSessionResult, type SignalProcessOptions, type SignalProcessResult, type StopProcessOptions, type StopProcessResult, type StopSessionOptions, type StopSessionResult, type TestMcpServerOptions, type TestMcpServerResult2 } from "./api.ts";
 
 /**
  * Open or create a live session
@@ -354,6 +354,122 @@ export function useRemoveMcpServer<
   client: Client = defaultClient()
 ) {
   return useMutation(getRemoveMcpServerMutationOptions<TError>(mutationOptions, client));
+}
+
+/**
+ * Cancel background job
+ * 
+ * Cancel an async background job.
+ */
+export function getCancelJobMutationOptions<
+  TError = unknown
+>(
+  mutationOptions?: Omit<UseMutationOptions<CancelJobResult, TError, CancelJobOptions>, "mutationFn">,
+  client: Client = defaultClient()
+) {
+  return {
+    mutationKey: ["/api/sessions/{key}/jobs/cancel", "POST"] as const,
+    mutationFn: (options: CancelJobOptions) =>
+      client.cancelJob(options as any),
+    ...mutationOptions,
+  };
+}
+
+/** React Query hook for `cancelJob`. */
+export function useCancelJob<
+  TError = unknown
+>(
+  mutationOptions?: Omit<UseMutationOptions<CancelJobResult, TError, CancelJobOptions>, "mutationFn">,
+  client: Client = defaultClient()
+) {
+  return useMutation(getCancelJobMutationOptions<TError>(mutationOptions, client));
+}
+
+/**
+ * Send signal to process
+ * 
+ * Send a signal to a supervised background process.
+ */
+export function getSignalProcessMutationOptions<
+  TError = unknown
+>(
+  mutationOptions?: Omit<UseMutationOptions<SignalProcessResult, TError, SignalProcessOptions>, "mutationFn">,
+  client: Client = defaultClient()
+) {
+  return {
+    mutationKey: ["/api/processes/signal", "POST"] as const,
+    mutationFn: (options: SignalProcessOptions) =>
+      client.signalProcess(options as any),
+    ...mutationOptions,
+  };
+}
+
+/** React Query hook for `signalProcess`. */
+export function useSignalProcess<
+  TError = unknown
+>(
+  mutationOptions?: Omit<UseMutationOptions<SignalProcessResult, TError, SignalProcessOptions>, "mutationFn">,
+  client: Client = defaultClient()
+) {
+  return useMutation(getSignalProcessMutationOptions<TError>(mutationOptions, client));
+}
+
+/**
+ * Stop managed process
+ * 
+ * Stop a supervised background process.
+ */
+export function getStopProcessMutationOptions<
+  TError = unknown
+>(
+  mutationOptions?: Omit<UseMutationOptions<StopProcessResult, TError, StopProcessOptions>, "mutationFn">,
+  client: Client = defaultClient()
+) {
+  return {
+    mutationKey: ["/api/processes/stop", "POST"] as const,
+    mutationFn: (options: StopProcessOptions) =>
+      client.stopProcess(options as any),
+    ...mutationOptions,
+  };
+}
+
+/** React Query hook for `stopProcess`. */
+export function useStopProcess<
+  TError = unknown
+>(
+  mutationOptions?: Omit<UseMutationOptions<StopProcessResult, TError, StopProcessOptions>, "mutationFn">,
+  client: Client = defaultClient()
+) {
+  return useMutation(getStopProcessMutationOptions<TError>(mutationOptions, client));
+}
+
+/**
+ * Restart managed process
+ * 
+ * Restart a supervised background process.
+ */
+export function getRestartProcessMutationOptions<
+  TError = unknown
+>(
+  mutationOptions?: Omit<UseMutationOptions<RestartProcessResult, TError, RestartProcessOptions>, "mutationFn">,
+  client: Client = defaultClient()
+) {
+  return {
+    mutationKey: ["/api/processes/restart", "POST"] as const,
+    mutationFn: (options: RestartProcessOptions) =>
+      client.restartProcess(options as any),
+    ...mutationOptions,
+  };
+}
+
+/** React Query hook for `restartProcess`. */
+export function useRestartProcess<
+  TError = unknown
+>(
+  mutationOptions?: Omit<UseMutationOptions<RestartProcessResult, TError, RestartProcessOptions>, "mutationFn">,
+  client: Client = defaultClient()
+) {
+  return useMutation(getRestartProcessMutationOptions<TError>(mutationOptions, client));
 }
 
 /**
@@ -906,6 +1022,30 @@ export function createMutations(client: Client = defaultClient()) {
     useRemoveMcpServer: <TError = unknown>(
       mutationOptions?: Omit<UseMutationOptions<RemoveMcpServerResult, TError, RemoveMcpServerOptions>, "mutationFn">
     ) => useRemoveMcpServer<TError>(mutationOptions, client),
+    getCancelJobMutationOptions: <TError = unknown>(
+      mutationOptions?: Omit<UseMutationOptions<CancelJobResult, TError, CancelJobOptions>, "mutationFn">
+    ) => getCancelJobMutationOptions<TError>(mutationOptions, client),
+    useCancelJob: <TError = unknown>(
+      mutationOptions?: Omit<UseMutationOptions<CancelJobResult, TError, CancelJobOptions>, "mutationFn">
+    ) => useCancelJob<TError>(mutationOptions, client),
+    getSignalProcessMutationOptions: <TError = unknown>(
+      mutationOptions?: Omit<UseMutationOptions<SignalProcessResult, TError, SignalProcessOptions>, "mutationFn">
+    ) => getSignalProcessMutationOptions<TError>(mutationOptions, client),
+    useSignalProcess: <TError = unknown>(
+      mutationOptions?: Omit<UseMutationOptions<SignalProcessResult, TError, SignalProcessOptions>, "mutationFn">
+    ) => useSignalProcess<TError>(mutationOptions, client),
+    getStopProcessMutationOptions: <TError = unknown>(
+      mutationOptions?: Omit<UseMutationOptions<StopProcessResult, TError, StopProcessOptions>, "mutationFn">
+    ) => getStopProcessMutationOptions<TError>(mutationOptions, client),
+    useStopProcess: <TError = unknown>(
+      mutationOptions?: Omit<UseMutationOptions<StopProcessResult, TError, StopProcessOptions>, "mutationFn">
+    ) => useStopProcess<TError>(mutationOptions, client),
+    getRestartProcessMutationOptions: <TError = unknown>(
+      mutationOptions?: Omit<UseMutationOptions<RestartProcessResult, TError, RestartProcessOptions>, "mutationFn">
+    ) => getRestartProcessMutationOptions<TError>(mutationOptions, client),
+    useRestartProcess: <TError = unknown>(
+      mutationOptions?: Omit<UseMutationOptions<RestartProcessResult, TError, RestartProcessOptions>, "mutationFn">
+    ) => useRestartProcess<TError>(mutationOptions, client),
     getEditQueuedMutationOptions: <TError = unknown>(
       mutationOptions?: Omit<UseMutationOptions<EditQueuedResult, TError, EditQueuedOptions>, "mutationFn">
     ) => getEditQueuedMutationOptions<TError>(mutationOptions, client),

@@ -64,6 +64,7 @@ import {
   IconSettings,
   IconShield,
   IconShieldCheck,
+  IconStack2,
   IconTerminal2,
   IconTools,
   IconTrash,
@@ -112,9 +113,11 @@ export const PALETTE_COMMAND = {
   tools: "/tools",
   force: "/force",
   rules: "/rules",
-  plan: "/plan",
   retry: "/retry",
   abort: "/abort",
+  plan: "/plan",
+  jobs: "/jobs",
+  ps: "/ps",
   newSession: "/new",
   fork: "/fork",
   branch: "/branch",
@@ -165,6 +168,8 @@ const COMMAND_SPEC: Record<
   "/tools": { kind: "scope", placeholder: "Filter available tools or force one…" },
   "/force": { kind: "scope", placeholder: "Pick a tool to force for next turn…", termIsInput: true },
   "/rules": { kind: "scope", placeholder: "Filter stream rules (TTSR) or manage…" },
+  "/jobs": { kind: "scope", placeholder: "Inspect background jobs or cancel…" },
+  "/ps": { kind: "scope", placeholder: "Inspect supervised daemons, send signals, restart…" },
   "/retry": { kind: "run", placeholder: "Retry the last failed turn…" },
   "/abort": { kind: "run", placeholder: "Interrupt the current turn…" },
   "/plan": { kind: "run", placeholder: "Toggle plan mode…" },
@@ -326,6 +331,8 @@ export interface CommandPaletteProps {
   onTogglePlanMode: (enabled: boolean) => void;
   onFork: () => void;
   onBranch: (point: BranchPoint) => void;
+  onOpenJobs?: () => void;
+  onOpenProcesses?: () => void;
   /** Release a live session from the server's memory; the file is kept. */
   onStopSession: (session: SessionSummary) => void;
   /** Erase a session and its artifacts from disk. Confirms before acting. */
@@ -393,6 +400,8 @@ export function CommandPalette({
   onBranch,
   onStopSession,
   onDeleteSession,
+  onOpenJobs,
+  onOpenProcesses,
   mcpCommands,
   onPickCommand,
   onRefreshWorkspaces,
@@ -687,6 +696,24 @@ export function CommandPalette({
             leftSection: <IconShieldCheck size={16} color="var(--mantine-color-orange-4)" />,
             closeSpotlightOnTrigger: false,
             onClick: () => onOpenRules?.(),
+          },
+          {
+            id: "command-jobs",
+            label: PALETTE_COMMAND.jobs,
+            description: "Inspect active background jobs and worker pools",
+            keywords: "jobs background async workers subagents cancel",
+            leftSection: <IconStack2 size={16} color="var(--mantine-color-cyan-4)" />,
+            closeSpotlightOnTrigger: false,
+            onClick: () => onOpenJobs?.(),
+          },
+          {
+            id: "command-ps",
+            label: PALETTE_COMMAND.ps,
+            description: "Manage supervised processes, send signals, and inspect daemons",
+            keywords: "ps processes daemons services supervisor signal restart stop",
+            leftSection: <IconTerminal2 size={16} color="var(--mantine-color-teal-4)" />,
+            closeSpotlightOnTrigger: false,
+            onClick: () => onOpenProcesses?.(),
           },
           {
             id: "command-branch",
@@ -1194,6 +1221,43 @@ export function CommandPalette({
       },
     ];
   }, [onOpenRules]);
+  /** `/jobs`: background jobs. */
+  const jobsActions = useMemo<PaletteAction[]>(() => {
+    return [
+      {
+        group: "Background Jobs (/jobs)",
+        actions: [
+          {
+            id: "jobs-open-drawer",
+            label: "Open Background Jobs Drawer",
+            description: "View active and recent async background jobs",
+            keywords: "jobs background async workers subagents cancel",
+            leftSection: <IconStack2 size={16} color="var(--mantine-color-cyan-4)" />,
+            onClick: () => onOpenJobs?.(),
+          },
+        ],
+      },
+    ];
+  }, [onOpenJobs]);
+
+  /** `/ps`: supervised processes. */
+  const processActions = useMemo<PaletteAction[]>(() => {
+    return [
+      {
+        group: "Supervised Processes (/ps)",
+        actions: [
+          {
+            id: "ps-open-drawer",
+            label: "Open Process Manager",
+            description: "View supervised daemons, send signals, and manage services",
+            keywords: "ps processes daemons services supervisor signal restart stop",
+            leftSection: <IconTerminal2 size={16} color="var(--mantine-color-teal-4)" />,
+            onClick: () => onOpenProcesses?.(),
+          },
+        ],
+      },
+    ];
+  }, [onOpenProcesses]);
 
   /** `/rename`: the term is the new title, so there is one action to confirm it. */
   const renameActions = useMemo<PaletteAction[]>(() => {
@@ -1414,8 +1478,9 @@ export function CommandPalette({
     "/delete": deleteActions,
     "@": fileActions,
     "/omega-settings": settingsActions,
+    "/jobs": jobsActions,
+    "/ps": processActions,
   };
-
   // The command prefix scopes the list rather than searching it, so it is
   // stripped before matching; otherwise every action would have to contain "/cd".
   const filter = useCallback((raw: string, items: PaletteAction[]): PaletteAction[] => {

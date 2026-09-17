@@ -44,16 +44,19 @@ import { ApiError } from "./api/api.ts";
 import type {
   AddMcpServerRequest,
   Attachment,
+  CancelJobRequest,
   DeleteRuleRequest,
   ForceToolRequest,
   LiveState,
   OmfgRuleCandidate,
   PlanAction,
   Problem,
+  ProcessActionRequest,
   QueuedMessage,
   RemoveMcpServerRequest,
   SessionSummary,
   ShakeMode,
+  SignalProcessRequest,
   TestMcpServerRequest,
   TestMcpServerResult,
   ThinkingLevel,
@@ -64,6 +67,7 @@ import {
   useAnalyzeOmfg,
   useAskBtw,
   useBranchSession,
+  useCancelJob,
   useCompactSession,
   useDeleteRule,
   useDeleteSession,
@@ -79,12 +83,15 @@ import {
   useRenameSession,
   useRenderMarkdown,
   useResolvePlan,
+  useRestartProcess,
   useRetryTurn,
   useSaveOmfgRule,
   useSelectModel,
   useSetPlanMode,
   useSetThinkingLevel,
   useShakeSession,
+  useSignalProcess,
+  useStopProcess,
   useStopSession,
   useTestMcpServer,
 } from "./api/mutations.ts";
@@ -98,7 +105,9 @@ import {
   useGetTranscript,
   useListBranchPoints,
   useListCommands,
+  useListJobs,
   useListMcpServers,
+  useListProcesses,
   useListRules,
   useListTools,
   useListQueue,
@@ -120,9 +129,11 @@ import {
 import { Composer } from "./components/Composer.tsx";
 import { FileTreePanel } from "./components/FileTreePanel.tsx";
 import { FileViewer } from "./components/FileViewer.tsx";
+import { JobsPanel } from "./components/JobsPanel.tsx";
 import { McpPanel } from "./components/McpPanel.tsx";
 import { OmfgPanel } from "./components/OmfgPanel.tsx";
 import { Planning } from "./components/Planning.tsx";
+import { ProcessPanel } from "./components/ProcessPanel.tsx";
 import { QueuePanel, queueSummary } from "./components/QueuePanel.tsx";
 import { RulesPanel } from "./components/RulesPanel.tsx";
 import { SubagentPanel } from "./components/SubagentPanel.tsx";
@@ -211,6 +222,10 @@ export function App() {
   const [subagentDrawerOpen, { open: openSubagents, close: closeSubagents }] = useDisclosure(false);
   /** The MCP server management drawer. */
   const [mcpDrawerOpen, { open: openMcp, close: closeMcp }] = useDisclosure(false);
+  /** The background jobs drawer. */
+  const [jobsDrawerOpen, { open: openJobs, close: closeJobs }] = useDisclosure(false);
+  /** The supervised processes drawer. */
+  const [processDrawerOpen, { open: openProcesses, close: closeProcesses }] = useDisclosure(false);
   /** Sent messages not yet echoed back by the server transcript. */
   const [pendingUser, setPendingUser] = useState<string[]>([]);
   /** Message text a branch handed back, for the composer to pick up. */
@@ -371,6 +386,12 @@ export function App() {
   const forceTool = useForceTool();
   const deleteRule = useDeleteRule();
 
+  const jobsQuery = useListJobs({ path: { key: sessionKey ?? "" } }, { enabled: Boolean(sessionKey) });
+  const processesQuery = useListProcesses({ query: { cwd: project } });
+  const cancelJob = useCancelJob();
+  const signalProc = useSignalProcess();
+  const stopProc = useStopProcess();
+  const restartProc = useRestartProcess();
   // A non-2xx response arrives as `ApiError`, whose `message` is only
   // `HTTP 409 for <url>`; the server's own explanation is the `Problem` body,
   // and every session command refuses with one worth reading.
@@ -1219,6 +1240,47 @@ export function App() {
   }, [openRules, rulesQuery]);
 
   /**
+   * Job and process operations.
+   */
+  const handleCancelJob = useCallback(
+    async (req: CancelJobRequest): Promise<void> => {
+      if (!sessionKey) return;
+      await cancelJob.mutateAsync({ path: { key: sessionKey }, body: req });
+    },
+    [sessionKey, cancelJob],
+  );
+
+  const handleSignalProcess = useCallback(
+    async (req: SignalProcessRequest): Promise<void> => {
+      await signalProc.mutateAsync({ body: { ...req, cwd: project } });
+    },
+    [signalProc, project],
+  );
+
+  const handleStopProcess = useCallback(
+    async (req: ProcessActionRequest): Promise<void> => {
+      await stopProc.mutateAsync({ body: { ...req, cwd: project } });
+    },
+    [stopProc, project],
+  );
+
+  const handleRestartProcess = useCallback(
+    async (req: ProcessActionRequest): Promise<void> => {
+      await restartProc.mutateAsync({ body: { ...req, cwd: project } });
+    },
+    [restartProc, project],
+  );
+
+  const handleOpenJobs = useCallback((): void => {
+    openJobs();
+    void jobsQuery.refetch();
+  }, [openJobs, jobsQuery]);
+
+  const handleOpenProcesses = useCallback((): void => {
+    openProcesses();
+    void processesQuery.refetch();
+  }, [openProcesses, processesQuery]);
+  /**
    * Picking an MCP command writes it into the composer rather than sending it.
    *
    * These commands take arguments, and omp expands them server-side when the
@@ -1764,6 +1826,43 @@ export function App() {
           onClose={closeRules}
         />
       </Drawer>
+      <Drawer
+        opened={jobsDrawerOpen}
+        onClose={closeJobs}
+        position={narrow ? "bottom" : "right"}
+        size={narrow ? "90%" : 540}
+        title={null}
+        withCloseButton={false}
+        padding={0}
+      >
+        <JobsPanel
+          running={jobsQuery.data?.running ?? []}
+          recent={Array.isArray(jobsQuery.data?.recent) ? jobsQuery.data?.recent : []}
+          loading={jobsQuery.isFetching}
+          onCancelJob={handleCancelJob}
+          onRefresh={() => void jobsQuery.refetch()}
+          onClose={closeJobs}
+        />
+      </Drawer>
+      <Drawer
+        opened={processDrawerOpen}
+        onClose={closeProcesses}
+        position={narrow ? "bottom" : "right"}
+        size={narrow ? "90%" : 540}
+        title={null}
+        withCloseButton={false}
+        padding={0}
+      >
+        <ProcessPanel
+          processes={processesQuery.data?.processes ?? []}
+          loading={processesQuery.isFetching}
+          onSignalProcess={handleSignalProcess}
+          onStopProcess={handleStopProcess}
+          onRestartProcess={handleRestartProcess}
+          onRefresh={() => void processesQuery.refetch()}
+          onClose={closeProcesses}
+        />
+      </Drawer>
 
       <AppShell.Main>
         {sessionKey ? (
@@ -1893,6 +1992,8 @@ export function App() {
         onCompact={handleCompact}
         onShake={handleShake}
         onSetThinking={handleSetThinking}
+        onOpenJobs={handleOpenJobs}
+        onOpenProcesses={handleOpenProcesses}
         onBtw={handleAskBtw}
         onOmfg={handleStartOmfg}
         onRename={handleRename}

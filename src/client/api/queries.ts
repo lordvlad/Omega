@@ -2,7 +2,7 @@
 // React Query options getters and hooks for query operations. Edit the document, not this file.
 
 import { useQuery, type UseQueryOptions } from "@tanstack/react-query";
-import { defaultClient, type Client, type GetFileContentOptions, type GetFileContentResult, type GetGitStatusOptions, type GetGitStatusResult, type GetPlanOptions, type GetPlanResult, type GetStateOptions, type GetStateResult, type GetTranscriptOptions, type GetTranscriptResult, type ListBranchPointsOptions, type ListBranchPointsResult, type ListCommandsOptions, type ListCommandsResult, type ListFilesOptions, type ListFilesResult, type ListMcpServersOptions, type ListMcpServersResult2, type ListModelsOptions, type ListModelsResult, type ListQueueOptions, type ListQueueResult, type ListRulesOptions, type ListRulesResult2, type ListToolsOptions, type ListToolsResult2, type ListWorkspacesOptions, type ListWorkspacesResult } from "./api.ts";
+import { defaultClient, type Client, type GetFileContentOptions, type GetFileContentResult, type GetGitStatusOptions, type GetGitStatusResult, type GetPlanOptions, type GetPlanResult, type GetStateOptions, type GetStateResult, type GetTranscriptOptions, type GetTranscriptResult, type ListBranchPointsOptions, type ListBranchPointsResult, type ListCommandsOptions, type ListCommandsResult, type ListFilesOptions, type ListFilesResult, type ListJobsOptions, type ListJobsResult2, type ListMcpServersOptions, type ListMcpServersResult2, type ListModelsOptions, type ListModelsResult, type ListProcessesOptions, type ListProcessesResult2, type ListQueueOptions, type ListQueueResult, type ListRulesOptions, type ListRulesResult2, type ListToolsOptions, type ListToolsResult2, type ListWorkspacesOptions, type ListWorkspacesResult } from "./api.ts";
 import { createMutations } from "./mutations.ts";
 
 /**
@@ -400,6 +400,72 @@ export function useListRules<
 }
 
 /**
+ * List background jobs
+ * 
+ * List active and recent async background jobs for this session.
+ */
+export function getListJobsQueryOptions<
+  TData = ListJobsResult2,
+  TError = unknown
+>(
+  options: ListJobsOptions,
+  queryOptions?: Omit<UseQueryOptions<ListJobsResult2, TError, TData>, "queryKey" | "queryFn">,
+  client: Client = defaultClient()
+) {
+  return {
+    queryKey: ["/api/sessions/{key}/jobs", options] as const,
+    queryFn: ({ signal }: { signal?: AbortSignal }) =>
+      client.listJobs(options as any, { signal }),
+    ...queryOptions,
+  };
+}
+
+/** React Query hook for `listJobs`. */
+export function useListJobs<
+  TData = ListJobsResult2,
+  TError = unknown
+>(
+  options: ListJobsOptions,
+  queryOptions?: Omit<UseQueryOptions<ListJobsResult2, TError, TData>, "queryKey" | "queryFn">,
+  client: Client = defaultClient()
+) {
+  return useQuery(getListJobsQueryOptions(options, queryOptions, client));
+}
+
+/**
+ * List managed processes
+ * 
+ * List supervised background processes in the workspace.
+ */
+export function getListProcessesQueryOptions<
+  TData = ListProcessesResult2,
+  TError = unknown
+>(
+  options?: ListProcessesOptions,
+  queryOptions?: Omit<UseQueryOptions<ListProcessesResult2, TError, TData>, "queryKey" | "queryFn">,
+  client: Client = defaultClient()
+) {
+  return {
+    queryKey: ["/api/processes", options] as const,
+    queryFn: ({ signal }: { signal?: AbortSignal }) =>
+      client.listProcesses(options as any, { signal }),
+    ...queryOptions,
+  };
+}
+
+/** React Query hook for `listProcesses`. */
+export function useListProcesses<
+  TData = ListProcessesResult2,
+  TError = unknown
+>(
+  options?: ListProcessesOptions,
+  queryOptions?: Omit<UseQueryOptions<ListProcessesResult2, TError, TData>, "queryKey" | "queryFn">,
+  client: Client = defaultClient()
+) {
+  return useQuery(getListProcessesQueryOptions(options!, queryOptions, client));
+}
+
+/**
  * List branch points
  * 
  * The user messages this session can branch from, oldest first.
@@ -565,6 +631,22 @@ export function createQueries(client: Client = defaultClient()) {
       options: ListRulesOptions,
       queryOptions?: Omit<UseQueryOptions<ListRulesResult2, TError, TData>, "queryKey" | "queryFn">
     ) => useListRules<TData, TError>(options, queryOptions, client),
+    getListJobsQueryOptions: <TData = ListJobsResult2, TError = unknown>(
+      options: ListJobsOptions,
+      queryOptions?: Omit<UseQueryOptions<ListJobsResult2, TError, TData>, "queryKey" | "queryFn">
+    ) => getListJobsQueryOptions<TData, TError>(options, queryOptions, client),
+    useListJobs: <TData = ListJobsResult2, TError = unknown>(
+      options: ListJobsOptions,
+      queryOptions?: Omit<UseQueryOptions<ListJobsResult2, TError, TData>, "queryKey" | "queryFn">
+    ) => useListJobs<TData, TError>(options, queryOptions, client),
+    getListProcessesQueryOptions: <TData = ListProcessesResult2, TError = unknown>(
+      options?: ListProcessesOptions,
+      queryOptions?: Omit<UseQueryOptions<ListProcessesResult2, TError, TData>, "queryKey" | "queryFn">
+    ) => getListProcessesQueryOptions<TData, TError>(options!, queryOptions, client),
+    useListProcesses: <TData = ListProcessesResult2, TError = unknown>(
+      options?: ListProcessesOptions,
+      queryOptions?: Omit<UseQueryOptions<ListProcessesResult2, TError, TData>, "queryKey" | "queryFn">
+    ) => useListProcesses<TData, TError>(options!, queryOptions, client),
     getListBranchPointsQueryOptions: <TData = ListBranchPointsResult, TError = unknown>(
       options: ListBranchPointsOptions,
       queryOptions?: Omit<UseQueryOptions<ListBranchPointsResult, TError, TData>, "queryKey" | "queryFn">

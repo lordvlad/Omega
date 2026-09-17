@@ -11,14 +11,18 @@ import type {
   BranchResult,
   BtwRequest,
   BtwResult,
+  CancelJobRequest,
   CompactRequest,
   DeleteRuleRequest,
   ForceToolRequest,
   GitStatusQuery,
   GitStatusResult,
   ListFilesQuery,
+  ListJobsResult,
   ListMcpServersQuery,
   ListMcpServersResult,
+  ListProcessesQuery,
+  ListProcessesResult,
   ListRulesResult,
   ListToolsResult,
   LiveState,
@@ -32,6 +36,7 @@ import type {
   PlanDocument,
   PlanEditRequest,
   PlanModeRequest,
+  ProcessActionRequest,
   PromptRequest,
   QueueDropRequest,
   QueueEditRequest,
@@ -43,6 +48,7 @@ import type {
   RenderedMarkdown,
   SelectModelRequest,
   ShakeRequest,
+  SignalProcessRequest,
   SlashCommand,
   TestMcpServerRequest,
   TestMcpServerResult,
@@ -61,6 +67,14 @@ import type {
 import type { OmpApi } from "../shared/service.ts";
 import { listFiles, readFileContent } from "./files.ts";
 import { getGitStatus } from "./git.ts";
+import {
+  cancelSessionJob,
+  listManagedProcesses,
+  listSessionJobs,
+  restartManagedProcess,
+  signalManagedProcess,
+  stopManagedProcess,
+} from "./jobs-processes.ts";
 import { renderMarkdownServer } from "./markdown.ts";
 import {
   addMcpServerConfig,
@@ -374,6 +388,48 @@ export class Handlers implements OmpApi {
     const live = this.#require(key);
     try {
       return await deleteSessionRule(live, body);
+    } catch (error) {
+      throw new HttpError(400, error instanceof Error ? error.message : String(error));
+    }
+  }
+
+  listJobs(key: string): Promise<ListJobsResult> {
+    const live = this.#require(key);
+    return Promise.resolve(listSessionJobs(live));
+  }
+
+  cancelJob(key: string, body: CancelJobRequest): Promise<Ack> {
+    const live = this.#require(key);
+    try {
+      return Promise.resolve(cancelSessionJob(live, body));
+    } catch (error) {
+      throw new HttpError(400, error instanceof Error ? error.message : String(error));
+    }
+  }
+
+  async listProcesses(query?: ListProcessesQuery): Promise<ListProcessesResult> {
+    return await listManagedProcesses(query?.cwd);
+  }
+
+  async signalProcess(body: SignalProcessRequest): Promise<Ack> {
+    try {
+      return await signalManagedProcess(body);
+    } catch (error) {
+      throw new HttpError(400, error instanceof Error ? error.message : String(error));
+    }
+  }
+
+  async stopProcess(body: ProcessActionRequest): Promise<Ack> {
+    try {
+      return await stopManagedProcess(body);
+    } catch (error) {
+      throw new HttpError(400, error instanceof Error ? error.message : String(error));
+    }
+  }
+
+  async restartProcess(body: ProcessActionRequest): Promise<Ack> {
+    try {
+      return await restartManagedProcess(body);
     } catch (error) {
       throw new HttpError(400, error instanceof Error ? error.message : String(error));
     }

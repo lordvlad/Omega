@@ -23,14 +23,18 @@ import type {
   BranchResult,
   BtwRequest,
   BtwResult,
+  CancelJobRequest,
   CompactRequest,
   DeleteRuleRequest,
   ForceToolRequest,
   GitStatusQuery,
   GitStatusResult,
   ListFilesQuery,
+  ListJobsResult,
   ListMcpServersQuery,
   ListMcpServersResult,
+  ListProcessesQuery,
+  ListProcessesResult,
   ListRulesResult,
   ListToolsResult,
   LiveState,
@@ -48,6 +52,7 @@ import type {
   PromptRequest,
   QueueDropRequest,
   QueueEditRequest,
+  ProcessActionRequest,
   QueuedMessage,
   ReadFileQuery,
   ReadFileResult,
@@ -56,6 +61,7 @@ import type {
   RenderedMarkdown,
   SelectModelRequest,
   SessionSummary,
+  SignalProcessRequest,
   ShakeRequest,
   SlashCommand,
   TestMcpServerRequest,
@@ -328,6 +334,66 @@ export interface OmpApi {
    * @response 400 application/json Problem
    */
   removeMcpServer(body: RemoveMcpServerRequest): Promise<Ack>;
+
+  /**
+   * List active and recent async background jobs for this session.
+   *
+   * @get /api/sessions/{key}/jobs
+   * @summary List background jobs
+   * @response 200 application/json ListJobsResult
+   * @response 404 application/json Problem
+   */
+  listJobs(key: string): Promise<ListJobsResult>;
+
+  /**
+   * Cancel an async background job.
+   *
+   * @post /api/sessions/{key}/jobs/cancel
+   * @summary Cancel background job
+   * @response 200 application/json Ack
+   * @response 400 application/json Problem
+   * @response 404 application/json Problem
+   */
+  cancelJob(key: string, body: CancelJobRequest): Promise<Ack>;
+
+  /**
+   * List supervised background processes in the workspace.
+   *
+   * @get /api/processes
+   * @summary List managed processes
+   * @response 200 application/json ListProcessesResult
+   */
+  listProcesses(query?: ListProcessesQuery): Promise<ListProcessesResult>;
+
+  /**
+   * Send a signal to a supervised background process.
+   *
+   * @post /api/processes/signal
+   * @summary Send signal to process
+   * @response 200 application/json Ack
+   * @response 400 application/json Problem
+   */
+  signalProcess(body: SignalProcessRequest): Promise<Ack>;
+
+  /**
+   * Stop a supervised background process.
+   *
+   * @post /api/processes/stop
+   * @summary Stop managed process
+   * @response 200 application/json Ack
+   * @response 400 application/json Problem
+   */
+  stopProcess(body: ProcessActionRequest): Promise<Ack>;
+
+  /**
+   * Restart a supervised background process.
+   *
+   * @post /api/processes/restart
+   * @summary Restart managed process
+   * @response 200 application/json Ack
+   * @response 400 application/json Problem
+   */
+  restartProcess(body: ProcessActionRequest): Promise<Ack>;
 
   /**
    * Rewrite a queued message in place, keeping its lane and position.

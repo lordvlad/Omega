@@ -211,6 +211,40 @@ const server = serve({
         return json(() => handlers.deleteRule(request.params.key, body));
       },
     },
+    "/api/sessions/:key/jobs": {
+      GET: request => json(() => handlers.listJobs(request.params.key)),
+    },
+    "/api/sessions/:key/jobs/cancel": {
+      POST: async request => {
+        const body = await request.json();
+        return json(() => handlers.cancelJob(request.params.key, body));
+      },
+    },
+    "/api/processes": {
+      GET: request => {
+        const url = new URL(request.url);
+        const cwd = url.searchParams.get("cwd") || undefined;
+        return json(() => handlers.listProcesses({ cwd }));
+      },
+    },
+    "/api/processes/signal": {
+      POST: async request => {
+        const body = await request.json();
+        return json(() => handlers.signalProcess(body));
+      },
+    },
+    "/api/processes/stop": {
+      POST: async request => {
+        const body = await request.json();
+        return json(() => handlers.stopProcess(body));
+      },
+    },
+    "/api/processes/restart": {
+      POST: async request => {
+        const body = await request.json();
+        return json(() => handlers.restartProcess(body));
+      },
+    },
     "/api/sessions/:key/stop": {
       POST: request => json(() => handlers.stopSession(request.params.key)),
     },

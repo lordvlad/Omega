@@ -1178,6 +1178,274 @@
         }
       }
     },
+    "/api/sessions/{key}/jobs": {
+      "get": {
+        "operationId": "listJobs",
+        "x-service": "OmpApi",
+        "tags": [
+          "OmpApi"
+        ],
+        "summary": "List background jobs",
+        "description": "List active and recent async background jobs for this session.",
+        "parameters": [
+          {
+            "name": "key",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ListJobsResult"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/sessions/{key}/jobs/cancel": {
+      "post": {
+        "operationId": "cancelJob",
+        "x-service": "OmpApi",
+        "tags": [
+          "OmpApi"
+        ],
+        "summary": "Cancel background job",
+        "description": "Cancel an async background job.",
+        "parameters": [
+          {
+            "name": "key",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CancelJobRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Ack"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/processes": {
+      "get": {
+        "operationId": "listProcesses",
+        "x-service": "OmpApi",
+        "tags": [
+          "OmpApi"
+        ],
+        "summary": "List managed processes",
+        "description": "List supervised background processes in the workspace.",
+        "parameters": [
+          {
+            "name": "cwd",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ListProcessesResult"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/processes/signal": {
+      "post": {
+        "operationId": "signalProcess",
+        "x-service": "OmpApi",
+        "tags": [
+          "OmpApi"
+        ],
+        "summary": "Send signal to process",
+        "description": "Send a signal to a supervised background process.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SignalProcessRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Ack"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/processes/stop": {
+      "post": {
+        "operationId": "stopProcess",
+        "x-service": "OmpApi",
+        "tags": [
+          "OmpApi"
+        ],
+        "summary": "Stop managed process",
+        "description": "Stop a supervised background process.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ProcessActionRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Ack"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/processes/restart": {
+      "post": {
+        "operationId": "restartProcess",
+        "x-service": "OmpApi",
+        "tags": [
+          "OmpApi"
+        ],
+        "summary": "Restart managed process",
+        "description": "Restart a supervised background process.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ProcessActionRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Ack"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/sessions/{key}/queue/edit": {
       "post": {
         "operationId": "editQueued",
@@ -3535,6 +3803,216 @@
         "required": [
           "name",
           "scope"
+        ]
+      },
+      "ListJobsResult": {
+        "description": "List of running and recently settled background jobs.",
+        "type": "object",
+        "properties": {
+          "running": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SessionAsyncJob"
+            }
+          },
+          "recent": {
+            "$ref": "#/components/schemas/t_2"
+          }
+        },
+        "required": [
+          "running",
+          "recent"
+        ]
+      },
+      "SessionAsyncJob": {
+        "description": "An asynchronous background job owned by the session.",
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "type": {
+            "type": "string"
+          },
+          "label": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string"
+          },
+          "startTime": {
+            "type": "number"
+          },
+          "durationMs": {
+            "type": "number"
+          },
+          "error": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "type",
+          "status",
+          "startTime"
+        ]
+      },
+      "CancelJobRequest": {
+        "description": "Cancel a background job.",
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "reason": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id"
+        ]
+      },
+      "ListProcessesResult": {
+        "description": "List of supervised processes in the workspace.",
+        "type": "object",
+        "properties": {
+          "processes": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ManagedProcessInfo"
+            }
+          }
+        },
+        "required": [
+          "processes"
+        ]
+      },
+      "ManagedProcessInfo": {
+        "description": "Information about a supervised background process in the workspace.",
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "state": {
+            "$ref": "#/components/schemas/ProcessLifecycleState"
+          },
+          "pid": {
+            "type": "number"
+          },
+          "application": {
+            "type": "string"
+          },
+          "args": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "startedAt": {
+            "type": "number"
+          },
+          "readyAt": {
+            "type": "number"
+          },
+          "exitedAt": {
+            "type": "number"
+          },
+          "exitCode": {
+            "type": "number"
+          },
+          "restartCount": {
+            "type": "number"
+          },
+          "outputBytes": {
+            "type": "number"
+          },
+          "owner": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "state",
+          "restartCount",
+          "outputBytes"
+        ]
+      },
+      "ProcessLifecycleState": {
+        "description": "Process lifecycle state.",
+        "anyOf": [
+          {
+            "const": "running"
+          },
+          {
+            "const": "ready"
+          },
+          {
+            "const": "exited"
+          },
+          {
+            "const": "idle"
+          },
+          {
+            "const": "starting"
+          },
+          {
+            "const": "stopped"
+          }
+        ]
+      },
+      "SignalProcessRequest": {
+        "description": "Send a signal to a supervised process.",
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "signal": {
+            "$ref": "#/components/schemas/ProcessSignal"
+          },
+          "cwd": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "signal"
+        ]
+      },
+      "ProcessSignal": {
+        "description": "Process signal name.",
+        "anyOf": [
+          {
+            "const": "SIGINT"
+          },
+          {
+            "const": "SIGTERM"
+          },
+          {
+            "const": "SIGKILL"
+          },
+          {
+            "const": "SIGHUP"
+          },
+          {
+            "const": "SIGQUIT"
+          }
+        ]
+      },
+      "ProcessActionRequest": {
+        "description": "Stop or restart a supervised process.",
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "cwd": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "name"
         ]
       },
       "QueueEditRequest": {

@@ -391,6 +391,69 @@ export interface RemoveMcpServerRequest {
   cwd?: string;
 }
 
+/** List of running and recently settled background jobs. */
+export interface ListJobsResult {
+  running: SessionAsyncJob[];
+  recent: unknown;
+}
+
+/** An asynchronous background job owned by the session. */
+export interface SessionAsyncJob {
+  id: string;
+  type: string;
+  label?: string;
+  status: string;
+  startTime: number;
+  durationMs?: number;
+  error?: string;
+}
+
+/** Cancel a background job. */
+export interface CancelJobRequest {
+  id: string;
+  reason?: string;
+}
+
+/** List of supervised processes in the workspace. */
+export interface ListProcessesResult {
+  processes: ManagedProcessInfo[];
+}
+
+/** Information about a supervised background process in the workspace. */
+export interface ManagedProcessInfo {
+  name: string;
+  state: ProcessLifecycleState;
+  pid?: number;
+  application?: string;
+  args?: string[];
+  startedAt?: number;
+  readyAt?: number;
+  exitedAt?: number;
+  exitCode?: number;
+  restartCount: number;
+  outputBytes: number;
+  owner?: string;
+}
+
+/** Process lifecycle state. */
+export type ProcessLifecycleState = "running" | "ready" | "exited" | "idle" | "starting" | "stopped";
+
+/** Send a signal to a supervised process. */
+export interface SignalProcessRequest {
+  name: string;
+  signal: ProcessSignal;
+  cwd?: string;
+}
+
+/** Process signal name. */
+export type ProcessSignal = "SIGINT" | "SIGTERM" | "SIGKILL" | "SIGHUP" | "SIGQUIT";
+
+/** Stop or restart a supervised process. */
+export interface ProcessActionRequest {
+  name: string;
+  cwd?: string;
+}
+
 /**
  * Rewrite one queued message.
  * 
