@@ -15,6 +15,8 @@ import type {
   CompactRequest,
   DeleteRuleRequest,
   ForceToolRequest,
+  GitDiffQuery,
+  GitDiffResult,
   GitStatusQuery,
   GitStatusResult,
   ListFilesQuery,
@@ -66,7 +68,7 @@ import type {
  */
 import type { OmpApi } from "../shared/service.ts";
 import { listFiles, readFileContent } from "./files.ts";
-import { getGitStatus } from "./git.ts";
+import { getGitDiff, getGitStatus } from "./git.ts";
 import {
   cancelSessionJob,
   listManagedProcesses,
@@ -210,6 +212,16 @@ export class Handlers implements OmpApi {
 
   getGitStatus(query?: GitStatusQuery): Promise<GitStatusResult> {
     return getGitStatus(query?.cwd);
+  }
+  async getGitDiff(query?: GitDiffQuery): Promise<GitDiffResult> {
+    if (!query?.path) {
+      throw new HttpError(400, "File path is required.");
+    }
+    try {
+      return await getGitDiff(query.path, query.cwd);
+    } catch (error) {
+      throw new HttpError(404, error instanceof Error ? error.message : String(error));
+    }
   }
   async openSession(body: OpenSessionRequest): Promise<LiveState> {
     if (!body.sessionPath && !body.cwd) {

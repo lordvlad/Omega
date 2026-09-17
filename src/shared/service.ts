@@ -27,6 +27,8 @@ import type {
   CompactRequest,
   DeleteRuleRequest,
   ForceToolRequest,
+  GitDiffQuery,
+  GitDiffResult,
   GitStatusQuery,
   GitStatusResult,
   ListFilesQuery,
@@ -117,6 +119,15 @@ export interface OmpApi {
    * @response 200 application/json GitStatusResult
    */
   getGitStatus(query?: GitStatusQuery): Promise<GitStatusResult>;
+
+  /**
+   * Git diff for a specific file in a workspace directory.
+   *
+   * @get /api/git/diff
+   * @response 200 application/json GitDiffResult
+   * @response 404 application/json Problem
+   */
+  getGitDiff(query?: GitDiffQuery): Promise<GitDiffResult>;
 
   /**
    * Load a session as a live agent, or start a new one in `cwd`.

@@ -36,14 +36,15 @@ import {
   IconDownload,
   IconFile,
   IconFileText,
+  IconGitCommit,
   IconPhoto,
   IconPlus,
   IconX,
 } from "@tabler/icons-react";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 import type { GitFileStatus } from "../api/model.ts";
-import { useGetFileContent } from "../api/queries.ts";
+import { useGetFileContent, useGetGitDiff } from "../api/queries.ts";
 import { copyText } from "../lib/clipboard.ts";
 import { Markdown } from "../lib/markdown.tsx";
 
@@ -138,34 +139,48 @@ function getFileIcon(fileName: string) {
 }
 
 export function FileViewer({ filePath, cwd, gitStatus, onInsertRef, onClose }: FileViewerProps) {
-  const [copiedContent, setCopiedContent] = useState(false);
-  const [markdownView, setMarkdownView] = useState<"rendered" | "raw">("rendered");
-  const query = useGetFileContent(
-    { query: { path: filePath ?? "", cwd } },
-    { enabled: Boolean(filePath), staleTime: 10_000 },
-  );
-
-  const fileData = query.data;
+  const isModified = Boolean(gitStatus && gitStatus.status);
   const fileName = filePath ? (filePath.split("/").pop() ?? filePath) : "";
   const ext = fileName.split(".").pop()?.toLowerCase() ?? "";
   const isMarkdown = ext === "md" || ext === "markdown";
   const language = LANGUAGE_MAP[ext] ?? "text";
 
+  const [copiedContent, setCopiedContent] = useState(false);
+  const [viewMode, setViewMode] = useState<"rendered" | "raw" | "diff">(isMarkdown ? "rendered" : "raw");
+
+  useEffect(() => {
+    setViewMode(isMarkdown ? "rendered" : "raw");
+  }, [filePath, isMarkdown]);
+
+  const query = useGetFileContent(
+    { query: { path: filePath ?? "", cwd } },
+    { enabled: Boolean(filePath), staleTime: 10_000 },
+  );
+
+  const diffQuery = useGetGitDiff(
+    { query: { path: filePath ?? "", cwd } },
+    { enabled: Boolean(filePath && isModified), staleTime: 10_000 },
+  );
+
+  const fileData = query.data;
+  const diffData = diffQuery.data;
+
+  const activeContent = viewMode === "diff" ? diffData?.diff : fileData?.content;
+
   const lineCount = useMemo(() => {
-    if (!fileData?.content) return 0;
-    return fileData.content.split("\n").length;
-  }, [fileData?.content]);
+    if (!activeContent) return 0;
+    return activeContent.split("\n").length;
+  }, [activeContent]);
 
   const copiedReset = useTimeout(() => setCopiedContent(false), 1500);
   const handleCopy = () => {
-    if (fileData?.content) {
-      void copyText(fileData.content);
+    if (activeContent) {
+      void copyText(activeContent);
       setCopiedContent(true);
       copiedReset.clear();
       copiedReset.start();
     }
   };
-
   const statusStyle = gitStatus ? GIT_STATUS_STYLE[gitStatus.status] : undefined;
 
   return (
@@ -206,11 +221,34 @@ export function FileViewer({ filePath, cwd, gitStatus, onInsertRef, onClose }: F
           </Group>
 
           <Group gap={6} wrap="nowrap">
-            {isMarkdown && fileData?.content ? (
+            {isModified ? (
+              isMarkdown ? (
+                <SegmentedControl
+                  size="xs"
+                  value={viewMode}
+                  onChange={v => setViewMode(v as "rendered" | "raw" | "diff")}
+                  data={[
+                    { label: "Preview", value: "rendered" },
+                    { label: "Raw", value: "raw" },
+                    { label: "Diff", value: "diff" },
+                  ]}
+                />
+              ) : (
+                <SegmentedControl
+                  size="xs"
+                  value={viewMode === "diff" ? "diff" : "file"}
+                  onChange={v => setViewMode(v === "diff" ? "diff" : "raw")}
+                  data={[
+                    { label: "File", value: "file" },
+                    { label: "Diff", value: "diff" },
+                  ]}
+                />
+              )
+            ) : isMarkdown && fileData?.content ? (
               <SegmentedControl
                 size="xs"
-                value={markdownView}
-                onChange={v => setMarkdownView(v as "rendered" | "raw")}
+                value={viewMode === "raw" ? "raw" : "rendered"}
+                onChange={v => setViewMode(v as "rendered" | "raw")}
                 data={[
                   { label: "Preview", value: "rendered" },
                   { label: "Raw", value: "raw" },
@@ -247,14 +285,14 @@ export function FileViewer({ filePath, cwd, gitStatus, onInsertRef, onClose }: F
               </Tooltip>
             ) : null}
 
-            {fileData?.content ? (
-              <Tooltip label={copiedContent ? "Copied!" : "Copy content"}>
+            {activeContent ? (
+              <Tooltip label={copiedContent ? "Copied!" : viewMode === "diff" ? "Copy diff" : "Copy content"}>
                 <ActionIcon
                   size="sm"
                   variant="subtle"
                   color={copiedContent ? "cyan" : "slate"}
                   onClick={handleCopy}
-                  aria-label="Copy file content"
+                  aria-label={viewMode === "diff" ? "Copy diff" : "Copy file content"}
                 >
                   {copiedContent ? <IconCheck size={16} /> : <IconCopy size={16} />}
                 </ActionIcon>
@@ -272,7 +310,55 @@ export function FileViewer({ filePath, cwd, gitStatus, onInsertRef, onClose }: F
 
       {/* Content Area */}
       <Box style={{ flex: 1, position: "relative", overflow: "hidden" }}>
-        {query.isLoading ? (
+        {viewMode === "diff" ? (
+          diffQuery.isLoading ? (
+            <Center h="100%">
+              <Stack align="center" gap="sm">
+                <Loader size="md" color="yellow" />
+                <Text size="xs" c="dimmed">
+                  Loading diff for {filePath}...
+                </Text>
+              </Stack>
+            </Center>
+          ) : diffQuery.isError ? (
+            <Center h="100%" p="md">
+              <Alert
+                icon={<IconAlertCircle size={16} />}
+                title="Error loading diff"
+                color="red"
+                variant="light"
+              >
+                {diffQuery.error instanceof Error ? diffQuery.error.message : "Unable to read git diff"}
+              </Alert>
+            </Center>
+          ) : diffData?.isTooLarge ? (
+            <Center h="100%" p="md">
+              <Stack align="center" gap="sm" style={{ maxWidth: 420 }}>
+                <ThemeIcon size={48} radius="xl" variant="light" color="orange">
+                  <IconAlertCircle size={26} />
+                </ThemeIcon>
+                <Text size="sm" fw={600} ta="center">
+                  Diff is too large to preview inline ({formatBytes(diffData.size ?? 0)})
+                </Text>
+                <Text size="xs" c="dimmed" ta="center">
+                  Git diff exceeds 500 KB threshold.
+                </Text>
+              </Stack>
+            </Center>
+          ) : diffData?.diff ? (
+            <ScrollArea style={{ height: "100%" }} type="auto">
+              <Box p="xs">
+                <CodeHighlight code={diffData.diff} language="diff" withCopyButton={false} />
+              </Box>
+            </ScrollArea>
+          ) : (
+            <Center h="100%">
+              <Text size="sm" c="dimmed">
+                No uncommitted git changes for this file
+              </Text>
+            </Center>
+          )
+        ) : query.isLoading ? (
           <Center h="100%">
             <Stack align="center" gap="sm">
               <Loader size="md" color="plum" />
@@ -317,19 +403,32 @@ export function FileViewer({ filePath, cwd, gitStatus, onInsertRef, onClose }: F
               </Text>
               <Text size="xs" c="dimmed" ta="center">
                 Inline preview is capped at 500 KB to keep the browser responsive. You can download the full
-                file to view or edit locally.
+                file to view or edit locally{isModified ? ", or view its git diff" : ""}.
               </Text>
-              <Button
-                size="sm"
-                color="cyan"
-                variant="filled"
-                leftSection={<IconDownload size={16} />}
-                component="a"
-                href={`/api/files/download?path=${encodeURIComponent(filePath ?? "")}${cwd ? `&cwd=${encodeURIComponent(cwd)}` : ""}`}
-                download={fileName}
-              >
-                Download File ({formatBytes(fileData.size)})
-              </Button>
+              <Group gap="xs">
+                <Button
+                  size="sm"
+                  color="cyan"
+                  variant="filled"
+                  leftSection={<IconDownload size={16} />}
+                  component="a"
+                  href={`/api/files/download?path=${encodeURIComponent(filePath ?? "")}${cwd ? `&cwd=${encodeURIComponent(cwd)}` : ""}`}
+                  download={fileName}
+                >
+                  Download File ({formatBytes(fileData.size)})
+                </Button>
+                {isModified ? (
+                  <Button
+                    size="sm"
+                    color="yellow"
+                    variant="light"
+                    leftSection={<IconGitCommit size={16} />}
+                    onClick={() => setViewMode("diff")}
+                  >
+                    View Diff
+                  </Button>
+                ) : null}
+              </Group>
               {onInsertRef && filePath ? (
                 <Button
                   size="xs"
@@ -357,7 +456,7 @@ export function FileViewer({ filePath, cwd, gitStatus, onInsertRef, onClose }: F
               </Text>
             </Stack>
           </Center>
-        ) : isMarkdown && markdownView === "rendered" && fileData?.content ? (
+        ) : isMarkdown && viewMode === "rendered" && fileData?.content ? (
           <ScrollArea style={{ height: "100%" }} p="md">
             <Box className="omega-markdown" style={{ maxWidth: 900, margin: "0 auto" }}>
               <Markdown text={fileData.content} />

@@ -194,6 +194,58 @@
         }
       }
     },
+    "/api/git/diff": {
+      "get": {
+        "operationId": "getGitDiff",
+        "x-service": "OmpApi",
+        "tags": [
+          "OmpApi"
+        ],
+        "description": "Git diff for a specific file in a workspace directory.",
+        "parameters": [
+          {
+            "name": "path",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Relative file path within workspace."
+          },
+          {
+            "name": "cwd",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Workspace cwd to read from. Defaults to current project or server cwd."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GitDiffResult"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/sessions": {
       "post": {
         "operationId": "openSession",
@@ -2772,6 +2824,55 @@
           "marker",
           "staged",
           "unstaged"
+        ]
+      },
+      "GitDiffResult": {
+        "description": "Single-file git diff result.",
+        "type": "object",
+        "properties": {
+          "path": {
+            "type": "string",
+            "description": "Normalized relative file path."
+          },
+          "diff": {
+            "type": "string",
+            "description": "Unified diff text if available."
+          },
+          "hasDiff": {
+            "type": "boolean",
+            "description": "True if diff output is non-empty."
+          },
+          "isBinary": {
+            "anyOf": [
+              {
+                "const": false
+              },
+              {
+                "const": true
+              }
+            ],
+            "description": "True if file or diff is binary."
+          },
+          "isTooLarge": {
+            "anyOf": [
+              {
+                "const": false
+              },
+              {
+                "const": true
+              }
+            ],
+            "description": "True when diff exceeds preview threshold (500 KB)."
+          },
+          "size": {
+            "type": "number",
+            "description": "Byte size of diff text."
+          }
+        },
+        "required": [
+          "path",
+          "diff",
+          "hasDiff"
         ]
       },
       "OpenSessionRequest": {

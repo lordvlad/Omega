@@ -4,9 +4,10 @@
  * Runs `git status` in porcelain mode to extract the active branch and any
  * modified, untracked, added, deleted, or conflicted files.
  */
+import * as fs from "node:fs/promises";
 import * as path from "node:path";
 
-import type { GitFileStatus, GitStatusResult } from "../shared/model.ts";
+import type { GitDiffResult, GitFileStatus, GitStatusResult } from "../shared/model.ts";
 
 /**
  * Read the git status of a workspace directory.
@@ -33,6 +34,95 @@ export async function getGitStatus(cwd?: string): Promise<GitStatusResult> {
     return parseGitStatusOutput(stdout);
   } catch {
     return { clean: true, files: {} };
+  }
+}
+/** Largest diff size (500 KB) rendered inline as syntax-highlighted diff. */
+const MAX_DIFF_BYTES = 500_000;
+
+/**
+ * Read the git diff of a specific file in a workspace directory.
+ *
+ * Returns unified diff between HEAD and working tree (including staged + unstaged changes),
+ * or untracked additions.
+ */
+export async function getGitDiff(relPath: string, cwd?: string): Promise<GitDiffResult> {
+  const root = path.resolve(cwd || process.cwd());
+  const fullPath = path.resolve(root, relPath);
+
+  if (fullPath !== root && !fullPath.startsWith(root + path.sep)) {
+    throw new Error("Path is outside workspace directory.");
+  }
+
+  try {
+    const isRepoProc = Bun.spawn(["git", "rev-parse", "--is-inside-work-tree"], {
+      cwd: root,
+      stdout: "pipe",
+      stderr: "pipe",
+    });
+    const [isRepoText, isRepoExit] = await Promise.all([
+      new Response(isRepoProc.stdout).text(),
+      isRepoProc.exited,
+    ]);
+    if (isRepoExit !== 0 || isRepoText.trim() !== "true") {
+      return { path: relPath, diff: "", hasDiff: false };
+    }
+
+    const revProc = Bun.spawn(["git", "rev-parse", "--verify", "HEAD"], {
+      cwd: root,
+      stdout: "pipe",
+      stderr: "pipe",
+    });
+    const hasHead = (await revProc.exited) === 0;
+
+    const diffArgs = hasHead ? ["git", "diff", "HEAD", "--", relPath] : ["git", "diff", "--", relPath];
+    const diffProc = Bun.spawn(diffArgs, {
+      cwd: root,
+      stdout: "pipe",
+      stderr: "pipe",
+    });
+
+    let diffText = await new Response(diffProc.stdout).text();
+    await diffProc.exited;
+
+    // If empty diff, check for untracked file
+    if (!diffText.trim()) {
+      try {
+        const stat = await fs.stat(fullPath);
+        if (stat.isFile() || stat.isSymbolicLink()) {
+          const noIndexProc = Bun.spawn(["git", "diff", "--no-index", "--", "/dev/null", fullPath], {
+            cwd: root,
+            stdout: "pipe",
+            stderr: "pipe",
+          });
+          const untrackedDiff = await new Response(noIndexProc.stdout).text();
+          await noIndexProc.exited;
+          if (untrackedDiff.trim()) {
+            diffText = untrackedDiff;
+          }
+        }
+      } catch {
+        // File may be deleted or unreadable
+      }
+    }
+
+    const diffSize = Buffer.byteLength(diffText, "utf-8");
+    const isBinary = diffText.includes("Binary files") || diffText.includes("GIT binary patch");
+    const isTooLarge = diffSize > MAX_DIFF_BYTES;
+
+    return {
+      path: relPath,
+      diff: isTooLarge ? "" : diffText,
+      hasDiff: diffText.trim().length > 0,
+      isBinary,
+      isTooLarge,
+      size: diffSize,
+    };
+  } catch {
+    return {
+      path: relPath,
+      diff: "",
+      hasDiff: false,
+    };
   }
 }
 

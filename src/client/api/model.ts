@@ -78,6 +78,16 @@ export interface GitFileStatus {
   unstaged: boolean;
 }
 
+/** Single-file git diff result. */
+export interface GitDiffResult {
+  path: string;
+  diff: string;
+  hasDiff: boolean;
+  isBinary?: false | true;
+  isTooLarge?: false | true;
+  size?: number;
+}
+
 /** Which session to load as a live agent. */
 export interface OpenSessionRequest {
   sessionPath?: string;

@@ -2,7 +2,7 @@
 // React Query options getters and hooks for query operations. Edit the document, not this file.
 
 import { useQuery, type UseQueryOptions } from "@tanstack/react-query";
-import { defaultClient, type Client, type GetFileContentOptions, type GetFileContentResult, type GetGitStatusOptions, type GetGitStatusResult, type GetPlanOptions, type GetPlanResult, type GetStateOptions, type GetStateResult, type GetTranscriptOptions, type GetTranscriptResult, type ListBranchPointsOptions, type ListBranchPointsResult, type ListCommandsOptions, type ListCommandsResult, type ListFilesOptions, type ListFilesResult, type ListJobsOptions, type ListJobsResult2, type ListMcpServersOptions, type ListMcpServersResult2, type ListModelsOptions, type ListModelsResult, type ListProcessesOptions, type ListProcessesResult2, type ListQueueOptions, type ListQueueResult, type ListRulesOptions, type ListRulesResult2, type ListToolsOptions, type ListToolsResult2, type ListWorkspacesOptions, type ListWorkspacesResult } from "./api.ts";
+import { defaultClient, type Client, type GetFileContentOptions, type GetFileContentResult, type GetGitDiffOptions, type GetGitDiffResult, type GetGitStatusOptions, type GetGitStatusResult, type GetPlanOptions, type GetPlanResult, type GetStateOptions, type GetStateResult, type GetTranscriptOptions, type GetTranscriptResult, type ListBranchPointsOptions, type ListBranchPointsResult, type ListCommandsOptions, type ListCommandsResult, type ListFilesOptions, type ListFilesResult, type ListJobsOptions, type ListJobsResult2, type ListMcpServersOptions, type ListMcpServersResult2, type ListModelsOptions, type ListModelsResult, type ListProcessesOptions, type ListProcessesResult2, type ListQueueOptions, type ListQueueResult, type ListRulesOptions, type ListRulesResult2, type ListToolsOptions, type ListToolsResult2, type ListWorkspacesOptions, type ListWorkspacesResult } from "./api.ts";
 import { createMutations } from "./mutations.ts";
 
 /**
@@ -156,6 +156,35 @@ export function useGetGitStatus<
   client: Client = defaultClient()
 ) {
   return useQuery(getGetGitStatusQueryOptions(options!, queryOptions, client));
+}
+
+/** Git diff for a specific file in a workspace directory. */
+export function getGetGitDiffQueryOptions<
+  TData = GetGitDiffResult,
+  TError = unknown
+>(
+  options: GetGitDiffOptions,
+  queryOptions?: Omit<UseQueryOptions<GetGitDiffResult, TError, TData>, "queryKey" | "queryFn">,
+  client: Client = defaultClient()
+) {
+  return {
+    queryKey: ["/api/git/diff", options] as const,
+    queryFn: ({ signal }: { signal?: AbortSignal }) =>
+      client.getGitDiff(options as any, { signal }),
+    ...queryOptions,
+  };
+}
+
+/** React Query hook for `getGitDiff`. */
+export function useGetGitDiff<
+  TData = GetGitDiffResult,
+  TError = unknown
+>(
+  options: GetGitDiffOptions,
+  queryOptions?: Omit<UseQueryOptions<GetGitDiffResult, TError, TData>, "queryKey" | "queryFn">,
+  client: Client = defaultClient()
+) {
+  return useQuery(getGetGitDiffQueryOptions(options, queryOptions, client));
 }
 
 /**
@@ -575,6 +604,14 @@ export function createQueries(client: Client = defaultClient()) {
       options?: GetGitStatusOptions,
       queryOptions?: Omit<UseQueryOptions<GetGitStatusResult, TError, TData>, "queryKey" | "queryFn">
     ) => useGetGitStatus<TData, TError>(options!, queryOptions, client),
+    getGetGitDiffQueryOptions: <TData = GetGitDiffResult, TError = unknown>(
+      options: GetGitDiffOptions,
+      queryOptions?: Omit<UseQueryOptions<GetGitDiffResult, TError, TData>, "queryKey" | "queryFn">
+    ) => getGetGitDiffQueryOptions<TData, TError>(options, queryOptions, client),
+    useGetGitDiff: <TData = GetGitDiffResult, TError = unknown>(
+      options: GetGitDiffOptions,
+      queryOptions?: Omit<UseQueryOptions<GetGitDiffResult, TError, TData>, "queryKey" | "queryFn">
+    ) => useGetGitDiff<TData, TError>(options, queryOptions, client),
     getGetStateQueryOptions: <TData = GetStateResult, TError = unknown>(
       options: GetStateOptions,
       queryOptions?: Omit<UseQueryOptions<GetStateResult, TError, TData>, "queryKey" | "queryFn">

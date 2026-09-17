@@ -771,6 +771,29 @@ export interface GitStatusResult {
   /** Map of relative file paths to their git status. */
   files: Record<string, GitFileStatus>;
 }
+/** Query parameters for reading single-file git diff. */
+export interface GitDiffQuery {
+  /** Relative file path within workspace. */
+  path: string;
+  /** Workspace cwd to read from. Defaults to current project or server cwd. */
+  cwd?: string;
+}
+
+/** Single-file git diff result. */
+export interface GitDiffResult {
+  /** Normalized relative file path. */
+  path: string;
+  /** Unified diff text if available. */
+  diff: string;
+  /** True if diff output is non-empty. */
+  hasDiff: boolean;
+  /** True if file or diff is binary. */
+  isBinary?: boolean;
+  /** True when diff exceeds preview threshold (500 KB). */
+  isTooLarge?: boolean;
+  /** Byte size of diff text. */
+  size?: number;
+}
 
 /** Query parameters for reading file content. */
 export interface ReadFileQuery {

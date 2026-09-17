@@ -308,7 +308,7 @@ export function FileTreePanel({
 }: FileTreePanelProps) {
   const storageKey = `omega:filetree:expanded:${projectKey || "root"}`;
   const [filterQuery, setFilterQuery] = useState("");
-
+  const [filterModifiedOnly, setFilterModifiedOnly] = useState(false);
   // Build the hierarchical tree
   const tree = useMemo(() => buildTree(files, gitStatus), [files, gitStatus]);
 
@@ -351,36 +351,51 @@ export function FileTreePanel({
     setExpandedPaths(new Set());
   }, [setExpandedPaths]);
 
-  // Filter tree matching search query
+  // Filter tree matching search query and git modified filter
   const query = filterQuery.trim().toLowerCase();
-  const filterActive = query.length > 0;
+  const searchActive = query.length > 0;
+  const filterActive = searchActive || filterModifiedOnly;
 
   const visibleNodes = useMemo(() => {
     if (!filterActive) return tree;
 
     function filterNode(node: TreeNode): TreeNode | null {
-      const matchesSelf = node.name.toLowerCase().includes(query) || node.path.toLowerCase().includes(query);
       if (!node.isDirectory) {
-        return matchesSelf ? node : null;
+        if (filterModifiedOnly && !node.gitStatus) return null;
+        if (searchActive) {
+          const matchesQuery =
+            node.name.toLowerCase().includes(query) || node.path.toLowerCase().includes(query);
+          if (!matchesQuery) return null;
+        }
+        return node;
       }
 
+      // Directory: recursively filter children
       const filteredChildren: TreeNode[] = [];
       for (const child of node.children) {
         const filtered = filterNode(child);
         if (filtered) filteredChildren.push(filtered);
       }
 
-      if (matchesSelf || filteredChildren.length > 0) {
+      if (filteredChildren.length > 0) {
         return {
           ...node,
           children: filteredChildren,
         };
       }
+
+      // If search query matches directory name itself and not in modified-only mode
+      if (!filterModifiedOnly && searchActive) {
+        const matchesSelf =
+          node.name.toLowerCase().includes(query) || node.path.toLowerCase().includes(query);
+        if (matchesSelf) return node;
+      }
+
       return null;
     }
 
     return tree.map(filterNode).filter((n): n is TreeNode => n !== null);
-  }, [tree, filterActive, query]);
+  }, [tree, filterActive, filterModifiedOnly, searchActive, query]);
 
   // Calculate git change counts
   const totalChanges = gitStatus ? Object.keys(gitStatus.files).length : 0;
@@ -575,9 +590,23 @@ export function FileTreePanel({
               </Badge>
             ) : null}
             {totalChanges > 0 ? (
-              <Badge size="xs" variant="light" color="yellow" style={{ flexShrink: 0 }}>
-                {totalChanges} changed
-              </Badge>
+              <Tooltip
+                label={
+                  filterModifiedOnly
+                    ? "Showing modified files only (click to show all files)"
+                    : "Filter tree for modified files"
+                }
+              >
+                <Badge
+                  size="xs"
+                  variant={filterModifiedOnly ? "filled" : "light"}
+                  color="yellow"
+                  style={{ flexShrink: 0, cursor: "pointer" }}
+                  onClick={() => setFilterModifiedOnly(prev => !prev)}
+                >
+                  {totalChanges} changed
+                </Badge>
+              </Tooltip>
             ) : null}
           </Group>
 
@@ -620,6 +649,22 @@ export function FileTreePanel({
 
       {/* Filter Input */}
       <Box px="sm" py="xs" style={{ borderBottom: "1px solid var(--omega-line)" }}>
+        {filterModifiedOnly ? (
+          <Group justify="space-between" mb={6} wrap="nowrap">
+            <Badge size="xs" color="yellow" variant="light" leftSection={<IconGitBranch size={10} />}>
+              Filtered to modified files
+            </Badge>
+            <ActionIcon
+              size="xs"
+              variant="subtle"
+              color="dimmed"
+              onClick={() => setFilterModifiedOnly(false)}
+              aria-label="Clear modified filter"
+            >
+              <IconX size={12} />
+            </ActionIcon>
+          </Group>
+        ) : null}
         <TextInput
           size="xs"
           placeholder="Filter files..."

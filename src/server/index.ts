@@ -111,6 +111,14 @@ const server = serve({
         return json(() => handlers.getGitStatus({ cwd }));
       },
     },
+    "/api/git/diff": {
+      GET: request => {
+        const url = new URL(request.url);
+        const path = url.searchParams.get("path") || "";
+        const cwd = url.searchParams.get("cwd") || undefined;
+        return json(() => handlers.getGitDiff({ path, cwd }));
+      },
+    },
 
     "/api/mcp/servers": {
       GET: request => {
