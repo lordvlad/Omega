@@ -1320,14 +1320,22 @@ export function App() {
               </>
             ) : null}
             {state.data?.contextUsage && state.data.contextUsage.percent >= 60 ? (
-              <Badge
-                size="xs"
-                variant="filled"
-                color={state.data.contextUsage.percent >= 85 ? "red" : "orange"}
-                style={{ flexShrink: 0 }}
-              >
-                {Math.round(state.data.contextUsage.percent)}%
-              </Badge>
+              <Tooltip label="Context usage high — click to /compact or /shake" position="bottom-start">
+                <UnstyledButton
+                  onClick={() => openPalette(PALETTE_COMMAND.context, setPaletteQuery)}
+                  aria-label="Reduce context size (/compact or /shake)"
+                  style={{ display: "inline-flex", alignItems: "center" }}
+                >
+                  <Badge
+                    size="xs"
+                    variant="filled"
+                    color={state.data.contextUsage.percent >= 85 ? "red" : "orange"}
+                    style={{ flexShrink: 0, cursor: "pointer" }}
+                  >
+                    {Math.round(state.data.contextUsage.percent)}%
+                  </Badge>
+                </UnstyledButton>
+              </Tooltip>
             ) : null}
           </Group>
           <Group

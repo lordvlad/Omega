@@ -104,6 +104,7 @@ export const PALETTE_COMMAND = {
   cost: "/cost",
   stats: "/stats",
   usage: "/usage",
+  context: "/context",
   rename: "/rename",
   retry: "/retry",
   abort: "/abort",
@@ -141,6 +142,7 @@ const COMMAND_SPEC: Record<
     placeholder: "Optional focus for the summary, then pick a mode…",
     termIsInput: true,
   },
+  "/context": { kind: "scope", placeholder: "Reduce context size via /compact or /shake…" },
   "/shake": { kind: "scope", placeholder: "Pick what to drop from context…" },
   "/think": { kind: "scope", placeholder: "Filter thinking levels…" },
   "/btw": { kind: "scope", placeholder: "Type a side question to ask the model…", termIsInput: true },
@@ -1032,6 +1034,35 @@ export function CommandPalette({
     ],
     [onShowStats],
   );
+  /** `/context`: context reduction choices. */
+  const contextActions = useMemo<PaletteAction[]>(
+    () => [
+      {
+        group: "Reduce Context Size",
+        actions: [
+          {
+            id: "context-compact",
+            label: "/compact",
+            description: "Summarize conversation history into a concise checkpoint",
+            keywords: "compact summarize reduce context",
+            leftSection: <IconArchive size={16} color="var(--mantine-color-plum-4)" />,
+            closeSpotlightOnTrigger: false,
+            onClick: () => onQueryChange(`${PALETTE_COMMAND.compact} `),
+          },
+          {
+            id: "context-shake",
+            label: "/shake",
+            description: "Drop heavy tool results or images from active context",
+            keywords: "shake drop images tool results reduce context",
+            leftSection: <IconFilterX size={16} color="var(--mantine-color-orange-4)" />,
+            closeSpotlightOnTrigger: false,
+            onClick: () => onQueryChange(`${PALETTE_COMMAND.shake} `),
+          },
+        ],
+      },
+    ],
+    [onQueryChange],
+  );
 
   /** `/rename`: the term is the new title, so there is one action to confirm it. */
   const renameActions = useMemo<PaletteAction[]>(() => {
@@ -1236,6 +1267,7 @@ export function CommandPalette({
     "/mcp": mcpServerActions,
     "/cost": costActions,
     "/stats": costActions,
+    "/context": contextActions,
     "/usage": costActions,
     "/rename": renameActions,
     "/retry": retryActions,
