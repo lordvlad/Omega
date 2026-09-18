@@ -12,11 +12,14 @@ export interface ProjectSettings {
   showThinking: boolean;
   /** Show tool calls and their results in the transcript. */
   showToolCalls: boolean;
+  /** Show native browser notifications when the agent yields/finishes a turn. */
+  notifyOnYield: boolean;
 }
 
 export const DEFAULT_PROJECT_SETTINGS: ProjectSettings = {
   showThinking: true,
   showToolCalls: true,
+  notifyOnYield: true,
 };
 
 function isProjectSettings(value: unknown): value is Partial<ProjectSettings> {

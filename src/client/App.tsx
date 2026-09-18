@@ -140,10 +140,11 @@ import { SubagentPanel } from "./components/SubagentPanel.tsx";
 import { TodoPanel } from "./components/TodoPanel.tsx";
 import { ToolsPanel } from "./components/ToolsPanel.tsx";
 import { Transcript } from "./components/Transcript.tsx";
+import { showYieldNotification } from "./lib/notifications.ts";
 import { useOnline } from "./lib/online.ts";
 import { newSendId } from "./lib/outbox.ts";
 import { useProjectSettings } from "./lib/settings.ts";
-import { useLiveTurn } from "./lib/stream.ts";
+import { type YieldEvent, useLiveTurn } from "./lib/stream.ts";
 import { forgetTranscript, usePersistedTranscript } from "./lib/transcript-cache.ts";
 import { useVisualViewport } from "./lib/viewport.ts";
 
@@ -420,7 +421,42 @@ export function App() {
     [sessionKey, selectModel, refresh, setRecentModels],
   );
 
-  const live = useLiveTurn(sessionKey, refresh);
+  const handleYield = useCallback(
+    (event: YieldEvent) => {
+      if (!settings.notifyOnYield) return;
+      // Dispatch native browser notification if window is hidden or blurred
+      if (document.visibilityState === "hidden" || !document.hasFocus()) {
+        const title = state.data?.title || "omega";
+        let body: string;
+        if (event.type === "plan") {
+          body = "Plan ready for review · The agent is waiting on your decision.";
+        } else if (event.type === "error") {
+          body = `Turn failed: ${event.error ?? "Unknown error"}`;
+        } else {
+          body = event.summary
+            ? event.summary.length > 150
+              ? `${event.summary.slice(0, 150)}…`
+              : event.summary
+            : "Agent finished turn and is ready for your input.";
+        }
+
+        void showYieldNotification({
+          title,
+          body,
+          tag: `omega-yield-${event.sessionKey}`,
+          icon: "/icon-192.png",
+          badge: "/icon-192.png",
+          onClick: () => {
+            window.focus();
+            if (event.type === "plan") openPlan();
+          },
+        });
+      }
+    },
+    [settings.notifyOnYield, state.data?.title, openPlan],
+  );
+
+  const live = useLiveTurn(sessionKey, refresh, handleYield);
   /**
    * What the pull-up gesture asks for.
    *
@@ -1313,6 +1349,13 @@ export function App() {
     attachments: Attachment[] | undefined,
   ): void => {
     if (!sessionKey) return;
+    if (
+      settings.notifyOnYield &&
+      typeof Notification !== "undefined" &&
+      Notification.permission === "default"
+    ) {
+      void Notification.requestPermission();
+    }
     if (live.status !== "open") live.reconnect();
     setPendingUser(current => [...current, message]);
     // Identifies this send across every retry the outbox makes, so a message

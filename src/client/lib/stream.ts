@@ -60,6 +60,14 @@ interface StreamedTool {
   done: boolean;
 }
 
+/** A turn boundary or user-intervention event emitted when the agent yields control. */
+export interface YieldEvent {
+  type: "complete" | "error" | "plan";
+  sessionKey: string;
+  summary?: string;
+  error?: string;
+}
+
 /** Everything the chat pane needs about the turn currently in flight. */
 export interface LiveTurn {
   /** True between `RUN_STARTED` and `RUN_FINISHED`. */
@@ -101,7 +109,11 @@ export interface LiveTurn {
  * is the signal to refetch the transcript and session state rather than trying
  * to mirror every field in the reducer.
  */
-export function useLiveTurn(key: string | undefined, onStale: () => void): LiveTurn {
+export function useLiveTurn(
+  key: string | undefined,
+  onStale: () => void,
+  onYield?: (event: YieldEvent) => void,
+): LiveTurn {
   const [status, setStatus] = useState<StreamStatus>("closed");
   const [running, setRunning] = useState(false);
   const [error, setError] = useState<string | undefined>(undefined);
@@ -120,7 +132,8 @@ export function useLiveTurn(key: string | undefined, onStale: () => void): LiveT
   const [tick, setTick] = useState(0);
   const stale = useRef(onStale);
   stale.current = onStale;
-
+  const yieldCallback = useRef(onYield);
+  yieldCallback.current = onYield;
   const reset = useCallback(() => {
     blocks.current = [];
     tools.current = [];
@@ -251,21 +264,43 @@ export function useLiveTurn(key: string | undefined, onStale: () => void): LiveT
           setNotices([]);
           setRunning(true);
           break;
-        case EventType.RUN_FINISHED:
+        case EventType.RUN_FINISHED: {
+          const summary = blocks.current
+            .filter(b => b.kind === "text")
+            .map(b => b.text)
+            .join("\n")
+            .trim();
           setRunning(false);
           // History is now durable, so drop the streamed copy and let the
           // transcript query own it. Clearing here is what prevents the
           // turn being rendered twice.
           reset();
           stale.current();
+          if (key) {
+            yieldCallback.current?.({
+              type: "complete",
+              sessionKey: key,
+              summary: summary || undefined,
+            });
+          }
           break;
-        case EventType.RUN_ERROR:
+        }
+        case EventType.RUN_ERROR: {
+          const errorMsg = typeof frame.message === "string" ? frame.message : "The turn failed.";
           setRunning(false);
-          setError(typeof frame.message === "string" ? frame.message : "The turn failed.");
+          setError(errorMsg);
           // A failed turn never reaches `agent_end`, so nothing else would
           // refetch the transcript — and the user's own message is in it.
           stale.current();
+          if (key) {
+            yieldCallback.current?.({
+              type: "error",
+              sessionKey: key,
+              error: errorMsg,
+            });
+          }
           break;
+        }
 
         case EventType.TEXT_MESSAGE_START:
           block(String(frame.messageId), "text");
@@ -322,9 +357,17 @@ export function useLiveTurn(key: string | undefined, onStale: () => void): LiveT
             stale.current();
           } else if (name === "omp.plan") {
             const value = frame.value as { awaitingApproval?: boolean } | null;
-            setPlanAwaiting(value?.awaitingApproval === true);
+            const awaiting = value?.awaitingApproval === true;
+            setPlanAwaiting(awaiting);
             setRevision(current => current + 1);
             stale.current();
+            if (awaiting && key) {
+              yieldCallback.current?.({
+                type: "plan",
+                sessionKey: key,
+                summary: "Plan ready for review",
+              });
+            }
           } else if (name === "omp.notice") {
             const value = frame.value as { message?: string } | null;
             if (value?.message) setNotices(current => [...current.slice(-4), value.message as string]);

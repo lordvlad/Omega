@@ -39,6 +39,7 @@ import {
 } from "@mantine/spotlight";
 import {
   IconArchive,
+  IconBell,
   IconBolt,
   IconBrain,
   IconChartBar,
@@ -179,7 +180,7 @@ const COMMAND_SPEC: Record<
   "/stop": { kind: "scope", placeholder: "Filter live sessions to stop…" },
   "/delete": { kind: "scope", placeholder: "Filter sessions to delete from disk…" },
   "@": { kind: "scope", placeholder: "Filter files in this workspace…" },
-  "/omega-settings": { kind: "scope", placeholder: "Toggle a transcript display setting…" },
+  "/omega-settings": { kind: "scope", placeholder: "Toggle workspace and notification settings…" },
 };
 
 /** Thinking levels omp offers, ascending, matching the `ThinkingLevel` union. */
@@ -776,8 +777,8 @@ export function CommandPalette({
           {
             id: "command-settings",
             label: PALETTE_COMMAND.settings,
-            description: "Toggle what the transcript shows",
-            keywords: "settings preferences thinking tool calls show hide",
+            description: "Toggle workspace display and notification settings",
+            keywords: "settings preferences thinking tool calls notifications notify yield show hide",
             leftSection: <IconSettings size={16} />,
             closeSpotlightOnTrigger: false,
             onClick: () => onQueryChange(`${PALETTE_COMMAND.settings} `),
@@ -1015,7 +1016,7 @@ export function CommandPalette({
   const settingsActions = useMemo<PaletteAction[]>(
     () => [
       {
-        group: "Display settings",
+        group: "Workspace settings",
         actions: [
           {
             id: "settings-show-thinking",
@@ -1045,10 +1046,35 @@ export function CommandPalette({
             closeSpotlightOnTrigger: false,
             onClick: () => onToggleSetting("showToolCalls"),
           },
+          {
+            id: "settings-notify-on-yield",
+            label: "Notify on yield",
+            description: settings.notifyOnYield
+              ? "Browser notification when agent yields or completes turn"
+              : "No browser notifications on yield",
+            keywords: "notifications notify yield finish alert sound browser desktop",
+            leftSection: <IconBell size={16} />,
+            rightSection: (
+              <Badge size="xs" variant={settings.notifyOnYield ? "filled" : "light"} color="plum">
+                {settings.notifyOnYield ? "On" : "Off"}
+              </Badge>
+            ),
+            closeSpotlightOnTrigger: false,
+            onClick: () => {
+              if (
+                !settings.notifyOnYield &&
+                typeof Notification !== "undefined" &&
+                Notification.permission === "default"
+              ) {
+                void Notification.requestPermission();
+              }
+              onToggleSetting("notifyOnYield");
+            },
+          },
         ],
       },
     ],
-    [settings.showThinking, settings.showToolCalls, onToggleSetting],
+    [settings.showThinking, settings.showToolCalls, settings.notifyOnYield, onToggleSetting],
   );
 
   /** `/btw`: ask a transient side question. */
