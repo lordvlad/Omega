@@ -1,13 +1,15 @@
 /**
- * Unified Session Telemetry A2UI surface: Cost, Quotas, and Performance Stats.
+ * Telemetry A2UI surfaces: Cost, Quotas, and Performance Stats.
  *
- * All three commands (/cost, /usage, /stats) share a single surface ID
- * ("session-metrics") with cohesive Mantine tabs, avoiding duplicate surfaces.
+ * Each command (/cost, /usage, /stats) renders its own dedicated surface:
+ * - /cost  -> "session-cost"  (Token economics, burn rate, token proportions)
+ * - /usage -> "session-usage" (Provider quotas, rate limits, reset timers)
+ * - /stats -> "session-stats" (Turn latency, execution duration, tool call frequency)
  */
 import { resolveUsedFraction, type UsageLimit, type UsageReport } from "@oh-my-pi/pi-ai/usage";
 
+import type { A2uiComponent } from "../shared/a2ui.ts";
 import type { LiveSession } from "./registry.ts";
-
 function formatDurationMs(ms: number): string {
   if (ms < 1000) return `${ms}ms`;
   return `${(ms / 1000).toFixed(1)}s`;
@@ -57,17 +59,17 @@ function formatResetTime(resetsAt: number | undefined, resetLabel = "resets"): s
   return `${resetLabel} in ${durationText} (${timeStr})`;
 }
 
+export const COST_SURFACE_ID = "session-cost";
+export const USAGE_SURFACE_ID = "session-usage";
+export const STATS_SURFACE_ID = "session-stats";
+
+/** Backwards-compatible alias for any legacy callers */
 export const METRICS_SURFACE_ID = "session-metrics";
 
 /**
- * Draw or update the unified session metrics surface with the specified active tab.
- * @param activeTab "0" = Cost & Tokens, "1" = Provider Quotas, "2" = Performance & Latency
+ * Draw the Token Economics & Cost surface (/cost -> "session-cost").
  */
-export async function drawMetricsDashboard(
-  live: LiveSession,
-  activeTab: "0" | "1" | "2" = "0",
-): Promise<void> {
-  // 1. Gather Cost & Token Metrics
+export async function drawCostSurface(live: LiveSession): Promise<void> {
   let totalInput = 0;
   let totalOutput = 0;
   let totalCacheRead = 0;
@@ -76,13 +78,7 @@ export async function drawMetricsDashboard(
   let totalCost = 0;
 
   const costSeries: { turn: number; cost: number; inputCost: number; outputCost: number }[] = [];
-  const toolsCounts: Record<string, number> = {};
-  const latencies: { turn: number; latencySec: number; contextTokens: number }[] = [];
-
   let turnIndex = 0;
-  let totalLatencyMs = 0;
-  let maxLatencyMs = 0;
-  let totalToolCalls = 0;
 
   for (const msg of live.session.messages) {
     if (msg.role === "assistant") {
@@ -90,10 +86,6 @@ export async function drawMetricsDashboard(
       let turnInputCost = 0;
       let turnOutputCost = 0;
       let turnCost = 0;
-
-      const dur = msg.duration ?? 0;
-      totalLatencyMs += dur;
-      if (dur > maxLatencyMs) maxLatencyMs = dur;
 
       if (msg.usage) {
         totalInput += msg.usage.input;
@@ -110,31 +102,14 @@ export async function drawMetricsDashboard(
         }
       }
 
-      const occupied = msg.usage?.contextTokens || msg.usage?.totalTokens || 0;
-
       costSeries.push({
         turn: turnIndex,
         cost: Number(turnCost.toFixed(4)),
         inputCost: Number(turnInputCost.toFixed(4)),
         outputCost: Number(turnOutputCost.toFixed(4)),
       });
-
-      latencies.push({
-        turn: turnIndex,
-        latencySec: Number((dur / 1000).toFixed(2)),
-        contextTokens: occupied,
-      });
-
-      for (const part of msg.content) {
-        if (part.type === "toolCall") {
-          totalToolCalls++;
-          toolsCounts[part.name] = (toolsCounts[part.name] || 0) + 1;
-        }
-      }
     }
   }
-
-  const avgLatencyMs = turnIndex > 0 ? Math.round(totalLatencyMs / turnIndex) : 0;
 
   const tokenBreakdown = [
     { name: "Input", value: totalInput, color: "cyan" },
@@ -143,56 +118,32 @@ export async function drawMetricsDashboard(
     { name: "Cache Write", value: totalCacheWrite, color: "yellow" },
   ].filter(d => d.value > 0);
 
-  const toolData = Object.entries(toolsCounts)
-    .sort((a, b) => b[1] - a[1])
-    .slice(0, 8)
-    .map(([name, value], i) => ({
-      name,
-      value,
-      color: ["cyan", "plum", "teal", "yellow", "orange", "red", "gray", "blue"][i % 8],
-    }));
-
-  // 2. Gather Provider Usage Reports
-  let reports: UsageReport[] | null = null;
-  try {
-    reports = await live.session.fetchUsageReports();
-  } catch {
-    reports = null;
-  }
-
-  // 3. Assemble Components
-  const components: any[] = [
-    { id: "root", component: "Card", child: "col", shadow: "xs", p: "md", withBorder: true },
-    { id: "col", component: "Column", children: ["header", "tabs"], gap: "md" },
+  const components: A2uiComponent[] = [
+    { id: "root", component: "Card", child: "cost-col", shadow: "xs", p: "md", withBorder: true },
     {
-      id: "header",
+      id: "cost-col",
+      component: "Column",
+      children: ["cost-header", "cost-metrics", "cost-charts"],
+      gap: "md",
+    },
+    {
+      id: "cost-header",
       component: "Row",
       justify: "spaceBetween",
       align: "center",
-      children: ["title", "total-badge"],
+      children: ["cost-title", "cost-total-badge"],
     },
-    { id: "title", component: "Text", text: "Session Telemetry & Usage", variant: "heading" },
+    { id: "cost-title", component: "Text", text: "Token Economics & Cost", variant: "heading" },
     {
-      id: "total-badge",
+      id: "cost-total-badge",
       component: "Badge",
       label: `Total: ${formatCost(totalCost)} · ${turnIndex} turns`,
       color: "cyan",
       size: "lg",
       variant: "light",
     },
-    {
-      id: "tabs",
-      component: "Tabs",
-      defaultValue: activeTab,
-      tabs: [
-        { title: "Cost & Tokens", child: "tab-cost" },
-        { title: "Provider Quotas", child: "tab-quotas" },
-        { title: "Performance & Latency", child: "tab-stats" },
-      ],
-    },
 
-    // --- Tab 0: Cost & Tokens ---
-    { id: "tab-cost", component: "Column", children: ["cost-metrics", "cost-charts"], gap: "md" },
+    // Metrics Row
     {
       id: "cost-metrics",
       component: "Row",
@@ -275,6 +226,7 @@ export async function drawMetricsDashboard(
       size: "sm",
     },
 
+    // Charts Row
     {
       id: "cost-charts",
       component: "Row",
@@ -325,13 +277,232 @@ export async function drawMetricsDashboard(
       withLabels: true,
       chartLabel: `${totalTokens.toLocaleString()} total`,
     },
+  ];
 
-    // --- Tab 1: Provider Quotas ---
-    { id: "tab-quotas", component: "Column", children: ["quotas-list"], gap: "sm" },
-    { id: "quotas-list", component: "Column", children: [] as string[], gap: "sm" },
+  live.a2ui.recreateSurface({
+    surfaceId: COST_SURFACE_ID,
+    sendDataModel: false,
+    components,
+  });
+}
 
-    // --- Tab 2: Performance & Latency ---
-    { id: "tab-stats", component: "Column", children: ["stats-metrics", "stats-charts"], gap: "md" },
+/**
+ * Draw the Provider Quotas & Rate Limits surface (/usage -> "session-usage").
+ */
+export async function drawUsageSurface(live: LiveSession): Promise<void> {
+  let reports: UsageReport[] | null = null;
+  try {
+    reports = await live.session.fetchUsageReports();
+  } catch {
+    reports = null;
+  }
+
+  const quotasListChildren: string[] = [];
+  const components: A2uiComponent[] = [
+    { id: "root", component: "Card", child: "usage-col", shadow: "xs", p: "md", withBorder: true },
+    { id: "usage-col", component: "Column", children: ["usage-header", "quotas-list"], gap: "sm" },
+    {
+      id: "usage-header",
+      component: "Row",
+      justify: "spaceBetween",
+      align: "center",
+      children: ["usage-title", "usage-badge"],
+    },
+    { id: "usage-title", component: "Text", text: "Provider Quotas & Rate Limits", variant: "heading" },
+    {
+      id: "usage-badge",
+      component: "Badge",
+      label:
+        reports && reports.length > 0
+          ? `${reports.length} provider${reports.length > 1 ? "s" : ""}`
+          : "Active Provider",
+      color: "plum",
+      size: "lg",
+      variant: "light",
+    },
+    { id: "quotas-list", component: "Column", children: quotasListChildren, gap: "sm" },
+  ];
+
+  if (!reports || reports.length === 0) {
+    quotasListChildren.push("quotas-empty-alert");
+    components.push({
+      id: "quotas-empty-alert",
+      component: "Alert",
+      title: "No Live Quota Endpoint",
+      text: "The active provider or credentials do not expose live rate-limit quota endpoints (common for standard API key access). Token counts and cost metrics are tracked with /cost.",
+      color: "cyan",
+      icon: "info",
+    });
+  } else {
+    for (let pIdx = 0; pIdx < reports.length; pIdx++) {
+      const report = reports[pIdx]!;
+      const pCardId = `p-card-${pIdx}`;
+      const pColId = `p-col-${pIdx}`;
+      const pHeadId = `p-head-${pIdx}`;
+      const pTitleId = `p-title-${pIdx}`;
+      const pMetaId = `p-meta-${pIdx}`;
+      const limitsListId = `p-limits-${pIdx}`;
+      const limitsListChildren: string[] = [];
+
+      quotasListChildren.push(pCardId);
+
+      const providerName = formatProviderName(report.provider);
+
+      components.push(
+        { id: pCardId, component: "Paper", p: "sm", shadow: "xs", withBorder: true, child: pColId },
+        { id: pColId, component: "Column", children: [pHeadId, limitsListId], gap: "xs" },
+        {
+          id: pHeadId,
+          component: "Row",
+          justify: "spaceBetween",
+          align: "center",
+          children: [pTitleId, pMetaId],
+        },
+        { id: pTitleId, component: "Text", text: providerName, variant: "heading" },
+        {
+          id: pMetaId,
+          component: "Badge",
+          label: report.limits.length > 0 ? `${report.limits.length} limits` : "active",
+          color: "plum",
+          size: "xs",
+          variant: "light",
+        },
+        { id: limitsListId, component: "Column", children: limitsListChildren, gap: "xs" },
+      );
+
+      for (let lIdx = 0; lIdx < report.limits.length; lIdx++) {
+        const limit: UsageLimit = report.limits[lIdx]!;
+        const lId = `p-${pIdx}-limit-${lIdx}`;
+        const lRowId = `p-${pIdx}-lrow-${lIdx}`;
+        const lLblId = `p-${pIdx}-lbl-${lIdx}`;
+        const lAmtId = `p-${pIdx}-amt-${lIdx}`;
+        const lProgId = `p-${pIdx}-prog-${lIdx}`;
+
+        limitsListChildren.push(lId);
+        const fraction = resolveUsedFraction(limit) ?? 0;
+        const pct = Math.round(fraction * 100);
+        const color = fraction >= 1 ? "red" : fraction >= 0.8 ? "yellow" : "teal";
+
+        let desc = limit.label || "Quota Window";
+        if (limit.amount.used !== undefined && limit.amount.limit !== undefined) {
+          desc += ` (${limit.amount.used.toLocaleString()} / ${limit.amount.limit.toLocaleString()} ${limit.amount.unit})`;
+        } else if (limit.amount.remaining !== undefined) {
+          desc += ` (${limit.amount.remaining.toLocaleString()} ${limit.amount.unit} left)`;
+        }
+
+        const resetText = formatResetTime(limit.window?.resetsAt, limit.window?.resetLabel);
+        const amtText = resetText ? `${pct}% used · ${resetText}` : `${pct}% used`;
+
+        components.push(
+          { id: lId, component: "Column", children: [lRowId, lProgId], gap: 2 },
+          {
+            id: lRowId,
+            component: "Row",
+            justify: "spaceBetween",
+            align: "center",
+            children: [lLblId, lAmtId],
+          },
+          { id: lLblId, component: "Text", text: desc, variant: "caption" },
+          { id: lAmtId, component: "Text", text: amtText, variant: "caption" },
+          { id: lProgId, component: "Progress", value: Math.min(100, pct), color, size: "sm" },
+        );
+      }
+
+      if (report.resetCredits && report.resetCredits.availableCount > 0) {
+        const creditId = `p-${pIdx}-credits`;
+        limitsListChildren.push(creditId);
+        components.push({
+          id: creditId,
+          component: "Badge",
+          label: `Saved rate-limit resets: ${report.resetCredits.availableCount} available`,
+          color: "cyan",
+          size: "xs",
+          variant: "outline",
+        });
+      }
+    }
+  }
+
+  live.a2ui.recreateSurface({
+    surfaceId: USAGE_SURFACE_ID,
+    sendDataModel: false,
+    components,
+  });
+}
+
+/**
+ * Draw the Performance & Latency Stats surface (/stats -> "session-stats").
+ */
+export async function drawStatsSurface(live: LiveSession): Promise<void> {
+  const toolsCounts: Record<string, number> = {};
+  const latencies: { turn: number; latencySec: number; contextTokens: number }[] = [];
+
+  let turnIndex = 0;
+  let totalLatencyMs = 0;
+  let maxLatencyMs = 0;
+  let totalToolCalls = 0;
+
+  for (const msg of live.session.messages) {
+    if (msg.role === "assistant") {
+      turnIndex++;
+      const dur = msg.duration ?? 0;
+      totalLatencyMs += dur;
+      if (dur > maxLatencyMs) maxLatencyMs = dur;
+
+      const occupied = msg.usage?.contextTokens || msg.usage?.totalTokens || 0;
+
+      latencies.push({
+        turn: turnIndex,
+        latencySec: Number((dur / 1000).toFixed(2)),
+        contextTokens: occupied,
+      });
+
+      for (const part of msg.content) {
+        if (part.type === "toolCall") {
+          totalToolCalls++;
+          toolsCounts[part.name] = (toolsCounts[part.name] || 0) + 1;
+        }
+      }
+    }
+  }
+
+  const avgLatencyMs = turnIndex > 0 ? Math.round(totalLatencyMs / turnIndex) : 0;
+
+  const toolData = Object.entries(toolsCounts)
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 8)
+    .map(([name, value], i) => ({
+      name,
+      value,
+      color: ["cyan", "plum", "teal", "yellow", "orange", "red", "gray", "blue"][i % 8],
+    }));
+
+  const components: A2uiComponent[] = [
+    { id: "root", component: "Card", child: "stats-col", shadow: "xs", p: "md", withBorder: true },
+    {
+      id: "stats-col",
+      component: "Column",
+      children: ["stats-header", "stats-metrics", "stats-charts"],
+      gap: "md",
+    },
+    {
+      id: "stats-header",
+      component: "Row",
+      justify: "spaceBetween",
+      align: "center",
+      children: ["stats-title", "stats-badge"],
+    },
+    { id: "stats-title", component: "Text", text: "Performance & Latency Stats", variant: "heading" },
+    {
+      id: "stats-badge",
+      component: "Badge",
+      label: `Avg: ${formatDurationMs(avgLatencyMs)} · ${totalToolCalls} tool call${totalToolCalls === 1 ? "" : "s"}`,
+      color: "cyan",
+      size: "lg",
+      variant: "light",
+    },
+
+    // Metrics Row
     {
       id: "stats-metrics",
       component: "Row",
@@ -386,6 +557,7 @@ export async function drawMetricsDashboard(
     { id: "l-turns", component: "Text", text: "Completed Turns", variant: "caption" },
     { id: "v-turns", component: "Text", text: turnIndex.toString(), variant: "heading" },
 
+    // Charts Row
     {
       id: "stats-charts",
       component: "Row",
@@ -435,125 +607,9 @@ export async function drawMetricsDashboard(
     },
   ];
 
-  // Populate Provider Quotas Tab
-  const quotasListComp = components.find(c => c.id === "quotas-list");
-  if (!reports || reports.length === 0) {
-    quotasListComp.children.push("quotas-empty-alert");
-    components.push({
-      id: "quotas-empty-alert",
-      component: "Alert",
-      title: "No Live Quota Endpoint",
-      text: "The active provider or credentials do not expose live rate-limit quota endpoints (common for standard API key access). Token counts and cost metrics are tracked on the Cost & Tokens tab.",
-      color: "cyan",
-      icon: "info",
-    });
-  } else {
-    for (let pIdx = 0; pIdx < reports.length; pIdx++) {
-      const report = reports[pIdx]!;
-      const pCardId = `p-card-${pIdx}`;
-      const pColId = `p-col-${pIdx}`;
-      const pHeadId = `p-head-${pIdx}`;
-      const pTitleId = `p-title-${pIdx}`;
-      const pMetaId = `p-meta-${pIdx}`;
-      const limitsListId = `p-limits-${pIdx}`;
-
-      quotasListComp.children.push(pCardId);
-
-      const providerName = formatProviderName(report.provider);
-
-      components.push(
-        { id: pCardId, component: "Paper", p: "sm", shadow: "xs", withBorder: true, child: pColId },
-        { id: pColId, component: "Column", children: [pHeadId, limitsListId], gap: "xs" },
-        {
-          id: pHeadId,
-          component: "Row",
-          justify: "spaceBetween",
-          align: "center",
-          children: [pTitleId, pMetaId],
-        },
-        { id: pTitleId, component: "Text", text: providerName, variant: "heading" },
-        {
-          id: pMetaId,
-          component: "Badge",
-          label: report.limits.length > 0 ? `${report.limits.length} limits` : "active",
-          color: "plum",
-          size: "xs",
-          variant: "light",
-        },
-        { id: limitsListId, component: "Column", children: [] as string[], gap: "xs" },
-      );
-
-      const limitsComp = components.find(c => c.id === limitsListId);
-
-      for (let lIdx = 0; lIdx < report.limits.length; lIdx++) {
-        const limit: UsageLimit = report.limits[lIdx]!;
-        const lId = `p-${pIdx}-limit-${lIdx}`;
-        const lRowId = `p-${pIdx}-lrow-${lIdx}`;
-        const lLblId = `p-${pIdx}-lbl-${lIdx}`;
-        const lAmtId = `p-${pIdx}-amt-${lIdx}`;
-        const lProgId = `p-${pIdx}-prog-${lIdx}`;
-
-        limitsComp.children.push(lId);
-
-        const fraction = resolveUsedFraction(limit) ?? 0;
-        const pct = Math.round(fraction * 100);
-        const color = fraction >= 1 ? "red" : fraction >= 0.8 ? "yellow" : "teal";
-
-        let desc = limit.label || "Quota Window";
-        if (limit.amount.used !== undefined && limit.amount.limit !== undefined) {
-          desc += ` (${limit.amount.used.toLocaleString()} / ${limit.amount.limit.toLocaleString()} ${limit.amount.unit})`;
-        } else if (limit.amount.remaining !== undefined) {
-          desc += ` (${limit.amount.remaining.toLocaleString()} ${limit.amount.unit} left)`;
-        }
-
-        const resetText = formatResetTime(limit.window?.resetsAt, limit.window?.resetLabel);
-        const amtText = resetText ? `${pct}% used · ${resetText}` : `${pct}% used`;
-
-        components.push(
-          { id: lId, component: "Column", children: [lRowId, lProgId], gap: 2 },
-          {
-            id: lRowId,
-            component: "Row",
-            justify: "spaceBetween",
-            align: "center",
-            children: [lLblId, lAmtId],
-          },
-          { id: lLblId, component: "Text", text: desc, variant: "caption" },
-          { id: lAmtId, component: "Text", text: amtText, variant: "caption" },
-          { id: lProgId, component: "Progress", value: Math.min(100, pct), color, size: "sm" },
-        );
-      }
-
-      if (report.resetCredits && report.resetCredits.availableCount > 0) {
-        const creditId = `p-${pIdx}-credits`;
-        limitsComp.children.push(creditId);
-        components.push({
-          id: creditId,
-          component: "Badge",
-          label: `Saved rate-limit resets: ${report.resetCredits.availableCount} available`,
-          color: "cyan",
-          size: "xs",
-          variant: "outline",
-        });
-      }
-    }
-  }
-
   live.a2ui.recreateSurface({
-    surfaceId: METRICS_SURFACE_ID,
+    surfaceId: STATS_SURFACE_ID,
     sendDataModel: false,
     components,
   });
-}
-
-export async function drawCostSurface(live: LiveSession): Promise<void> {
-  await drawMetricsDashboard(live, "0");
-}
-
-export async function drawUsageSurface(live: LiveSession): Promise<void> {
-  await drawMetricsDashboard(live, "1");
-}
-
-export async function drawStatsSurface(live: LiveSession): Promise<void> {
-  await drawMetricsDashboard(live, "2");
 }

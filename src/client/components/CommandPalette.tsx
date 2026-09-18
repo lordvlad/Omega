@@ -161,9 +161,9 @@ const COMMAND_SPEC: Record<
     termIsInput: true,
   },
   "/mcp": { kind: "scope", placeholder: "Manage and configure MCP servers…" },
-  "/cost": { kind: "run", placeholder: "Render token usage and cost breakdown…" },
-  "/stats": { kind: "run", placeholder: "Render session metrics and latency stats…" },
-  "/usage": { kind: "run", placeholder: "Render token usage and cost breakdown…" },
+  "/cost": { kind: "run", placeholder: "Render token economics and cost breakdown…" },
+  "/stats": { kind: "run", placeholder: "Render session performance and latency stats…" },
+  "/usage": { kind: "run", placeholder: "Render provider rate limits and quota usage…" },
   "/rename": { kind: "scope", placeholder: "Type the new session title…", termIsInput: true },
   "/tools": { kind: "scope", placeholder: "Filter available tools or force one…" },
   "/force": { kind: "scope", placeholder: "Pick a tool to force for next turn…", termIsInput: true },
@@ -326,6 +326,8 @@ export interface CommandPaletteProps {
   toolsList?: SessionToolInfo[];
   forcedTool?: string;
   onRetry: () => void;
+  onShowCost?: () => void;
+  onShowUsage?: () => void;
   onShowStats?: () => void;
   onAbort: () => void;
   onTogglePlanMode: (enabled: boolean) => void;
@@ -394,6 +396,8 @@ export function CommandPalette({
   onForceTool,
   toolsList,
   forcedTool,
+  onShowCost,
+  onShowUsage,
   onShowStats,
   onOmfg,
   onFork,
@@ -636,17 +640,26 @@ export function CommandPalette({
           {
             id: "command-cost",
             label: PALETTE_COMMAND.cost,
-            description: "Render session token economics, costs, and tool invocation stats",
-            keywords: "cost usage stats tokens economics breakdown",
+            description: "Render token economics, burn rate, and cost breakdown",
+            keywords: "cost tokens economics breakdown burn expense",
             leftSection: <IconCoin size={16} color="var(--mantine-color-yellow-4)" />,
             closeSpotlightOnTrigger: true,
-            onClick: () => onShowStats?.(),
+            onClick: () => onShowCost?.(),
+          },
+          {
+            id: "command-usage",
+            label: PALETTE_COMMAND.usage,
+            description: "Render provider rate limits and quota window usage",
+            keywords: "usage quota provider rate limits capacity",
+            leftSection: <IconCpu size={16} color="var(--mantine-color-plum-4)" />,
+            closeSpotlightOnTrigger: true,
+            onClick: () => onShowUsage?.(),
           },
           {
             id: "command-stats",
             label: PALETTE_COMMAND.stats,
             description: "Render session latency and tool usage dashboard",
-            keywords: "stats metrics latency performance dashboard",
+            keywords: "stats metrics latency performance dashboard tool calls",
             leftSection: <IconChartBar size={16} color="var(--mantine-color-cyan-4)" />,
             closeSpotlightOnTrigger: true,
             onClick: () => onShowStats?.(),
@@ -1109,14 +1122,50 @@ export function CommandPalette({
   const costActions = useMemo<PaletteAction[]>(
     () => [
       {
-        group: "Token Economics & Stats",
+        group: "Token Economics & Cost",
         actions: [
           {
             id: "cost-render",
-            label: "Render Session Stats Dashboard",
-            description: "Visualizes token burn rate, dollar cost, and tool call frequency",
-            keywords: "cost usage stats tokens economics",
+            label: "Render Cost Breakdown",
+            description: "Visualizes token burn rate, dollar cost, and token proportions",
+            keywords: "cost tokens economics breakdown burn",
             leftSection: <IconCoin size={16} color="var(--mantine-color-yellow-4)" />,
+            onClick: () => onShowCost?.(),
+          },
+        ],
+      },
+    ],
+    [onShowCost],
+  );
+  const usageActions = useMemo<PaletteAction[]>(
+    () => [
+      {
+        group: "Provider Rate Limits & Quotas",
+        actions: [
+          {
+            id: "usage-render",
+            label: "Render Provider Quotas",
+            description: "Visualizes provider rate limits, quota windows, and remaining capacity",
+            keywords: "usage quota provider rate limits capacity",
+            leftSection: <IconCpu size={16} color="var(--mantine-color-plum-4)" />,
+            onClick: () => onShowUsage?.(),
+          },
+        ],
+      },
+    ],
+    [onShowUsage],
+  );
+  const statsActions = useMemo<PaletteAction[]>(
+    () => [
+      {
+        group: "Performance & Latency",
+        actions: [
+          {
+            id: "stats-render",
+            label: "Render Session Stats",
+            description: "Visualizes turn duration, latency trends, and tool call frequency",
+            keywords: "stats metrics latency performance dashboard tool calls",
+            leftSection: <IconChartBar size={16} color="var(--mantine-color-cyan-4)" />,
             onClick: () => onShowStats?.(),
           },
         ],
@@ -1476,12 +1525,12 @@ export function CommandPalette({
     "/omfg": omfgActions,
     "/mcp": mcpServerActions,
     "/cost": costActions,
-    "/stats": costActions,
+    "/stats": statsActions,
     "/context": contextActions,
     "/tools": toolsActions,
     "/force": forceActions,
     "/rules": rulesActions,
-    "/usage": costActions,
+    "/usage": usageActions,
     "/rename": renameActions,
     "/retry": retryActions,
     "/abort": abortActions,
