@@ -120,6 +120,8 @@ export const PALETTE_COMMAND = {
   plan: "/plan",
   jobs: "/jobs",
   ps: "/ps",
+  worktrees: "/worktrees",
+  worktree: "/worktree",
   wt: "/wt",
   gc: "/gc",
   newSession: "/new",
@@ -168,7 +170,13 @@ const COMMAND_SPEC: Record<
   "/cost": { kind: "run", placeholder: "Render token economics and cost breakdown…" },
   "/stats": { kind: "run", placeholder: "Render session performance and latency stats…" },
   "/usage": { kind: "run", placeholder: "Render provider rate limits and quota usage…" },
-  "/wt": { kind: "run", placeholder: "Inspect and manage git worktrees…" },
+  "/worktrees": { kind: "run", placeholder: "Render git worktrees dashboard…" },
+  "/worktree": {
+    kind: "scope",
+    placeholder: "Type branch name or path for new worktree…",
+    termIsInput: true,
+  },
+  "/wt": { kind: "scope", placeholder: "Type branch name or path for new worktree…", termIsInput: true },
   "/gc": { kind: "run", placeholder: "Run storage maintenance and sweep blobs…" },
   "/rename": { kind: "scope", placeholder: "Type the new session title…", termIsInput: true },
   "/tools": { kind: "scope", placeholder: "Filter available tools or force one…" },
@@ -432,7 +440,8 @@ export interface CommandPaletteProps {
   onShowCost?: () => void;
   onShowUsage?: () => void;
   onShowStats?: () => void;
-  onShowWorktree?: () => void;
+  onShowWorktrees?: () => void;
+  onCreateWorktree?: (arg: string) => void;
   onShowGc?: () => void;
   onAbort: () => void;
   onTogglePlanMode: (enabled: boolean) => void;
@@ -504,7 +513,8 @@ export function CommandPalette({
   onShowCost,
   onShowUsage,
   onShowStats,
-  onShowWorktree,
+  onShowWorktrees,
+  onCreateWorktree,
   onShowGc,
   onOmfg,
   onFork,
@@ -772,13 +782,22 @@ export function CommandPalette({
             onClick: () => onShowStats?.(),
           },
           {
-            id: "command-wt",
-            label: PALETTE_COMMAND.wt,
-            description: "Inspect and manage git worktrees across project and task isolation",
-            keywords: "worktree wt git branch checkout isolate",
+            id: "command-worktrees",
+            label: PALETTE_COMMAND.worktrees,
+            description: "Inspect git worktrees dashboard across repository and task isolation",
+            keywords: "worktrees list wt git branches dashboard",
             leftSection: <IconGitBranch size={16} color="var(--mantine-color-teal-4)" />,
             closeSpotlightOnTrigger: true,
-            onClick: () => onShowWorktree?.(),
+            onClick: () => onShowWorktrees?.(),
+          },
+          {
+            id: "command-wt",
+            label: PALETTE_COMMAND.wt,
+            description: "Create a new git worktree and move work to it",
+            keywords: "worktree wt create add branch new isolate checkout",
+            leftSection: <IconGitFork size={16} color="var(--mantine-color-cyan-4)" />,
+            closeSpotlightOnTrigger: false,
+            onClick: () => onQueryChange(`${PALETTE_COMMAND.wt} `),
           },
           {
             id: "command-gc",
@@ -953,7 +972,8 @@ export function CommandPalette({
       onOpenRules,
       onOpenJobs,
       onOpenProcesses,
-      onShowWorktree,
+      onShowWorktrees,
+      onCreateWorktree,
       onShowGc,
     ],
   );
@@ -1096,6 +1116,33 @@ export function CommandPalette({
     ];
   }, [term, onCompact]);
 
+  /** `/wt` and `/worktree`: create a new worktree with specified or auto-generated branch. */
+  const worktreeCreateActions = useMemo<PaletteAction[]>(() => {
+    const branchName = term.trim();
+    return [
+      {
+        group: "Create Git Worktree (/wt)",
+        actions: [
+          {
+            id: "wt-create-action",
+            label: branchName
+              ? `Create worktree: “${branchName}”`
+              : "Create worktree with auto-generated branch",
+            description: branchName
+              ? `Creates new worktree and checkouts branch '${branchName}'`
+              : "Creates worktree under project parent directory with timestamped branch",
+            keywords: "worktree wt create branch new isolate checkout",
+            leftSection: <IconGitFork size={16} color="var(--mantine-color-cyan-4)" />,
+            onClick: () => {
+              spotlight.close();
+              onQueryChange("");
+              onCreateWorktree?.(branchName);
+            },
+          },
+        ],
+      },
+    ];
+  }, [term, onCreateWorktree, onQueryChange]);
   /** `/shake`: the two kinds of heavy content omp can strip. */
   const shakeActions = useMemo<PaletteAction[]>(
     () => [
@@ -1718,7 +1765,9 @@ export function CommandPalette({
     "/omega-settings": settingsActions,
     "/jobs": jobsActions,
     "/ps": processActions,
-    "/wt": [],
+    "/worktrees": [],
+    "/worktree": worktreeCreateActions,
+    "/wt": worktreeCreateActions,
     "/gc": [],
   };
   // The command prefix scopes the list rather than searching it, so it is

@@ -93,7 +93,7 @@ import { drawCostSurface, drawStatsSurface, drawUsageSurface } from "./stats.ts"
 import { deleteSessionRule, forceSessionTool, listSessionRules, listSessionTools } from "./tools-rules.ts";
 import { flattenSession, pageTranscript } from "./transcript.ts";
 import { listWorkspaces } from "./workspaces.ts";
-import { drawWorktreeSurface } from "./worktree-surface.ts";
+import { createNewWorktree, drawWorktreeSurface } from "./worktree-surface.ts";
 /** Raised by handlers to select a non-200 status. */
 export class HttpError extends Error {
   readonly status: number;
@@ -267,9 +267,27 @@ export class Handlers implements OmpApi {
       await drawStatsSurface(live);
       return { ok: true, detail: "Session statistics rendered." };
     }
-    if (message === "/wt" || message.startsWith("/wt ")) {
+    if (message === "/worktrees" || message.startsWith("/worktrees ")) {
       await drawWorktreeSurface(live);
-      return { ok: true, detail: "Worktree manager surface rendered." };
+      return { ok: true, detail: "Worktrees dashboard rendered." };
+    }
+    if (
+      message === "/wt" ||
+      message === "/worktree" ||
+      message.startsWith("/wt ") ||
+      message.startsWith("/worktree ")
+    ) {
+      const arg = message.startsWith("/wt ")
+        ? message.slice(4).trim()
+        : message.startsWith("/worktree ")
+          ? message.slice(10).trim()
+          : undefined;
+      const created = await createNewWorktree(live.manager.getCwd(), arg);
+      await drawWorktreeSurface(live);
+      return {
+        ok: true,
+        detail: `Created worktree at ${created.worktreePath} on branch '${created.branch}'.`,
+      };
     }
     if (message === "/gc" || message === "/GC" || message.startsWith("/gc ") || message.startsWith("/GC ")) {
       await drawGcSurface(live);

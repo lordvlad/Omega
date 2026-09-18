@@ -6,7 +6,7 @@
  */
 import * as path from "node:path";
 
-import { listWorktrees } from "@oh-my-pi/pi-coding-agent/cli/worktree-cli";
+import { addWorktree, listWorktrees } from "@oh-my-pi/pi-coding-agent/cli/worktree-cli";
 import * as vcs from "@oh-my-pi/pi-natives/vcs";
 
 import { WT_SURFACE_ID, type A2uiComponent } from "../shared/a2ui.ts";
@@ -88,6 +88,45 @@ export async function discoverWorktrees(projectCwd: string): Promise<WorktreeInf
 }
 
 /**
+ * Create a new git worktree for the project and checkout/create branch (/wt or /worktree).
+ */
+export async function createNewWorktree(
+  projectCwd: string,
+  inputArg?: string,
+): Promise<{ worktreePath: string; branch: string }> {
+  const normalizedProject = path.resolve(projectCwd);
+  const repoName = path.basename(normalizedProject);
+  const rawArg = inputArg?.trim();
+
+  let targetPath: string;
+  let targetBranch: string;
+
+  if (rawArg) {
+    if (rawArg.startsWith("/") || rawArg.startsWith("./") || rawArg.startsWith("../")) {
+      targetPath = path.resolve(normalizedProject, rawArg);
+      targetBranch = path.basename(targetPath);
+    } else {
+      targetBranch = rawArg;
+      targetPath = path.resolve(path.dirname(normalizedProject), `${repoName}-${rawArg}`);
+    }
+  } else {
+    const stamp = Date.now().toString(36);
+    targetBranch = `wt-${stamp}`;
+    targetPath = path.resolve(path.dirname(normalizedProject), `${repoName}-${targetBranch}`);
+  }
+
+  await addWorktree({
+    cwd: normalizedProject,
+    path: targetPath,
+    branch: targetBranch,
+    detach: false,
+    quiet: true,
+  });
+
+  return { worktreePath: targetPath, branch: targetBranch };
+}
+
+/**
  * Draw the Git Worktrees surface (/wt -> "session-wt").
  */
 export async function drawWorktreeSurface(live: LiveSession): Promise<void> {
@@ -113,7 +152,7 @@ export async function drawWorktreeSurface(live: LiveSession): Promise<void> {
       align: "center",
       children: ["wt-title", "wt-badge"],
     },
-    { id: "wt-title", component: "Text", text: "Git Worktrees (/wt)", variant: "heading" },
+    { id: "wt-title", component: "Text", text: "Git Worktrees (/worktrees)", variant: "heading" },
     {
       id: "wt-badge",
       component: "Badge",

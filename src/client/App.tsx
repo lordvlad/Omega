@@ -2300,7 +2300,8 @@ export function App() {
         onShowCost={() => handleSend("/cost", undefined, undefined)}
         onShowUsage={() => handleSend("/usage", undefined, undefined)}
         onShowStats={() => handleSend("/stats", undefined, undefined)}
-        onShowWorktree={() => handleSend("/wt", undefined, undefined)}
+        onShowWorktrees={() => handleSend("/worktrees", undefined, undefined)}
+        onCreateWorktree={arg => handleSend(arg ? `/wt ${arg}` : "/wt", undefined, undefined)}
         onShowGc={() => handleSend("/gc", undefined, undefined)}
         onTogglePlanMode={handleSetPlanMode}
         onFork={handleFork}
