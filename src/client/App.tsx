@@ -28,10 +28,13 @@ import { useDisclosure, useLocalStorage, useMediaQuery } from "@mantine/hooks";
 import { notifications } from "@mantine/notifications";
 import {
   IconFolder,
+  IconHighlight,
   IconHistory,
   IconLayout2,
   IconListCheck,
   IconMessage,
+  IconNote,
+  IconPencil,
   IconSettings,
   IconTrash,
 } from "@tabler/icons-react";
@@ -39,7 +42,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useNavigate, useParams } from "@tanstack/react-router";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
-import type { A2uiActionEvent } from "../shared/a2ui.ts";
+import { type A2uiActionEvent, isAgentSurface } from "../shared/a2ui.ts";
 import { ApiError } from "./api/api.ts";
 import type {
   AddMcpServerRequest,
@@ -117,6 +120,7 @@ import {
   useListFiles,
 } from "./api/queries.ts";
 import { A2UIRenderer } from "./components/A2UIRenderer.tsx";
+import { AnnotationsPanel } from "./components/AnnotationsPanel.tsx";
 import { BtwPanel, type BtwTurn } from "./components/BtwPanel.tsx";
 import {
   CommandPalette,
@@ -137,9 +141,11 @@ import { ProcessPanel } from "./components/ProcessPanel.tsx";
 import { QueuePanel, queueSummary } from "./components/QueuePanel.tsx";
 import { RulesPanel } from "./components/RulesPanel.tsx";
 import { SubagentPanel } from "./components/SubagentPanel.tsx";
+import { SurfaceAnnotationLayer } from "./components/SurfaceAnnotationLayer.tsx";
 import { TodoPanel } from "./components/TodoPanel.tsx";
 import { ToolsPanel } from "./components/ToolsPanel.tsx";
 import { Transcript } from "./components/Transcript.tsx";
+import { formatAnnotations, useAnnotations } from "./lib/annotations.ts";
 import { showYieldNotification } from "./lib/notifications.ts";
 import { useOnline } from "./lib/online.ts";
 import { newSendId } from "./lib/outbox.ts";
@@ -227,6 +233,18 @@ export function App() {
   const [jobsDrawerOpen, { open: openJobs, close: closeJobs }] = useDisclosure(false);
   /** The supervised processes drawer. */
   const [processDrawerOpen, { open: openProcesses, close: closeProcesses }] = useDisclosure(false);
+  /** The annotations drawer, opened from the composer's annotation count. */
+  const [annotationsOpen, { open: openAnnotations, close: closeAnnotations }] = useDisclosure(false);
+  /**
+   * Which surface has a tool armed, if any.
+   *
+   * One at a time: the pen and the sticky note both capture the pointer, and
+   * two armed surfaces would leave the user guessing which one is listening.
+   */
+  const [penSurface, setPenSurface] = useState<string | null>(null);
+  const [noteSurface, setNoteSurface] = useState<string | null>(null);
+  /** A sticky note just dropped, whose editor should open on its own. */
+  const [editingNoteId, setEditingNoteId] = useState<string | null>(null);
   /** Sent messages not yet echoed back by the server transcript. */
   const [pendingUser, setPendingUser] = useState<string[]>([]);
   /** Message text a branch handed back, for the composer to pick up. */
@@ -238,6 +256,7 @@ export function App() {
   const [insertedFile, setInsertedFile] = useState<{ path: string; id: number } | undefined>(undefined);
 
   const [settings, toggleSetting] = useProjectSettings(project);
+  const annotations = useAnnotations(sessionKey);
 
   // Publishes the visible viewport height, so the on-screen keyboard shortens
   // the chat column instead of covering the composer.
@@ -1347,6 +1366,7 @@ export function App() {
     message: string,
     deliverAs: "steer" | "followUp" | undefined,
     attachments: Attachment[] | undefined,
+    onFailure?: () => void,
   ): void => {
     if (!sessionKey) return;
     if (
@@ -1374,9 +1394,40 @@ export function App() {
             if (at < 0) return current;
             return [...current.slice(0, at), ...current.slice(at + 1)];
           });
+          onFailure?.();
           fail(error);
         },
       },
+    );
+  };
+
+  /**
+   * The composer's send, which carries the pending annotations with it.
+   *
+   * Marking something up is a way of pointing at it, so the references go out
+   * as text the agent can read and the user never retypes a path. A bare
+   * slash command is left alone: the server matches those by whole-string
+   * equality, and the annotations keep until there is a real message to
+   * attach them to.
+   *
+   * They are cleared as the send leaves, not when it lands — a message with
+   * no network sits in the outbox for as long as it takes, and holding the
+   * annotations open that whole time would send them twice. A send that is
+   * actually refused puts them back.
+   */
+  const handleComposerSend = (
+    message: string,
+    deliverAs: "steer" | "followUp" | undefined,
+    attachments: Attachment[] | undefined,
+  ): void => {
+    const pending = annotations.annotations;
+    if (pending.length === 0 || message.startsWith("/")) {
+      handleSend(message, deliverAs, attachments);
+      return;
+    }
+    annotations.clear();
+    handleSend(`${message}\n\n${formatAnnotations(pending)}`, deliverAs, attachments, () =>
+      annotations.restore(pending),
     );
   };
   const handleSurfaceAction = useCallback(
@@ -1710,6 +1761,7 @@ export function App() {
           cwd={state.data?.cwd}
           gitStatus={viewingFile && gitStatus.data?.files ? gitStatus.data.files[viewingFile] : undefined}
           onInsertRef={handlePickFile}
+          onAnnotate={selection => annotations.add({ kind: "file", ...selection })}
           onClose={() => setViewingFile(null)}
         />
       </Drawer>
@@ -1778,23 +1830,99 @@ export function App() {
                 <Text size="xs" fw={700} c="dimmed" tt="uppercase">
                   {surface.surfaceId}
                 </Text>
-                <Tooltip label="Dismiss surface">
-                  <ActionIcon
-                    size="xs"
-                    variant="subtle"
-                    color="gray"
-                    onClick={() => handleDismissSurface(surface.surfaceId)}
-                    aria-label={`Dismiss ${surface.surfaceId}`}
-                  >
-                    <IconTrash size={13} />
-                  </ActionIcon>
-                </Tooltip>
+                <Group gap={4} wrap="nowrap">
+                  {/* Only what the agent drew is worth annotating; omega's own
+                      telemetry dashboards are not a conversation. */}
+                  {isAgentSurface(surface.surfaceId) ? (
+                    <>
+                      <Tooltip
+                        label={penSurface === surface.surfaceId ? "Put the marker down" : "Draw on surface"}
+                      >
+                        <ActionIcon
+                          size="xs"
+                          variant={penSurface === surface.surfaceId ? "light" : "subtle"}
+                          color="red"
+                          onClick={() =>
+                            setPenSurface(current =>
+                              current === surface.surfaceId ? null : surface.surfaceId,
+                            )
+                          }
+                          aria-label={`Draw on ${surface.surfaceId}`}
+                        >
+                          <IconPencil size={13} />
+                        </ActionIcon>
+                      </Tooltip>
+                      <Tooltip
+                        label={noteSurface === surface.surfaceId ? "Cancel sticky note" : "Add sticky note"}
+                      >
+                        <ActionIcon
+                          size="xs"
+                          variant={noteSurface === surface.surfaceId ? "light" : "subtle"}
+                          color="yellow"
+                          onClick={() =>
+                            setNoteSurface(current =>
+                              current === surface.surfaceId ? null : surface.surfaceId,
+                            )
+                          }
+                          aria-label={`Add a sticky note to ${surface.surfaceId}`}
+                        >
+                          <IconNote size={13} />
+                        </ActionIcon>
+                      </Tooltip>
+                    </>
+                  ) : null}
+                  <Tooltip label="Dismiss surface">
+                    <ActionIcon
+                      size="xs"
+                      variant="subtle"
+                      color="gray"
+                      onClick={() => handleDismissSurface(surface.surfaceId)}
+                      aria-label={`Dismiss ${surface.surfaceId}`}
+                    >
+                      <IconTrash size={13} />
+                    </ActionIcon>
+                  </Tooltip>
+                </Group>
               </Group>
-              <A2UIRenderer
-                surface={surface}
-                onAction={handleSurfaceAction}
-                onUpdateData={live.updateSurfaceData}
-              />
+              <SurfaceAnnotationLayer
+                surfaceId={surface.surfaceId}
+                annotations={annotations.annotations}
+                penArmed={penSurface === surface.surfaceId}
+                noteArmed={noteSurface === surface.surfaceId}
+                onCommitDrawing={(strokes, targets) =>
+                  annotations.add({
+                    kind: "drawing",
+                    surfaceId: surface.surfaceId,
+                    strokes,
+                    targets,
+                    note: "",
+                  })
+                }
+                onPlaceNote={(x, y, target) =>
+                  setEditingNoteId(
+                    annotations.add({
+                      kind: "note",
+                      surfaceId: surface.surfaceId,
+                      x,
+                      y,
+                      target,
+                      note: "",
+                    }),
+                  )
+                }
+                onMoveNote={annotations.move}
+                onUpdateNote={annotations.update}
+                onDeleteAnnotation={annotations.remove}
+                onDisarmNote={() => setNoteSurface(null)}
+                editingNoteId={editingNoteId}
+                onEditingDone={() => setEditingNoteId(null)}
+              >
+                <A2UIRenderer
+                  surface={surface}
+                  onAction={handleSurfaceAction}
+                  onUpdateData={live.updateSurfaceData}
+                />
+              </SurfaceAnnotationLayer>
             </Box>
           ))}
         </Stack>
@@ -1939,6 +2067,25 @@ export function App() {
         />
       </Drawer>
 
+      <Drawer
+        opened={annotationsOpen}
+        onClose={closeAnnotations}
+        position={narrow ? "bottom" : "right"}
+        size={narrow ? "90%" : 540}
+        title={null}
+        withCloseButton={false}
+        padding={0}
+      >
+        <AnnotationsPanel
+          annotations={annotations.annotations}
+          onEdit={annotations.update}
+          onDelete={annotations.remove}
+          onClear={annotations.clear}
+          onOpenFile={path => setViewingFile(path)}
+          onClose={closeAnnotations}
+        />
+      </Drawer>
+
       <AppShell.Main>
         {sessionKey ? (
           <Stack
@@ -1974,13 +2121,15 @@ export function App() {
                 draft={draft}
                 planEnabled={planEnabled}
                 planPending={setPlanMode.isPending}
-                onSend={handleSend}
+                onSend={handleComposerSend}
                 onPlanMode={handleSetPlanMode}
                 onChangeModel={() => openPalette(PALETTE_COMMAND.model, setPaletteQuery)}
                 onChangeThinking={() => openPalette(PALETTE_COMMAND.think, setPaletteQuery)}
                 onAbort={handleAbort}
                 queued={queued}
                 onOpenQueue={openQueue}
+                annotations={annotations.annotations.length}
+                onOpenAnnotations={openAnnotations}
                 onSlash={() => openPaletteCommands(setPaletteQuery)}
                 onAt={() => openPaletteFiles(setPaletteQuery)}
                 forcedTool={toolsQuery.data?.forcedTool}

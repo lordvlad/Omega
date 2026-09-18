@@ -23,6 +23,21 @@ export const A2UI_VERSION = "v1.0";
 export const A2UI_BASIC_CATALOG_ID = "https://a2ui.org/specification/v1_0/catalogs/basic/catalog.json";
 
 /**
+ * The telemetry surfaces omega draws itself, rather than the agent.
+ *
+ * The client has to tell the two apart: annotation tools belong on what the
+ * agent drew, not on omega's own dashboards.
+ */
+export const COST_SURFACE_ID = "session-cost";
+export const USAGE_SURFACE_ID = "session-usage";
+export const STATS_SURFACE_ID = "session-stats";
+
+/** True when the surface came from the agent rather than from omega itself. */
+export function isAgentSurface(surfaceId: string): boolean {
+  return surfaceId !== COST_SURFACE_ID && surfaceId !== USAGE_SURFACE_ID && surfaceId !== STATS_SURFACE_ID;
+}
+
+/**
  * A reference into the surface's data model, as an RFC 6901 JSON Pointer.
  *
  * A leading `/` is absolute. Inside a template — a `children` list generated

@@ -8,7 +8,7 @@
  */
 import { resolveUsedFraction, type UsageLimit, type UsageReport } from "@oh-my-pi/pi-ai/usage";
 
-import type { A2uiComponent } from "../shared/a2ui.ts";
+import { COST_SURFACE_ID, STATS_SURFACE_ID, USAGE_SURFACE_ID, type A2uiComponent } from "../shared/a2ui.ts";
 import type { LiveSession } from "./registry.ts";
 function formatDurationMs(ms: number): string {
   if (ms < 1000) return `${ms}ms`;
@@ -58,13 +58,6 @@ function formatResetTime(resetsAt: number | undefined, resetLabel = "resets"): s
   const timeStr = date.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
   return `${resetLabel} in ${durationText} (${timeStr})`;
 }
-
-export const COST_SURFACE_ID = "session-cost";
-export const USAGE_SURFACE_ID = "session-usage";
-export const STATS_SURFACE_ID = "session-stats";
-
-/** Backwards-compatible alias for any legacy callers */
-export const METRICS_SURFACE_ID = "session-metrics";
 
 /**
  * Draw the Token Economics & Cost surface (/cost -> "session-cost").

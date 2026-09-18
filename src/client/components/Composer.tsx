@@ -29,6 +29,7 @@ import {
   IconBolt,
   IconBrain,
   IconClockPause,
+  IconHighlight,
   IconMicrophone,
   IconMicrophoneOff,
   IconPaperclip,
@@ -111,6 +112,10 @@ export interface ComposerProps {
   queued: number;
   /** Open the queue panel; only reachable while something is queued. */
   onOpenQueue: () => void;
+  /** Annotations captured but not sent; they ride along with the next message. */
+  annotations?: number;
+  /** Open the annotations panel; only reachable while something is annotated. */
+  onOpenAnnotations?: () => void;
   /**
    * The user opened a command: `/` typed into an empty input.
    *
@@ -151,6 +156,8 @@ export function Composer({
   onAbort,
   queued,
   onOpenQueue,
+  annotations = 0,
+  onOpenAnnotations,
   onSlash,
   onAt,
   insertedFile,
@@ -521,6 +528,31 @@ export function Composer({
                     style={{ textDecoration: "underline", textUnderlineOffset: "3px" }}
                   >
                     {queued} queued
+                  </Text>
+                </UnstyledButton>
+              </Tooltip>
+            ) : null}
+            {annotations > 0 && onOpenAnnotations ? (
+              // Attached to the next send, like the queue above it — except
+              // these are references the user marked up rather than messages.
+              <Tooltip
+                label="Notes marked up in files and surfaces. They are sent with your next message."
+                position="top"
+                multiline
+                w={240}
+              >
+                <UnstyledButton
+                  onClick={onOpenAnnotations}
+                  aria-label="Open annotations"
+                  style={{ display: "inline-flex", alignItems: "center", gap: 4, cursor: "pointer" }}
+                >
+                  <IconHighlight size={13} />
+                  <Text
+                    size="xs"
+                    c="dimmed"
+                    style={{ textDecoration: "underline", textUnderlineOffset: "3px" }}
+                  >
+                    {annotations} {annotations === 1 ? "annotation" : "annotations"}
                   </Text>
                 </UnstyledButton>
               </Tooltip>
