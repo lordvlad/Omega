@@ -51,6 +51,12 @@ export async function renderMarkdownServer(text: string): Promise<string> {
       pre: ({ language, children }) => {
         const codeText = Array.isArray(children) ? children.join("") : String(children ?? "");
         const lang = language || "text";
+        if (lang === "mermaid") {
+          return React.createElement("div", {
+            className: "omega-mermaid-block",
+            "data-code": encodeURIComponent(codeText.trimEnd()),
+          });
+        }
         let highlighted = "";
         try {
           highlighted = highlighter.codeToHtml(codeText.trimEnd(), {

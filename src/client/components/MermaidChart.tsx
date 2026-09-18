@@ -42,26 +42,39 @@ export interface MermaidChartProps {
   onNodeClick?: (nodeId: string) => void;
 }
 
-// Configure mermaid with dark theme defaults suitable for Omega
+const MODERN_THEME_VARIABLES = {
+  darkMode: true,
+  background: "transparent",
+  mainBkg: "#1c2128",
+  nodeBorder: "#444c56",
+  nodeTextColor: "#f0f6fc",
+  primaryColor: "#1c2128",
+  primaryBorderColor: "#444c56",
+  primaryTextColor: "#f0f6fc",
+  secondaryColor: "#21262d",
+  secondaryBorderColor: "#30363d",
+  secondaryTextColor: "#c9d1d9",
+  tertiaryColor: "#161b22",
+  tertiaryBorderColor: "#30363d",
+  tertiaryTextColor: "#c9d1d9",
+  lineColor: "#8b949e",
+  textColor: "#f0f6fc",
+  edgeLabelBackground: "#1e232a",
+  clusterBkg: "rgba(22, 27, 34, 0.6)",
+  clusterBorder: "#30363d",
+  titleColor: "#f0f6fc",
+  fontFamily: "var(--mantine-font-family-monospace), var(--mantine-font-family), system-ui, sans-serif",
+  fontSize: "13px",
+};
+
+// Configure mermaid with modern dark blueprint defaults
 mermaid.initialize({
   startOnLoad: false,
   securityLevel: "loose",
-  theme: "dark",
-  themeVariables: {
-    darkMode: true,
-    background: "#0d1117",
-    primaryColor: "#388bfd",
-    primaryTextColor: "#f0f6fc",
-    primaryBorderColor: "#1f6feb",
-    lineColor: "#58a6ff",
-    secondaryColor: "#bc8cff",
-    tertiaryColor: "#161b22",
-    fontFamily: "var(--mantine-font-family)",
-    fontSize: "13px",
-  },
-  fontFamily: "var(--mantine-font-family)",
+  theme: "base",
+  themeVariables: MODERN_THEME_VARIABLES,
+  fontFamily: "var(--mantine-font-family-monospace), var(--mantine-font-family), system-ui, sans-serif",
 });
-
 export const MermaidChart: React.FC<MermaidChartProps> = ({
   chart,
   code,
@@ -105,6 +118,13 @@ export const MermaidChart: React.FC<MermaidChartProps> = ({
             startOnLoad: false,
             securityLevel: "loose",
             theme,
+          });
+        } else {
+          mermaid.initialize({
+            startOnLoad: false,
+            securityLevel: "loose",
+            theme: "base",
+            themeVariables: MODERN_THEME_VARIABLES,
           });
         }
 
@@ -199,7 +219,9 @@ export const MermaidChart: React.FC<MermaidChartProps> = ({
         overflow: "hidden",
         borderRadius: "var(--mantine-radius-md)",
         border: "1px solid var(--mantine-color-default-border)",
-        background: "var(--mantine-color-body)",
+        backgroundColor: "#0b0f19",
+        backgroundImage: "radial-gradient(#262f3d 1.2px, transparent 1.2px)",
+        backgroundSize: "18px 18px",
         userSelect: "none",
       }}
       className="omega-mermaid-container"
@@ -307,6 +329,7 @@ export const MermaidChart: React.FC<MermaidChartProps> = ({
         </Center>
       ) : (
         <div
+          className="omega-mermaid-canvas"
           style={{
             position: "absolute",
             top: 40,
@@ -324,6 +347,70 @@ export const MermaidChart: React.FC<MermaidChartProps> = ({
           dangerouslySetInnerHTML={{ __html: svgHtml }}
         />
       )}
+
+      {/* Global CSS rules for modern dark Mermaid aesthetics */}
+      <style>{`
+        .omega-mermaid-canvas svg {
+          font-family: var(--mantine-font-family-monospace), var(--mantine-font-family), system-ui, sans-serif !important;
+          max-width: 100%;
+          height: auto;
+        }
+        .omega-mermaid-canvas .node rect,
+        .omega-mermaid-canvas .node circle,
+        .omega-mermaid-canvas .node ellipse,
+        .omega-mermaid-canvas .node polygon,
+        .omega-mermaid-canvas .node path.label-container {
+          fill: #1c2128 !important;
+          stroke: #444c56 !important;
+          stroke-width: 1.5px !important;
+          rx: 6px !important;
+          ry: 6px !important;
+          filter: drop-shadow(0 3px 8px rgba(0, 0, 0, 0.45));
+        }
+        .omega-mermaid-canvas .node.rhombus polygon,
+        .omega-mermaid-canvas .node.decision polygon,
+        .omega-mermaid-canvas .node .rhombus {
+          fill: #1c2128 !important;
+          stroke: #545d68 !important;
+          stroke-width: 1.5px !important;
+        }
+        .omega-mermaid-canvas .node .label,
+        .omega-mermaid-canvas .node .label text,
+        .omega-mermaid-canvas .node .nodeLabel,
+        .omega-mermaid-canvas .node text {
+          color: #f0f6fc !important;
+          fill: #f0f6fc !important;
+          font-weight: 500 !important;
+          font-size: 13px !important;
+        }
+        .omega-mermaid-canvas .flowchart-link,
+        .omega-mermaid-canvas .edgePath .path,
+        .omega-mermaid-canvas .relationshipLine {
+          stroke: #8b949e !important;
+          stroke-width: 1.5px !important;
+        }
+        .omega-mermaid-canvas .marker,
+        .omega-mermaid-canvas #flowchart-pointEnd,
+        .omega-mermaid-canvas #flowchart-circleEnd,
+        .omega-mermaid-canvas #flowchart-crossEnd {
+          fill: #8b949e !important;
+          stroke: #8b949e !important;
+        }
+        .omega-mermaid-canvas .edgeLabel rect,
+        .omega-mermaid-canvas .edgeLabel span,
+        .omega-mermaid-canvas .edgeLabel .label {
+          background-color: #1e232a !important;
+          fill: #1e232a !important;
+          color: #c9d1d9 !important;
+          border-radius: 4px;
+          font-size: 11px !important;
+          font-weight: 500 !important;
+        }
+        .omega-mermaid-canvas .edgeLabel {
+          background-color: #1e232a !important;
+          color: #c9d1d9 !important;
+        }
+      `}</style>
     </Box>
   );
 };

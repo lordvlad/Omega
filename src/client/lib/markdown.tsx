@@ -6,17 +6,19 @@
  * caches results by content hash and injects them directly, with a delegated
  * click handler for code block copying.
  */
-import { Typography } from "@mantine/core";
+import { Box, Typography } from "@mantine/core";
 import { notifications } from "@mantine/notifications";
-import React, { type ReactNode, useCallback, useEffect, useState } from "react";
+import React, { type ReactNode, useCallback, useEffect, useMemo, useState } from "react";
 
 import { renderMarkdown } from "../api/api.ts";
+import { MermaidChart } from "../components/MermaidChart.tsx";
 import { copyText } from "./clipboard.ts";
-
 /** In-memory cache so re-rendering a settled transcript costs no requests. */
 const cache = new Map<string, string>();
 
 /** Parse and render server-rendered HTML directly. */
+const MERMAID_REGEX = /<div class="omega-mermaid-block" data-code="([^"]*)"><\/div>/g;
+
 export function RenderedHtml({ html, className }: { html: string; className?: string }): ReactNode {
   const handleClick = useCallback(async (event: React.MouseEvent<HTMLDivElement>) => {
     const target = event.target as HTMLElement;
@@ -38,7 +40,74 @@ export function RenderedHtml({ html, className }: { html: string; className?: st
     }
   }, []);
 
+  const segments = useMemo(() => {
+    if (!html || !html.includes("omega-mermaid-block")) return null;
+    const parts: Array<{ type: "html" | "mermaid"; content: string; key: string }> = [];
+    let lastIndex = 0;
+    let match: RegExpExecArray | null;
+    const regex = new RegExp(MERMAID_REGEX.source, "g");
+
+    while ((match = regex.exec(html)) !== null) {
+      if (match.index > lastIndex) {
+        parts.push({
+          type: "html",
+          content: html.slice(lastIndex, match.index),
+          key: `html-${lastIndex}`,
+        });
+      }
+      try {
+        const decoded = decodeURIComponent(match[1] ?? "");
+        parts.push({
+          type: "mermaid",
+          content: decoded,
+          key: `mermaid-${match.index}`,
+        });
+      } catch {
+        parts.push({
+          type: "html",
+          content: match[0],
+          key: `html-err-${match.index}`,
+        });
+      }
+      lastIndex = regex.lastIndex;
+    }
+
+    if (lastIndex < html.length) {
+      parts.push({
+        type: "html",
+        content: html.slice(lastIndex),
+        key: `html-${lastIndex}`,
+      });
+    }
+
+    return parts;
+  }, [html]);
+
   if (!html) return null;
+
+  if (segments) {
+    return (
+      <div className={className ? `omega-markdown ${className}` : "omega-markdown"}>
+        {segments.map(seg => {
+          if (seg.type === "mermaid") {
+            return (
+              <Box key={seg.key} my="md">
+                <MermaidChart code={seg.content} height={360} />
+              </Box>
+            );
+          }
+          return (
+            <Typography
+              key={seg.key}
+              dangerouslySetInnerHTML={{ __html: seg.content }}
+              onClick={handleClick}
+            />
+          );
+        })}
+      </div>
+    );
+  }
+
   return (
     <Typography
       className={className ? `omega-markdown ${className}` : "omega-markdown"}
