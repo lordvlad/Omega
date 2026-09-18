@@ -62,6 +62,8 @@ export const A2UI_COMPONENTS: Record<string, true> = {
   Image: true,
   LineChart: true,
   List: true,
+  Mermaid: true,
+  MermaidChart: true,
   MindMap: true,
   Mindmap: true,
   Modal: true,
@@ -187,6 +189,7 @@ Components (property: type — "dyn" accepts a literal or {"path":"/pointer"}):
 - Skeleton: height (number), width (number | string), circle (boolean), animate (boolean)
 - Tooltip: label (dyn string), child (component id)
 - MindMap: data (dyn object: { id?: string, name: string, children?: [...] }), width (dyn number | string, default 800), height (dyn number | string, default 500), title (dyn string), action (optional action triggered on node click)
+- Mermaid: chart (dyn string, mermaid diagram code), title (dyn string), width (dyn number | string, default "100%"), height (dyn number | string, default 400), theme ("dark" | "default" | "forest" | "neutral" | "base")
 - Icon: name (one of: ${A2UI_ICONS.join(", ")})
 - Image: url (dyn string), description (dyn string), fit ("contain" | "cover" | "fill" | "none" | "scaleDown"), variant ("icon" | "avatar" | "smallFeature" | "mediumFeature" | "largeFeature" | "header")
 - Video: url (dyn string), posterUrl (dyn string)

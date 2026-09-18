@@ -330,9 +330,9 @@ export class LiveSession {
         ? { tokens: usage.tokens, contextWindow: usage.contextWindow, percent: usage.percent }
         : undefined,
       plan: this.planState(),
-      todos: this.session.getTodoPhases().map(phase => ({
+      todos: this.session.getTodoPhases().map((phase: any) => ({
         name: phase.name,
-        tasks: phase.tasks.map(task => ({
+        tasks: phase.tasks.map((task: any) => ({
           content: task.content,
           status: task.status,
           blocker: task.blocker,

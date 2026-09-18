@@ -108,6 +108,7 @@ import React, { useCallback } from "react";
 
 import type { A2uiAction, A2uiActionEvent, A2uiChildList, A2uiDataBinding } from "../../shared/a2ui.ts";
 import { type ClientSurface, resolveActionContext, resolveDynamic, resolvePointer } from "../lib/a2ui.ts";
+import { MermaidChart } from "./MermaidChart.tsx";
 import { MindMap, type MindMapNodeData } from "./MindMap.tsx";
 
 export interface A2UIRendererProps {
@@ -1215,6 +1216,38 @@ export function A2UIRenderer({ surface, onAction, onUpdateData }: A2UIRendererPr
               onNodeClick={node => {
                 if (action) {
                   handleAction(action, node, index);
+                }
+              }}
+            />
+          </Box>
+        );
+      }
+      case "Mermaid":
+      case "MermaidChart": {
+        const rawChart = resolveDynamic<string>(
+          (comp.chart ?? comp.code ?? comp.value) as any,
+          dataModel,
+          scope,
+          index,
+        );
+        const widthVal =
+          resolveDynamic<number | string>(comp.width as any, dataModel, scope, index) ?? "100%";
+        const heightVal = resolveDynamic<number | string>(comp.height as any, dataModel, scope, index) ?? 400;
+        const titleVal = resolveDynamic<string>(comp.title as any, dataModel, scope, index);
+        const themeVal = (comp.theme as any) ?? "dark";
+        const action = comp.action as A2uiAction | undefined;
+
+        return (
+          <Box key={key} style={style}>
+            <MermaidChart
+              chart={rawChart ?? ""}
+              width={widthVal}
+              height={heightVal}
+              title={titleVal}
+              theme={themeVal}
+              onNodeClick={nodeId => {
+                if (action) {
+                  handleAction(action, { nodeId }, index);
                 }
               }}
             />
