@@ -16,9 +16,10 @@ import {
   Badge,
   Box,
   Button,
-  Drawer,
+  Center,
   Group,
   Indicator,
+  Loader,
   Stack,
   Text,
   Tooltip,
@@ -246,6 +247,8 @@ export function App() {
   const [noteSurface, setNoteSurface] = useState<string | null>(null);
   /** A sticky note just dropped, whose editor should open on its own. */
   const [editingNoteId, setEditingNoteId] = useState<string | null>(null);
+  /** Tracks pending session switch so a clean loader shows the instant a change is triggered. */
+  const [switchingSession, setSwitchingSession] = useState<string | null>(null);
   /** Sent messages not yet echoed back by the server transcript. */
   const [pendingUser, setPendingUser] = useState<string[]>([]);
   /** Message text a branch handed back, for the composer to pick up. */
@@ -413,6 +416,28 @@ export function App() {
   const signalProc = useSignalProcess();
   const stopProc = useStopProcess();
   const restartProc = useRestartProcess();
+
+  // Clear switching indicator once state and transcript match the active sessionKey
+  useEffect(() => {
+    if (
+      sessionKey &&
+      state.data?.key === sessionKey &&
+      (transcript.data?.key === sessionKey || Boolean(transcript.data?.messages))
+    ) {
+      setSwitchingSession(null);
+    }
+  }, [sessionKey, state.data?.key, transcript.data?.key, transcript.data?.messages]);
+
+  const isSessionLoading = Boolean(
+    switchingSession ||
+    openSession.isPending ||
+    forkSession.isPending ||
+    branchSession.isPending ||
+    (sessionKey &&
+      ((state.data && state.data.key !== sessionKey) ||
+        (transcript.data && transcript.data.key !== sessionKey) ||
+        (state.isPending && !state.data))),
+  );
   // A non-2xx response arrives as `ApiError`, whose `message` is only
   // `HTTP 409 for <url>`; the server's own explanation is the `Problem` body,
   // and every session command refuses with one worth reading.
@@ -790,6 +815,7 @@ export function App() {
   }, [project, sessionKey, workspaces.data]);
 
   const handleOpen = (session: SessionSummary): void => {
+    setSwitchingSession(session.title || session.id || "Loading session…");
     openSession.mutate(
       { body: { sessionPath: session.path } },
       {
@@ -797,12 +823,16 @@ export function App() {
           navigateTo({ project: result.cwd, session: result.key });
           void queryClient.invalidateQueries();
         },
-        onError: fail,
+        onError: error => {
+          setSwitchingSession(null);
+          fail(error);
+        },
       },
     );
   };
 
   const handleNew = (cwd: string): void => {
+    setSwitchingSession("Creating session…");
     openSession.mutate(
       { body: { cwd } },
       {
@@ -810,7 +840,10 @@ export function App() {
           navigateTo({ project: result.cwd, session: result.key });
           void queryClient.invalidateQueries();
         },
-        onError: fail,
+        onError: error => {
+          setSwitchingSession(null);
+          fail(error);
+        },
       },
     );
   };
@@ -1027,6 +1060,7 @@ export function App() {
    */
   const handleFork = (): void => {
     if (!sessionKey) return;
+    setSwitchingSession("Forking session…");
     forkSession.mutate(
       { path: { key: sessionKey } },
       {
@@ -1039,7 +1073,10 @@ export function App() {
           navigateTo({ project: next.cwd, session: next.key });
           void queryClient.invalidateQueries();
         },
-        onError: fail,
+        onError: error => {
+          setSwitchingSession(null);
+          fail(error);
+        },
       },
     );
   };
@@ -1192,6 +1229,7 @@ export function App() {
   const handleBranch = useCallback(
     (entryId: string): void => {
       if (!sessionKey) return;
+      setSwitchingSession("Branching session…");
       branchSession.mutate(
         { path: { key: sessionKey }, body: { entryId } },
         {
@@ -1205,7 +1243,10 @@ export function App() {
             });
             void queryClient.invalidateQueries();
           },
-          onError: fail,
+          onError: error => {
+            setSwitchingSession(null);
+            fail(error);
+          },
         },
       );
     },
@@ -1548,7 +1589,9 @@ export function App() {
                   >
                     <IconMessage size={13} style={{ flexShrink: 0, marginRight: 4 }} />
                     <Text size="xs" c="dimmed" truncate style={HEADER_UNDERLINE}>
-                      {state.data.title ?? "Untitled session"}
+                      {isSessionLoading
+                        ? (switchingSession ?? "Loading session…")
+                        : (state.data.title ?? "Untitled session")}
                     </Text>
                   </UnstyledButton>
                 </Tooltip>
@@ -2111,7 +2154,16 @@ export function App() {
         />
       </ResizableDrawer>
       <AppShell.Main>
-        {sessionKey ? (
+        {isSessionLoading ? (
+          <Center style={{ flex: 1, height: "100%", minHeight: "calc(100vh - 120px)" }}>
+            <Stack align="center" gap="md">
+              <Loader size="xl" color="cyan" type="dots" />
+              <Text size="sm" c="dimmed" fw={600}>
+                {switchingSession ?? "Loading session…"}
+              </Text>
+            </Stack>
+          </Center>
+        ) : sessionKey ? (
           <Stack
             gap={0}
             className={shaking ? "omega-main omega-shaking" : "omega-main"}
@@ -2122,9 +2174,6 @@ export function App() {
               liveParts={live.parts}
               pendingUser={pendingUser}
               running={streaming}
-              // The stream reports a failure once, to whoever was listening.
-              // A reload was not, so the snapshot answers instead — otherwise
-              // the conversation just stops and nothing says why.
               error={live.error ?? (streaming ? undefined : state.data?.lastError)}
               notices={live.notices}
               loading={transcript.isPending}

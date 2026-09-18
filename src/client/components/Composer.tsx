@@ -180,13 +180,33 @@ export function Composer({
   // beside the input to a column that spans it, so a tall message still has
   // one of them within reach at the top and one at the bottom instead of
   // both stranded in the middle.
+  //
+  // Layout lock: switching between horizontal Group and vertical Stack changes
+  // the available textarea width by ~40px, which would otherwise cause text
+  // at boundary lengths to oscillate rapidly between wrapping and not wrapping.
+  // We lock into stacked layout once triggered, and release only when input is
+  // cleared completely (e.g. after submit or user deletion).
   const [sizeRef, textareaRect] = useResizeObserver<HTMLTextAreaElement>();
   const mergedTextareaRef = useMergedRef(textareaRef, sizeRef);
   const baselineHeight = useRef<number | null>(null);
   if (baselineHeight.current === null && textareaRect.height > 0) {
     baselineHeight.current = textareaRect.height;
   }
-  const isMultiline = baselineHeight.current !== null && textareaRect.height > baselineHeight.current + 4;
+  const [isStacked, setIsStacked] = useState(false);
+
+  useEffect(() => {
+    if (text === "") {
+      setIsStacked(false);
+      return;
+    }
+    const hasNewlines = text.includes("\n");
+    const heightGrew = baselineHeight.current !== null && textareaRect.height > baselineHeight.current + 4;
+    if (!isStacked && (hasNewlines || heightGrew)) {
+      setIsStacked(true);
+    }
+  }, [text, textareaRect.height, isStacked]);
+
+  const isMultiline = isStacked;
   const atCursorRef = useRef<number | undefined>(undefined);
   // A branch hands back the message it branched from; loading it into the
   // input is the point of branching. Keyed on object identity so the same
@@ -264,6 +284,7 @@ export function Composer({
       .then(attachments => {
         onSend(message, running ? deliverAs : undefined, attachments.length > 0 ? attachments : undefined);
         setText("");
+        setIsStacked(false);
         setFiles([]);
         setReadError(undefined);
         if (dictation.listening) dictation.stop();
