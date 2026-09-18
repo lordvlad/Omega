@@ -62,6 +62,8 @@ export const A2UI_COMPONENTS: Record<string, true> = {
   Image: true,
   LineChart: true,
   List: true,
+  MindMap: true,
+  Mindmap: true,
   Modal: true,
   Paper: true,
   PieChart: true,
@@ -184,6 +186,7 @@ Components (property: type — "dyn" accepts a literal or {"path":"/pointer"}):
 - Sparkline: data (dyn array of numbers), height (number, default 40), color (string), curveType ("linear" | "natural" | "monotone"), fillOpacity (number)
 - Skeleton: height (number), width (number | string), circle (boolean), animate (boolean)
 - Tooltip: label (dyn string), child (component id)
+- MindMap: data (dyn object: { id?: string, name: string, children?: [...] }), width (dyn number | string, default 800), height (dyn number | string, default 500), title (dyn string), action (optional action triggered on node click)
 - Icon: name (one of: ${A2UI_ICONS.join(", ")})
 - Image: url (dyn string), description (dyn string), fit ("contain" | "cover" | "fill" | "none" | "scaleDown"), variant ("icon" | "avatar" | "smallFeature" | "mediumFeature" | "largeFeature" | "header")
 - Video: url (dyn string), posterUrl (dyn string)

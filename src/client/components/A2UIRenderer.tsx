@@ -108,6 +108,7 @@ import React, { useCallback } from "react";
 
 import type { A2uiAction, A2uiActionEvent, A2uiChildList, A2uiDataBinding } from "../../shared/a2ui.ts";
 import { type ClientSurface, resolveActionContext, resolveDynamic, resolvePointer } from "../lib/a2ui.ts";
+import { MindMap, type MindMapNodeData } from "./MindMap.tsx";
 
 export interface A2UIRendererProps {
   surface: ClientSurface;
@@ -1184,6 +1185,38 @@ export function A2UIRenderer({ surface, onAction, onUpdateData }: A2UIRendererPr
               color={color}
               curveType={curveType}
               fillOpacity={fillOpacity}
+            />
+          </Box>
+        );
+      }
+      case "MindMap":
+      case "Mindmap": {
+        const rawData = resolveDynamic<MindMapNodeData>(comp.data as any, dataModel, scope, index);
+        const widthVal = resolveDynamic<number | string>(comp.width as any, dataModel, scope, index) ?? 800;
+        const heightVal = resolveDynamic<number | string>(comp.height as any, dataModel, scope, index) ?? 500;
+        const titleVal = resolveDynamic<string>(comp.title as any, dataModel, scope, index);
+        const action = comp.action as A2uiAction | undefined;
+
+        if (!rawData || typeof rawData !== "object") {
+          return (
+            <Text key={key} size="xs" c="dimmed" fs="italic">
+              [MindMap: missing or invalid data]
+            </Text>
+          );
+        }
+
+        return (
+          <Box key={key} style={style}>
+            <MindMap
+              data={rawData}
+              width={widthVal}
+              height={heightVal}
+              title={titleVal}
+              onNodeClick={node => {
+                if (action) {
+                  handleAction(action, node, index);
+                }
+              }}
             />
           </Box>
         );
