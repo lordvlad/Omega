@@ -2136,6 +2136,7 @@ export function App() {
                 onClearForcedTool={handleClearForceTool}
                 insertedFile={insertedFile}
                 compact={narrow}
+                enterSubmits={settings.enterSubmits}
               />
             </Transcript>
           </Stack>

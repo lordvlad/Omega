@@ -44,6 +44,7 @@ import {
   IconBrain,
   IconChartBar,
   IconCoin,
+  IconCornerDownLeft,
   IconCpu,
   IconFile,
   IconFilterX,
@@ -1071,10 +1072,32 @@ export function CommandPalette({
               onToggleSetting("notifyOnYield");
             },
           },
+          {
+            id: "settings-enter-submits",
+            label: "Enter submits message",
+            description: settings.enterSubmits
+              ? "Enter sends message, Shift+Enter adds newline"
+              : "Ctrl+Enter sends message, Enter adds newline",
+            keywords: "enter submit send return newline shift keyboard shortcuts",
+            leftSection: <IconCornerDownLeft size={16} />,
+            rightSection: (
+              <Badge size="xs" variant={settings.enterSubmits ? "filled" : "light"} color="plum">
+                {settings.enterSubmits ? "On" : "Off"}
+              </Badge>
+            ),
+            closeSpotlightOnTrigger: false,
+            onClick: () => onToggleSetting("enterSubmits"),
+          },
         ],
       },
     ],
-    [settings.showThinking, settings.showToolCalls, settings.notifyOnYield, onToggleSetting],
+    [
+      settings.showThinking,
+      settings.showToolCalls,
+      settings.notifyOnYield,
+      settings.enterSubmits,
+      onToggleSetting,
+    ],
   );
 
   /** `/btw`: ask a transient side question. */

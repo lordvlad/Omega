@@ -14,12 +14,15 @@ export interface ProjectSettings {
   showToolCalls: boolean;
   /** Show native browser notifications when the agent yields/finishes a turn. */
   notifyOnYield: boolean;
+  /** Submit message on Enter (Shift+Enter inserts newline, Ctrl/Cmd+Enter always submits). */
+  enterSubmits: boolean;
 }
 
 export const DEFAULT_PROJECT_SETTINGS: ProjectSettings = {
   showThinking: true,
   showToolCalls: true,
   notifyOnYield: true,
+  enterSubmits: false,
 };
 
 function isProjectSettings(value: unknown): value is Partial<ProjectSettings> {

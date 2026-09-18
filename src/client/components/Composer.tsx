@@ -141,6 +141,8 @@ export interface ComposerProps {
   /** Active forced tool choice for the next turn. */
   forcedTool?: string;
   onClearForcedTool?: () => void;
+  /** Submit message on Enter (Shift+Enter inserts newline, Ctrl/Cmd+Enter always submits). */
+  enterSubmits?: boolean;
 }
 
 export function Composer({
@@ -163,6 +165,7 @@ export function Composer({
   insertedFile,
   compact = false,
   offline = false,
+  enterSubmits = false,
   forcedTool,
   onClearForcedTool,
 }: ComposerProps) {
@@ -471,9 +474,21 @@ export function Composer({
             }}
             onKeyDown={event => {
               if (event.key !== "Enter" || event.nativeEvent.isComposing) return;
-              if (!event.ctrlKey && !event.metaKey) return;
-              event.preventDefault();
-              send();
+              if (event.shiftKey) {
+                // Shift+Enter must always write newline
+                return;
+              }
+              if (event.ctrlKey || event.metaKey) {
+                // Ctrl+Enter / Cmd+Enter must always submit
+                event.preventDefault();
+                send();
+                return;
+              }
+              if (enterSubmits) {
+                // Enter submits when the setting toggle is enabled
+                event.preventDefault();
+                send();
+              }
             }}
             styles={{ input: { paddingTop: 4, paddingBottom: 4 } }}
           />
