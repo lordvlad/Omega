@@ -121,6 +121,7 @@ export const PALETTE_COMMAND = {
   jobs: "/jobs",
   ps: "/ps",
   wt: "/wt",
+  gc: "/gc",
   newSession: "/new",
   fork: "/fork",
   branch: "/branch",
@@ -168,6 +169,7 @@ const COMMAND_SPEC: Record<
   "/stats": { kind: "run", placeholder: "Render session performance and latency stats…" },
   "/usage": { kind: "run", placeholder: "Render provider rate limits and quota usage…" },
   "/wt": { kind: "run", placeholder: "Inspect and manage git worktrees…" },
+  "/gc": { kind: "run", placeholder: "Run storage maintenance and sweep blobs…" },
   "/rename": { kind: "scope", placeholder: "Type the new session title…", termIsInput: true },
   "/tools": { kind: "scope", placeholder: "Filter available tools or force one…" },
   "/force": { kind: "scope", placeholder: "Pick a tool to force for next turn…", termIsInput: true },
@@ -431,6 +433,7 @@ export interface CommandPaletteProps {
   onShowUsage?: () => void;
   onShowStats?: () => void;
   onShowWorktree?: () => void;
+  onShowGc?: () => void;
   onAbort: () => void;
   onTogglePlanMode: (enabled: boolean) => void;
   onFork: () => void;
@@ -502,6 +505,7 @@ export function CommandPalette({
   onShowUsage,
   onShowStats,
   onShowWorktree,
+  onShowGc,
   onOmfg,
   onFork,
   onBranch,
@@ -777,6 +781,15 @@ export function CommandPalette({
             onClick: () => onShowWorktree?.(),
           },
           {
+            id: "command-gc",
+            label: PALETTE_COMMAND.gc,
+            description: "Run on-disk storage maintenance, sweep unused blobs, and checkpoint WAL",
+            keywords: "gc garbage collection storage sweep blobs archive clean wal",
+            leftSection: <IconTrash size={16} color="var(--mantine-color-teal-4)" />,
+            closeSpotlightOnTrigger: true,
+            onClick: () => onShowGc?.(),
+          },
+          {
             id: "command-plan",
             label: PALETTE_COMMAND.plan,
             description: planDescription,
@@ -941,6 +954,7 @@ export function CommandPalette({
       onOpenJobs,
       onOpenProcesses,
       onShowWorktree,
+      onShowGc,
     ],
   );
 
@@ -1705,6 +1719,7 @@ export function CommandPalette({
     "/jobs": jobsActions,
     "/ps": processActions,
     "/wt": [],
+    "/gc": [],
   };
   // The command prefix scopes the list rather than searching it, so it is
   // stripped before matching; otherwise every action would have to contain "/cd".

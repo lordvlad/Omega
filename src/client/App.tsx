@@ -2301,6 +2301,7 @@ export function App() {
         onShowUsage={() => handleSend("/usage", undefined, undefined)}
         onShowStats={() => handleSend("/stats", undefined, undefined)}
         onShowWorktree={() => handleSend("/wt", undefined, undefined)}
+        onShowGc={() => handleSend("/gc", undefined, undefined)}
         onTogglePlanMode={handleSetPlanMode}
         onFork={handleFork}
         onBranch={point => handleBranch(point.entryId)}

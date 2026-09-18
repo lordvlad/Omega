@@ -68,6 +68,7 @@ import type {
  */
 import type { OmpApi } from "../shared/service.ts";
 import { listFiles, readFileContent } from "./files.ts";
+import { drawGcSurface } from "./gc-surface.ts";
 import { getGitDiff, getGitStatus } from "./git.ts";
 import {
   cancelSessionJob,
@@ -269,6 +270,10 @@ export class Handlers implements OmpApi {
     if (message === "/wt" || message.startsWith("/wt ")) {
       await drawWorktreeSurface(live);
       return { ok: true, detail: "Worktree manager surface rendered." };
+    }
+    if (message === "/gc" || message === "/GC" || message.startsWith("/gc ") || message.startsWith("/GC ")) {
+      await drawGcSurface(live);
+      return { ok: true, detail: "Storage maintenance completed and rendered." };
     }
     // The browser's outbox retries until a send is acknowledged, so the same
     // message can arrive twice: once delivered, once replayed from a snapshot
