@@ -1505,19 +1505,51 @@ export function App() {
                 </Indicator>
               </Tooltip>
             ) : null}
-            {state.data ? (
-              <Tooltip label={treeOpen ? "Hide files" : "Show files"}>
-                <ActionIcon
-                  size={narrow ? "md" : "lg"}
-                  variant={treeOpen ? "light" : "subtle"}
-                  color="plum"
-                  onClick={toggleTree}
-                  aria-label="Toggle file tree"
-                >
-                  <IconFolder size={18} />
-                </ActionIcon>
-              </Tooltip>
-            ) : null}
+            {state.data
+              ? (() => {
+                  const diffCount = gitStatus.data?.files ? Object.keys(gitStatus.data.files).length : 0;
+                  return (
+                    <Tooltip
+                      label={
+                        treeOpen
+                          ? "Hide files"
+                          : diffCount > 0
+                            ? `Show files (${diffCount} changed)`
+                            : "Show files"
+                      }
+                    >
+                      <Indicator
+                        inline
+                        disabled={diffCount === 0}
+                        label={diffCount > 99 ? "99+" : String(diffCount)}
+                        size={13}
+                        color="orange"
+                        offset={2}
+                        styles={{
+                          indicator: {
+                            fontSize: 8,
+                            fontWeight: 700,
+                            padding: "0 3px",
+                            height: 13,
+                            minWidth: 13,
+                            lineHeight: "13px",
+                          },
+                        }}
+                      >
+                        <ActionIcon
+                          size={narrow ? "md" : "lg"}
+                          variant={treeOpen ? "light" : "subtle"}
+                          color="plum"
+                          onClick={toggleTree}
+                          aria-label="Toggle file tree"
+                        >
+                          <IconFolder size={18} />
+                        </ActionIcon>
+                      </Indicator>
+                    </Tooltip>
+                  );
+                })()
+              : null}
             {state.data ? (
               <Tooltip label="Settings (/omega-settings)">
                 <ActionIcon
