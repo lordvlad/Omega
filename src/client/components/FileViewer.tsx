@@ -374,7 +374,21 @@ export function FileViewer({ filePath, cwd, gitStatus, onInsertRef, onAnnotate, 
   return (
     <Stack gap={0} h="100%">
       {/* Header */}
-      <Paper h={56} withBorder radius={0} style={{ borderLeft: 0, borderRight: 0, borderTop: 0 }}>
+      <Paper
+        h={56}
+        withBorder
+        radius={0}
+        style={{
+          position: "sticky",
+          top: 0,
+          zIndex: 10,
+          borderLeft: 0,
+          borderRight: 0,
+          borderTop: 0,
+          backgroundColor: "var(--mantine-color-body)",
+          flexShrink: 0,
+        }}
+      >
         <Group justify="space-between" align="center" wrap="nowrap" h="100%" px="sm">
           <Group gap={8} wrap="nowrap" style={{ minWidth: 0 }}>
             {getFileIcon(fileName)}

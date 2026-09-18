@@ -525,7 +525,7 @@ export function Composer({
             }}
           />
           {isMultiline ? (
-            <Stack gap={6} justify="space-between" align="center" style={{ flexShrink: 0 }}>
+            <Stack gap={6} justify="flex-end" align="center" style={{ flexShrink: 0 }}>
               {attachButton}
               {actionButton}
             </Stack>

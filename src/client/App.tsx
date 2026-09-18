@@ -20,6 +20,7 @@ import {
   Group,
   Indicator,
   Loader,
+  Paper,
   Stack,
   Text,
   Tooltip,
@@ -28,6 +29,7 @@ import {
 import { useDisclosure, useLocalStorage, useMediaQuery } from "@mantine/hooks";
 import { notifications } from "@mantine/notifications";
 import {
+  IconChevronDown,
   IconFolder,
   IconHighlight,
   IconHistory,
@@ -216,6 +218,13 @@ export function App() {
   const [todoOpen, { toggle: toggleTodo, close: closeTodo }] = useDisclosure(false);
   const [treeOpen, { toggle: toggleTree, close: closeTree }] = useDisclosure(false);
   const [viewingFile, setViewingFile] = useState<string | null>(null);
+  const [mobileComposerOverFile, setMobileComposerOverFile] = useState(false);
+
+  useEffect(() => {
+    if (!viewingFile) {
+      setMobileComposerOverFile(false);
+    }
+  }, [viewingFile]);
   /** The queue panel, opened from the composer's queued-message hint. */
   /** The tools inspector and forced-choice drawer. */
   const [toolsDrawerOpen, { open: openTools, close: closeTools }] = useDisclosure(false);
@@ -1463,6 +1472,9 @@ export function App() {
     deliverAs: "steer" | "followUp" | undefined,
     attachments: Attachment[] | undefined,
   ): void => {
+    if (mobileComposerOverFile) {
+      setMobileComposerOverFile(false);
+    }
     const pending = annotations.annotations;
     if (pending.length === 0 || message.startsWith("/")) {
       handleSend(message, deliverAs, attachments);
@@ -1812,6 +1824,87 @@ export function App() {
           onClose={() => setViewingFile(null)}
         />
       </ResizableDrawer>
+      {/* Mobile FAB to pull up / hide composer over file view */}
+      {narrow && viewingFile !== null ? (
+        mobileComposerOverFile ? (
+          <Box
+            style={{
+              position: "fixed",
+              bottom: 0,
+              left: 0,
+              right: 0,
+              zIndex: 500,
+              padding: "6px 12px 12px",
+              backgroundColor: "rgba(var(--mantine-color-body-rgb, 15, 17, 23), 0.96)",
+              backdropFilter: "blur(12px)",
+              borderTop: "1px solid var(--mantine-color-default-border)",
+              boxShadow: "0 -4px 24px rgba(0, 0, 0, 0.5)",
+            }}
+          >
+            <Group justify="flex-end" mb={4}>
+              <Button
+                size="xs"
+                radius="xl"
+                variant="light"
+                color="slate"
+                leftSection={<IconChevronDown size={14} />}
+                onClick={() => setMobileComposerOverFile(false)}
+                aria-label="Hide composer behind file view"
+              >
+                Hide composer
+              </Button>
+            </Group>
+            <Composer
+              state={state.data}
+              offline={!online}
+              running={streaming}
+              draft={draft}
+              planEnabled={planEnabled}
+              planPending={setPlanMode.isPending}
+              onSend={handleComposerSend}
+              onPlanMode={handleSetPlanMode}
+              onChangeModel={() => openPalette(PALETTE_COMMAND.model, setPaletteQuery)}
+              onChangeThinking={() => openPalette(PALETTE_COMMAND.think, setPaletteQuery)}
+              onAbort={handleAbort}
+              queued={queued}
+              onOpenQueue={openQueue}
+              annotations={annotations.annotations.length}
+              onOpenAnnotations={openAnnotations}
+              onSlash={() => openPaletteCommands(setPaletteQuery)}
+              onAt={() => openPaletteFiles(setPaletteQuery)}
+              forcedTool={toolsQuery.data?.forcedTool}
+              onClearForcedTool={handleClearForceTool}
+              insertedFile={insertedFile}
+              compact={true}
+              enterSubmits={settings.enterSubmits}
+            />
+          </Box>
+        ) : (
+          <Paper
+            shadow="lg"
+            radius="xl"
+            style={{
+              position: "fixed",
+              bottom: 20,
+              right: 20,
+              zIndex: 450,
+            }}
+          >
+            <Button
+              size="sm"
+              radius="xl"
+              variant="filled"
+              color="cyan"
+              leftSection={<IconMessage size={16} />}
+              onClick={() => setMobileComposerOverFile(true)}
+              aria-label="Pull up composer over file"
+              style={{ boxShadow: "0 4px 16px rgba(0, 0, 0, 0.4)" }}
+            >
+              Compose
+            </Button>
+          </Paper>
+        )
+      ) : null}
 
       <ResizableDrawer
         opened={planOpen}

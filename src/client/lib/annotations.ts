@@ -164,56 +164,67 @@ export function useAnnotations(sessionKey: string | undefined): AnnotationStore 
   return { annotations, add, update, move, remove, clear, restore };
 }
 
-/** How the viewer's three text views are named to the agent. */
-const VIEW_LABEL: Record<FileAnnotation["view"], string> = {
-  raw: "file view",
-  diff: "diff",
-  rendered: "rendered markdown",
-};
-
-/** Largest excerpt written into a message, in lines. */
-const EXCERPT_LINES = 10;
-
-function filePosition(annotation: FileAnnotation): string {
-  const prefix = annotation.view === "diff" ? "diff " : "";
-  if (annotation.startLine === undefined) return `${prefix}no position`;
-  const span = `${prefix}lines ${annotation.startLine}-${annotation.endLine ?? annotation.startLine}, col ${annotation.startChar ?? 1}`;
-  if (annotation.view !== "diff" || annotation.fileLine === undefined) return span;
-  if (annotation.side === "meta") return span;
-  return `${span} — ${annotation.side === "old" ? "old" : "new"}-file line ${annotation.fileLine}`;
-}
-
-function headline(annotation: Annotation, index: number): string {
-  const n = index + 1;
-  if (annotation.kind === "file") {
-    return `[${n}] file ${annotation.path} (${VIEW_LABEL[annotation.view]}) ${filePosition(annotation)}`;
-  }
-  if (annotation.kind === "drawing") {
-    const over = annotation.targets.length > 0 ? ` over: ${annotation.targets.join(", ")}` : "";
-    return `[${n}] surface "${annotation.surfaceId}" drawing${over}`;
-  }
-  const at = `${Math.round(annotation.x * 100)}%, ${Math.round(annotation.y * 100)}%`;
-  const on = annotation.target ? ` on "${annotation.target}"` : "";
-  return `[${n}] surface "${annotation.surfaceId}" sticky note at ${at}${on}`;
+/**
+ * Escape special characters inside XML attribute values.
+ */
+function escapeXmlAttr(str: string): string {
+  return str.replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 }
 
 /**
- * Write the annotations out as the block appended to the user's message.
+ * Write the annotations out as pseudo-XML appended to the user's message.
  *
- * Plain text rather than JSON: this is read by a model alongside prose, and a
- * quoted excerpt with a path and a line number is what a human would have
- * typed in its place.
+ * Pseudo-XML is cleanly bounded, structured, and immediately understood by LLMs
+ * without ambiguous delimiter collisions or manual parsing ambiguity.
  */
 export function formatAnnotations(annotations: Annotation[]): string {
-  const blocks = annotations.map((annotation, index) => {
-    const lines = [headline(annotation, index)];
-    if (annotation.kind === "file" && annotation.excerpt) {
-      const excerptLines = annotation.excerpt.split("\n");
-      for (const line of excerptLines.slice(0, EXCERPT_LINES)) lines.push(`> ${line}`);
-      if (excerptLines.length > EXCERPT_LINES) lines.push("> …");
+  if (annotations.length === 0) return "";
+
+  const items = annotations.map(annotation => {
+    const noteText = annotation.note.trim();
+    const noteTag = noteText ? `    <note>${noteText}</note>` : "    <note />";
+
+    if (annotation.kind === "file") {
+      const attrs: string[] = [`path="${escapeXmlAttr(annotation.path)}"`, `view="${annotation.view}"`];
+      if (annotation.startLine !== undefined) {
+        attrs.push(`lines="${annotation.startLine}-${annotation.endLine ?? annotation.startLine}"`);
+        attrs.push(`col="${annotation.startChar ?? 1}"`);
+      }
+      if (annotation.view === "diff" && annotation.fileLine !== undefined) {
+        attrs.push(`file_line="${annotation.fileLine}"`);
+        if (annotation.side) attrs.push(`side="${annotation.side}"`);
+      }
+
+      const excerptTag = annotation.excerpt
+        ? `    <excerpt>\n${annotation.excerpt.trim()}\n    </excerpt>`
+        : "";
+
+      return [`  <file_annotation ${attrs.join(" ")}>`, excerptTag, noteTag, "  </file_annotation>"]
+        .filter(Boolean)
+        .join("\n");
     }
-    lines.push(`Note: ${annotation.note.trim() || "(no text)"}`);
-    return lines.join("\n");
+
+    if (annotation.kind === "drawing") {
+      const attrs: string[] = [`surface_id="${escapeXmlAttr(annotation.surfaceId)}"`];
+      if (annotation.targets.length > 0) {
+        attrs.push(`targets="${escapeXmlAttr(annotation.targets.join(", "))}"`);
+      }
+
+      return [`  <surface_drawing ${attrs.join(" ")}>`, noteTag, "  </surface_drawing>"].join("\n");
+    }
+
+    // Sticky note annotation
+    const attrs: string[] = [
+      `surface_id="${escapeXmlAttr(annotation.surfaceId)}"`,
+      `x="${Math.round(annotation.x * 100)}%"`,
+      `y="${Math.round(annotation.y * 100)}%"`,
+    ];
+    if (annotation.target) {
+      attrs.push(`target="${escapeXmlAttr(annotation.target)}"`);
+    }
+
+    return [`  <surface_note ${attrs.join(" ")}>`, noteTag, "  </surface_note>"].join("\n");
   });
-  return [`--- User annotations (${annotations.length}) ---`, ...blocks].join("\n\n");
+
+  return `<annotations count="${annotations.length}">\n${items.join("\n\n")}\n</annotations>`;
 }

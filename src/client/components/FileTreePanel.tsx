@@ -571,7 +571,21 @@ export function FileTreePanel({
   return (
     <Stack gap={0} h="100%">
       {/* Header */}
-      <Paper h={56} withBorder radius={0} style={{ borderLeft: 0, borderRight: 0, borderTop: 0 }}>
+      <Paper
+        h={56}
+        withBorder
+        radius={0}
+        style={{
+          position: "sticky",
+          top: 0,
+          zIndex: 10,
+          borderLeft: 0,
+          borderRight: 0,
+          borderTop: 0,
+          backgroundColor: "var(--mantine-color-body)",
+          flexShrink: 0,
+        }}
+      >
         <Group justify="space-between" align="center" wrap="nowrap" h="100%" px="sm">
           <Group gap={8} wrap="nowrap" style={{ minWidth: 0 }}>
             <IconFolderOpen size={18} color="var(--mantine-color-plum-4)" />
@@ -648,7 +662,18 @@ export function FileTreePanel({
       </Paper>
 
       {/* Filter Input */}
-      <Box px="sm" py="xs" style={{ borderBottom: "1px solid var(--omega-line)" }}>
+      <Box
+        px="sm"
+        py="xs"
+        style={{
+          position: "sticky",
+          top: 56,
+          zIndex: 9,
+          borderBottom: "1px solid var(--omega-line)",
+          backgroundColor: "var(--mantine-color-body)",
+          flexShrink: 0,
+        }}
+      >
         {filterModifiedOnly ? (
           <Group justify="space-between" mb={6} wrap="nowrap">
             <Badge size="xs" color="yellow" variant="light" leftSection={<IconGitBranch size={10} />}>
