@@ -1732,7 +1732,6 @@ export function App() {
         withCloseButton={false}
         padding={0}
         storageKey="tree"
-        resizable={!narrow}
       >
         <FileTreePanel
           files={files.data ?? []}
@@ -1760,7 +1759,6 @@ export function App() {
         withCloseButton={false}
         padding={0}
         storageKey="file-viewer"
-        resizable={!narrow}
       >
         <FileViewer
           filePath={viewingFile}
@@ -1780,7 +1778,6 @@ export function App() {
         title="Planning"
         padding={0}
         storageKey="plan"
-        resizable={!narrow}
       >
         <Box h="100%">{planPanel}</Box>
       </ResizableDrawer>
@@ -1793,9 +1790,7 @@ export function App() {
           size="85%"
           title={null}
           withCloseButton={false}
-          padding={0}
           storageKey="todo"
-          resizable={false}
         >
           <TodoPanel phases={state.data?.todos} onClose={closeTodo} />
         </ResizableDrawer>
@@ -1809,7 +1804,6 @@ export function App() {
         title={queue.data && queue.data.length > 0 ? `Queue — ${queueSummary(queue.data)}` : "Queue"}
         padding={0}
         storageKey="queue"
-        resizable={!narrow}
       >
         <QueuePanel
           messages={queue.data ?? []}
@@ -1825,7 +1819,6 @@ export function App() {
         position={narrow ? "bottom" : "right"}
         size={narrow ? "92%" : "min(85%, 600px)"}
         storageKey="surface"
-        resizable={!narrow}
         title={
           <Group gap="xs">
             <IconLayout2 size={18} color="var(--mantine-color-cyan-filled)" />
@@ -1952,7 +1945,6 @@ export function App() {
         withCloseButton={false}
         padding={0}
         storageKey="subagents"
-        resizable={!narrow}
       >
         <SubagentPanel
           subagents={live.subagents.length > 0 ? live.subagents : (state.data?.subagents ?? [])}
@@ -1969,7 +1961,6 @@ export function App() {
         withCloseButton={false}
         padding={0}
         storageKey="btw"
-        resizable={!narrow}
       >
         <BtwPanel turns={btwTurns} onAsk={handleAskBtw} onClose={closeBtw} />
       </ResizableDrawer>
@@ -1983,7 +1974,6 @@ export function App() {
         withCloseButton={false}
         padding={0}
         storageKey="omfg"
-        resizable={!narrow}
       >
         <OmfgPanel
           complaint={omfgComplaint}
@@ -2005,7 +1995,6 @@ export function App() {
         withCloseButton={false}
         padding={0}
         storageKey="mcp"
-        resizable={!narrow}
       >
         <McpPanel
           servers={mcpServers.data?.servers ?? []}
@@ -2027,7 +2016,6 @@ export function App() {
         withCloseButton={false}
         padding={0}
         storageKey="tools"
-        resizable={!narrow}
       >
         <ToolsPanel
           tools={toolsQuery.data?.tools ?? []}
@@ -2048,7 +2036,6 @@ export function App() {
         withCloseButton={false}
         padding={0}
         storageKey="rules"
-        resizable={!narrow}
       >
         <RulesPanel
           rules={rulesQuery.data?.rules ?? []}
@@ -2072,7 +2059,6 @@ export function App() {
         withCloseButton={false}
         padding={0}
         storageKey="jobs"
-        resizable={!narrow}
       >
         <JobsPanel
           running={jobsQuery.data?.running ?? []}
@@ -2093,7 +2079,6 @@ export function App() {
         withCloseButton={false}
         padding={0}
         storageKey="processes"
-        resizable={!narrow}
       >
         <ProcessPanel
           processes={processesQuery.data?.processes ?? []}
@@ -2115,7 +2100,6 @@ export function App() {
         withCloseButton={false}
         padding={0}
         storageKey="annotations"
-        resizable={!narrow}
       >
         <AnnotationsPanel
           annotations={annotations.annotations}

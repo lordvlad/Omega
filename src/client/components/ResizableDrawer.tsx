@@ -2,13 +2,13 @@ import { Drawer, type DrawerProps } from "@mantine/core";
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 export interface ResizableDrawerProps extends DrawerProps {
-  /** Optional minimum size in pixels (default 300 for width, 200 for height). */
+  /** Optional minimum size in pixels (default 280 for horizontal, 180 for vertical). */
   minSize?: number;
-  /** Optional maximum size in pixels (default viewport - 40). */
+  /** Optional maximum size in pixels (default viewport - 20). */
   maxSize?: number;
   /** Optional localStorage key to remember the user's resized width/height. */
   storageKey?: string;
-  /** Disable resizing (e.g. on mobile/narrow viewports). */
+  /** Explicitly toggle resizing (defaults to true for all drawers). */
   resizable?: boolean;
 }
 
@@ -39,7 +39,7 @@ export function ResizableDrawer({
         const saved = window.localStorage.getItem(`omega:drawer-size:${storageKey}`);
         if (saved) {
           const num = Number(saved);
-          if (!Number.isNaN(num) && num > 100) return num;
+          if (!Number.isNaN(num) && num >= 150) return num;
         }
       } catch {}
     }
@@ -50,14 +50,11 @@ export function ResizableDrawer({
   const [isDragging, setIsDragging] = useState(false);
   const [isHovered, setIsHovered] = useState(false);
 
-  const effectiveMin = minSize ?? (position === "bottom" || position === "top" ? 200 : 320);
+  const isVertical = position === "bottom" || position === "top";
+  const effectiveMin = minSize ?? (isVertical ? 180 : 280);
   const effectiveMax =
     maxSize ??
-    (typeof window !== "undefined"
-      ? position === "bottom" || position === "top"
-        ? window.innerHeight - 50
-        : window.innerWidth - 50
-      : 1400);
+    (typeof window !== "undefined" ? (isVertical ? window.innerHeight - 30 : window.innerWidth - 30) : 1600);
 
   const handlePointerDown = useCallback(
     (e: React.PointerEvent<HTMLDivElement>) => {
@@ -68,7 +65,10 @@ export function ResizableDrawer({
       isDraggingRef.current = true;
       setIsDragging(true);
 
-      const isVertical = position === "bottom" || position === "top";
+      try {
+        e.currentTarget.setPointerCapture(e.pointerId);
+      } catch {}
+
       const startCursor = isVertical ? "row-resize" : "col-resize";
       document.body.style.userSelect = "none";
       document.body.style.cursor = startCursor;
@@ -97,11 +97,16 @@ export function ResizableDrawer({
         }
       };
 
-      const onPointerUp = () => {
+      const onPointerUp = (upEvent: PointerEvent) => {
         isDraggingRef.current = false;
         setIsDragging(false);
         document.body.style.userSelect = "";
         document.body.style.cursor = "";
+        try {
+          if (e.currentTarget?.hasPointerCapture(upEvent.pointerId)) {
+            e.currentTarget.releasePointerCapture(upEvent.pointerId);
+          }
+        } catch {}
         window.removeEventListener("pointermove", onPointerMove);
         window.removeEventListener("pointerup", onPointerUp);
         window.removeEventListener("pointercancel", onPointerUp);
@@ -111,17 +116,22 @@ export function ResizableDrawer({
       window.addEventListener("pointerup", onPointerUp);
       window.addEventListener("pointercancel", onPointerUp);
     },
-    [position, effectiveMin, effectiveMax, resizable, storageKey],
+    [position, isVertical, effectiveMin, effectiveMax, resizable, storageKey],
   );
 
-  const handleDoubleClick = useCallback(() => {
-    setCustomSize(null);
-    if (storageKey && typeof window !== "undefined") {
-      try {
-        window.localStorage.removeItem(`omega:drawer-size:${storageKey}`);
-      } catch {}
-    }
-  }, [storageKey]);
+  const handleDoubleClick = useCallback(
+    (e: React.MouseEvent) => {
+      e.preventDefault();
+      e.stopPropagation();
+      setCustomSize(null);
+      if (storageKey && typeof window !== "undefined") {
+        try {
+          window.localStorage.removeItem(`omega:drawer-size:${storageKey}`);
+        } catch {}
+      }
+    },
+    [storageKey],
+  );
 
   // Clean up global styles if unmounted while dragging
   useEffect(() => {
@@ -132,15 +142,16 @@ export function ResizableDrawer({
   }, []);
 
   const activeSize = customSize !== null ? customSize : size;
-  const isVertical = position === "bottom" || position === "top";
+
   // Build the resize handle styling based on drawer position
   const handleStyle: React.CSSProperties = useMemo(() => {
     const isRight = position === "right";
     const isLeft = position === "left";
     const isBottom = position === "bottom";
+
     return {
       position: "absolute",
-      zIndex: 100,
+      zIndex: 1000,
       touchAction: "none",
       transition: "background-color 0.15s ease, opacity 0.15s ease",
       backgroundColor: isDragging || isHovered ? "var(--mantine-color-cyan-6)" : "transparent",
@@ -150,35 +161,39 @@ export function ResizableDrawer({
             left: 0,
             top: 0,
             bottom: 0,
-            width: 8,
+            width: 10,
             cursor: "col-resize",
-            transform: "translateX(-4px)",
+            transform: "translateX(-5px)",
+            borderLeft: "2px solid var(--mantine-color-cyan-5)",
           }
         : isLeft
           ? {
               right: 0,
               top: 0,
               bottom: 0,
-              width: 8,
+              width: 10,
               cursor: "col-resize",
-              transform: "translateX(4px)",
+              transform: "translateX(5px)",
+              borderRight: "2px solid var(--mantine-color-cyan-5)",
             }
           : isBottom
             ? {
                 top: 0,
                 left: 0,
                 right: 0,
-                height: 8,
+                height: 10,
                 cursor: "row-resize",
-                transform: "translateY(-4px)",
+                transform: "translateY(-5px)",
+                borderTop: "2px solid var(--mantine-color-cyan-5)",
               }
             : {
                 bottom: 0,
                 left: 0,
                 right: 0,
-                height: 8,
+                height: 10,
                 cursor: "row-resize",
-                transform: "translateY(4px)",
+                transform: "translateY(5px)",
+                borderBottom: "2px solid var(--mantine-color-cyan-5)",
               }),
     };
   }, [position, isDragging, isHovered]);
