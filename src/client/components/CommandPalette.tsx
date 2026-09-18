@@ -261,22 +261,119 @@ function parseQuery(query: string): ParsedQuery {
   return { command: word as PaletteCommand, term: match?.[2] ?? "" };
 }
 
-function fuzzySubsequence(pattern: string, text: string): boolean {
-  if (!pattern) return true;
-  if (text.includes(pattern)) return true;
-  let pIdx = 0;
-  for (let tIdx = 0; tIdx < text.length && pIdx < pattern.length; tIdx++) {
-    if (text[tIdx] === pattern[pIdx]) pIdx++;
+/**
+ * Score a candidate file path against search query tokens.
+ * Higher score = much better match. Returns 0 if it doesn't match.
+ *
+ * Prioritizes exact filename matches, filename prefixes, and camelCase /
+ * word boundaries, while penalizing scattered subsequences and preventing
+ * 1-2 character queries from matching thousands of irrelevant files.
+ */
+function scoreFileMatch(filePath: string, query: string): number {
+  if (!query) return 1;
+  const lowerPath = filePath.toLowerCase();
+  const lowerQuery = query.toLowerCase().trim();
+  if (!lowerQuery) return 1;
+
+  const parts = filePath.split("/");
+  const fileName = parts[parts.length - 1] ?? filePath;
+  const lowerName = fileName.toLowerCase();
+  const ext = fileName.includes(".") ? fileName.slice(fileName.lastIndexOf(".")) : "";
+  const nameWithoutExt = ext ? lowerName.slice(0, -ext.length) : lowerName;
+
+  // 1. Exact matches (highest priority)
+  if (lowerName === lowerQuery || nameWithoutExt === lowerQuery) {
+    return 2000;
   }
-  return pIdx === pattern.length;
-}
+  if (lowerPath === lowerQuery) {
+    return 1800;
+  }
 
-function fuzzyMatches(action: SpotlightActionData, tokens: string[]): boolean {
-  const keywords = Array.isArray(action.keywords) ? action.keywords.join(" ") : (action.keywords ?? "");
-  const haystack = `${action.label ?? ""} ${action.description ?? ""} ${keywords}`.toLowerCase();
-  return tokens.every(token => fuzzySubsequence(token, haystack));
-}
+  // 2. Exact prefix matches in filename
+  if (lowerName.startsWith(lowerQuery) || nameWithoutExt.startsWith(lowerQuery)) {
+    return 1500 - (fileName.length - lowerQuery.length);
+  }
 
+  // 3. Word boundary / CamelCase matches in filename (e.g. "CP" -> "CommandPalette", "FT" -> "FileTree")
+  const wordStarts = fileName
+    .split(/[-_./\s]+|(?=[A-Z])/)
+    .filter(Boolean)
+    .map(w => w[0]?.toLowerCase())
+    .join("");
+  if (wordStarts.includes(lowerQuery) || wordStarts.startsWith(lowerQuery)) {
+    return 1200 + (wordStarts.startsWith(lowerQuery) ? 200 : 0);
+  }
+
+  // 4. Contiguous substring in filename
+  const nameSubIndex = lowerName.indexOf(lowerQuery);
+  if (nameSubIndex !== -1) {
+    return 1000 - nameSubIndex * 10 - (fileName.length - lowerQuery.length);
+  }
+
+  // 5. Path prefix or segment match (e.g. "server/" or "client/components")
+  if (lowerPath.startsWith(lowerQuery)) {
+    return 800 - (lowerPath.length - lowerQuery.length);
+  }
+  const pathSubIndex = lowerPath.indexOf(lowerQuery);
+  if (pathSubIndex !== -1) {
+    return 600 - pathSubIndex * 5;
+  }
+
+  // For very short queries (1 or 2 characters), require contiguous match to avoid noise.
+  if (lowerQuery.length <= 2) {
+    return 0;
+  }
+
+  // 6. Compact fuzzy subsequence in filename (with gap penalties)
+  let nameScore = 0;
+  let namePIdx = 0;
+  let consecutive = 0;
+  let firstMatch = -1;
+  let lastMatch = -1;
+
+  for (let i = 0; i < lowerName.length && namePIdx < lowerQuery.length; i++) {
+    if (lowerName[i] === lowerQuery[namePIdx]) {
+      if (firstMatch === -1) firstMatch = i;
+      lastMatch = i;
+      namePIdx++;
+      consecutive++;
+      nameScore += 10 + consecutive * 5;
+    } else {
+      consecutive = 0;
+    }
+  }
+
+  if (namePIdx === lowerQuery.length) {
+    const span = lastMatch - firstMatch + 1;
+    return Math.max(350 + nameScore - span * 5, 50);
+  }
+
+  // 7. Compact fuzzy subsequence in full path (for query length >= 3)
+  let pathScore = 0;
+  let pathPIdx = 0;
+  let pathConsecutive = 0;
+  let pFirst = -1;
+  let pLast = -1;
+
+  for (let i = 0; i < lowerPath.length && pathPIdx < lowerQuery.length; i++) {
+    if (lowerPath[i] === lowerQuery[pathPIdx]) {
+      if (pFirst === -1) pFirst = i;
+      pLast = i;
+      pathPIdx++;
+      pathConsecutive++;
+      pathScore += 5 + pathConsecutive * 3;
+    } else {
+      pathConsecutive = 0;
+    }
+  }
+
+  if (pathPIdx === lowerQuery.length) {
+    const span = pLast - pFirst + 1;
+    return Math.max(100 + pathScore - span * 2, 10);
+  }
+
+  return 0;
+}
 /** Every whitespace-separated token must appear somewhere in the haystack. */
 function matches(action: SpotlightActionData, tokens: string[]): boolean {
   const keywords = Array.isArray(action.keywords) ? action.keywords.join(" ") : (action.keywords ?? "");
@@ -1608,13 +1705,38 @@ export function CommandPalette({
       .filter(token => token.length > 0);
     if (tokens.length === 0) return items;
     if (parsed.command === "@") {
-      return items
-        .map(item => {
-          if (!isActionsGroup(item)) return fuzzyMatches(item, tokens) ? item : undefined;
-          const kept = item.actions.filter(action => fuzzyMatches(action, tokens));
-          return kept.length > 0 ? { ...item, actions: kept } : undefined;
-        })
-        .filter((item): item is PaletteAction => item !== undefined);
+      const term = parsed.term.trim();
+      if (!term) return items;
+
+      const scoredActions: Array<{ action: SpotlightActionData; score: number }> = [];
+
+      for (const item of items) {
+        if (!isActionsGroup(item)) {
+          const s = scoreFileMatch(item.label as string, term);
+          if (s > 0) scoredActions.push({ action: item, score: s });
+        } else {
+          for (const action of item.actions) {
+            const s = scoreFileMatch(action.label as string, term);
+            if (s > 0) scoredActions.push({ action, score: s });
+          }
+        }
+      }
+
+      // Sort by score descending (highest score / most relevant matches first!)
+      scoredActions.sort(
+        (a, b) => b.score - a.score || (a.action.label ?? "").localeCompare(b.action.label ?? ""),
+      );
+
+      // Take top matches (up to 60)
+      const topActions = scoredActions.slice(0, 60).map(sa => sa.action);
+      if (topActions.length === 0) return [];
+
+      return [
+        {
+          group: `Matching files (${scoredActions.length})`,
+          actions: topActions,
+        },
+      ];
     }
     return items
       .map(item => {
