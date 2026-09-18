@@ -19,7 +19,7 @@
     "@mantine/hooks": "^9.6.1",
     "@mantine/notifications": "^9.6.1",
     "@mantine/spotlight": "9.6.1",
-    "@oh-my-pi/pi-coding-agent": "link:/home/waldemar/.bun/install/global/node_modules/@oh-my-pi/pi-coding-agent",
+    "@oh-my-pi/pi-coding-agent": "file:/home/waldemar/.bun/install/global/node_modules/@oh-my-pi/pi-coding-agent",
     "@tabler/icons-react": "^3.46.0",
     "@tanstack/ai": "^0.53.0",
     "@tanstack/query-sync-storage-persister": "^5.103.0",
@@ -39,7 +39,7 @@
     "@types/react": "^19.3.0",
     "@types/react-dom": "^19.3.0",
     "oxfmt": "^0.66.0",
-    "typescript": "^7.0.2",
-    "wiz": "file:../wiz"
+    "typescript": "^5.7.3",
+    "wiz": "github:lordvlad/Wiz#main"
   }
 }

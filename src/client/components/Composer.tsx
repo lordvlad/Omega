@@ -230,7 +230,7 @@ export function Composer({
     if (!picked?.length) return;
     const accepted: Attached[] = [];
     const refused: string[] = [];
-    for (const file of picked) {
+    for (const file of Array.from(picked)) {
       if (file.size > MAX_ATTACHMENT_BYTES) {
         refused.push(`${file.name} (${formatSize(file.size)})`);
         continue;

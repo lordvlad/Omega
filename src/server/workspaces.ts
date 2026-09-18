@@ -67,7 +67,7 @@ async function countRange(file: string, from: number): Promise<{ count: number; 
   let last = NEWLINE;
 
   const slice = from > 0 ? Bun.file(file).slice(from) : Bun.file(file);
-  for await (const chunk of slice.stream()) {
+  for await (const chunk of slice.stream() as any) {
     for (const byte of chunk) {
       last = byte;
       if (byte === NEWLINE) {
