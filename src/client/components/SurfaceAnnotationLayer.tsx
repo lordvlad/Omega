@@ -349,6 +349,14 @@ export function SurfaceAnnotationLayer({
             cursor: "grab",
             touchAction: "none",
             lineHeight: 0,
+            backgroundColor: "#ffffff",
+            borderRadius: 6,
+            padding: 3,
+            boxShadow: "0 2px 8px rgba(0, 0, 0, 0.35)",
+            border: "1px solid rgba(0, 0, 0, 0.15)",
+            display: "inline-flex",
+            alignItems: "center",
+            justifyContent: "center",
           }}
           onPointerDown={handleNoteDown(note.id)}
           onPointerMove={handleNoteMove}
@@ -359,7 +367,9 @@ export function SurfaceAnnotationLayer({
           }}
         >
           <Tooltip label={note.note.trim() || "(no text)"} multiline w={240} position="top">
-            <IconNote size={32} color="var(--mantine-color-yellow-5)" />
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "center" }}>
+              <IconNote size={24} color="#f59f00" stroke={2.5} />
+            </div>
           </Tooltip>
         </div>
       ))}
@@ -379,6 +389,14 @@ export function SurfaceAnnotationLayer({
                   cursor: "grabbing",
                   touchAction: "none",
                   lineHeight: 0,
+                  backgroundColor: "#ffffff",
+                  borderRadius: 8,
+                  padding: 6,
+                  boxShadow: "0 4px 16px rgba(0, 0, 0, 0.4)",
+                  border: "2px solid #f59f00",
+                  display: "inline-flex",
+                  alignItems: "center",
+                  justifyContent: "center",
                   // Mid-drag the glyph must not be what `labelAt` finds.
                   pointerEvents: "none",
                 }
@@ -390,6 +408,14 @@ export function SurfaceAnnotationLayer({
                   cursor: "grab",
                   touchAction: "none",
                   lineHeight: 0,
+                  backgroundColor: "#ffffff",
+                  borderRadius: 8,
+                  padding: 6,
+                  boxShadow: "0 4px 16px rgba(0, 0, 0, 0.4)",
+                  border: "2px solid #f59f00",
+                  display: "inline-flex",
+                  alignItems: "center",
+                  justifyContent: "center",
                 }
           }
           onPointerDown={handleGhostDown}
@@ -398,7 +424,7 @@ export function SurfaceAnnotationLayer({
           onPointerCancel={handleGhostUp}
           aria-label="Drag the sticky note onto the surface"
         >
-          <IconNote size={48} color="var(--mantine-color-yellow-5)" />
+          <IconNote size={36} color="#f59f00" stroke={2.5} />
         </div>
       ) : null}
 

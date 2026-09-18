@@ -139,6 +139,7 @@ import { OmfgPanel } from "./components/OmfgPanel.tsx";
 import { Planning } from "./components/Planning.tsx";
 import { ProcessPanel } from "./components/ProcessPanel.tsx";
 import { QueuePanel, queueSummary } from "./components/QueuePanel.tsx";
+import { ResizableDrawer } from "./components/ResizableDrawer.tsx";
 import { RulesPanel } from "./components/RulesPanel.tsx";
 import { SubagentPanel } from "./components/SubagentPanel.tsx";
 import { SurfaceAnnotationLayer } from "./components/SurfaceAnnotationLayer.tsx";
@@ -488,20 +489,21 @@ export function App() {
       window.location.reload();
     }, 50);
   }, []);
-  const knownSurfaces = useRef<Set<string>>(new Set());
+  const knownSurfaceRevisions = useRef<Map<string, number>>(new Map());
   useEffect(() => {
     if (live.surfaces.length === 0) {
-      knownSurfaces.current.clear();
+      knownSurfaceRevisions.current.clear();
       return;
     }
-    let hasNew = false;
+    let hasUpdate = false;
     for (const s of live.surfaces) {
-      if (!knownSurfaces.current.has(s.surfaceId)) {
-        knownSurfaces.current.add(s.surfaceId);
-        hasNew = true;
+      const prevRevision = knownSurfaceRevisions.current.get(s.surfaceId);
+      if (prevRevision === undefined || s.revision > prevRevision) {
+        knownSurfaceRevisions.current.set(s.surfaceId, s.revision);
+        hasUpdate = true;
       }
     }
-    if (hasNew) {
+    if (hasUpdate) {
       openSurfaceDrawer();
     }
   }, [live.surfaces, openSurfaceDrawer]);
@@ -1719,7 +1721,7 @@ export function App() {
         </AppShell.Navbar>
       ) : null}
 
-      <Drawer
+      <ResizableDrawer
         opened={treeOpen && narrow}
         onClose={closeTree}
         position="left"
@@ -1729,6 +1731,8 @@ export function App() {
         closeOnClickOutside
         withCloseButton={false}
         padding={0}
+        storageKey="tree"
+        resizable={!narrow}
       >
         <FileTreePanel
           files={files.data ?? []}
@@ -1743,9 +1747,9 @@ export function App() {
             void gitStatus.refetch();
           }}
         />
-      </Drawer>
+      </ResizableDrawer>
 
-      <Drawer
+      <ResizableDrawer
         position="right"
         opened={viewingFile !== null}
         onClose={() => setViewingFile(null)}
@@ -1755,6 +1759,8 @@ export function App() {
         closeOnClickOutside={narrow}
         withCloseButton={false}
         padding={0}
+        storageKey="file-viewer"
+        resizable={!narrow}
       >
         <FileViewer
           filePath={viewingFile}
@@ -1764,21 +1770,23 @@ export function App() {
           onAnnotate={selection => annotations.add({ kind: "file", ...selection })}
           onClose={() => setViewingFile(null)}
         />
-      </Drawer>
+      </ResizableDrawer>
 
-      <Drawer
+      <ResizableDrawer
         opened={planOpen}
         onClose={closePlan}
         position={narrow ? "bottom" : "right"}
         size={narrow ? "92%" : "min(85%, 960px)"}
         title="Planning"
         padding={0}
+        storageKey="plan"
+        resizable={!narrow}
       >
         <Box h="100%">{planPanel}</Box>
-      </Drawer>
+      </ResizableDrawer>
 
       {narrow ? (
-        <Drawer
+        <ResizableDrawer
           opened={todoOpen}
           onClose={closeTodo}
           position="right"
@@ -1786,18 +1794,22 @@ export function App() {
           title={null}
           withCloseButton={false}
           padding={0}
+          storageKey="todo"
+          resizable={false}
         >
           <TodoPanel phases={state.data?.todos} onClose={closeTodo} />
-        </Drawer>
+        </ResizableDrawer>
       ) : null}
 
-      <Drawer
+      <ResizableDrawer
         opened={queueOpen}
         onClose={closeQueue}
         position={narrow ? "bottom" : "right"}
         size={narrow ? "80%" : 460}
         title={queue.data && queue.data.length > 0 ? `Queue — ${queueSummary(queue.data)}` : "Queue"}
         padding={0}
+        storageKey="queue"
+        resizable={!narrow}
       >
         <QueuePanel
           messages={queue.data ?? []}
@@ -1805,12 +1817,15 @@ export function App() {
           onEdit={handleQueueEdit}
           onDrop={handleQueueDrop}
         />
-      </Drawer>
-      <Drawer
+      </ResizableDrawer>
+
+      <ResizableDrawer
         opened={surfaceDrawerOpen && live.surfaces.length > 0}
         onClose={closeSurfaceDrawer}
         position={narrow ? "bottom" : "right"}
         size={narrow ? "92%" : "min(85%, 600px)"}
+        storageKey="surface"
+        resizable={!narrow}
         title={
           <Group gap="xs">
             <IconLayout2 size={18} color="var(--mantine-color-cyan-filled)" />
@@ -1926,8 +1941,9 @@ export function App() {
             </Box>
           ))}
         </Stack>
-      </Drawer>
-      <Drawer
+      </ResizableDrawer>
+
+      <ResizableDrawer
         opened={subagentDrawerOpen}
         onClose={closeSubagents}
         position={narrow ? "bottom" : "right"}
@@ -1935,13 +1951,16 @@ export function App() {
         title={null}
         withCloseButton={false}
         padding={0}
+        storageKey="subagents"
+        resizable={!narrow}
       >
         <SubagentPanel
           subagents={live.subagents.length > 0 ? live.subagents : (state.data?.subagents ?? [])}
           onClose={closeSubagents}
         />
-      </Drawer>
-      <Drawer
+      </ResizableDrawer>
+
+      <ResizableDrawer
         opened={btwDrawerOpen}
         onClose={closeBtw}
         position={narrow ? "bottom" : "right"}
@@ -1949,10 +1968,13 @@ export function App() {
         title={null}
         withCloseButton={false}
         padding={0}
+        storageKey="btw"
+        resizable={!narrow}
       >
         <BtwPanel turns={btwTurns} onAsk={handleAskBtw} onClose={closeBtw} />
-      </Drawer>
-      <Drawer
+      </ResizableDrawer>
+
+      <ResizableDrawer
         opened={omfgDrawerOpen}
         onClose={closeOmfg}
         position={narrow ? "bottom" : "right"}
@@ -1960,6 +1982,8 @@ export function App() {
         title={null}
         withCloseButton={false}
         padding={0}
+        storageKey="omfg"
+        resizable={!narrow}
       >
         <OmfgPanel
           complaint={omfgComplaint}
@@ -1970,8 +1994,9 @@ export function App() {
           onAmend={handleAmendOmfg}
           onClose={closeOmfg}
         />
-      </Drawer>
-      <Drawer
+      </ResizableDrawer>
+
+      <ResizableDrawer
         opened={mcpDrawerOpen}
         onClose={closeMcp}
         position={narrow ? "bottom" : "right"}
@@ -1979,6 +2004,8 @@ export function App() {
         title={null}
         withCloseButton={false}
         padding={0}
+        storageKey="mcp"
+        resizable={!narrow}
       >
         <McpPanel
           servers={mcpServers.data?.servers ?? []}
@@ -1989,8 +2016,9 @@ export function App() {
           onRefresh={() => void mcpServers.refetch()}
           onClose={closeMcp}
         />
-      </Drawer>
-      <Drawer
+      </ResizableDrawer>
+
+      <ResizableDrawer
         opened={toolsDrawerOpen}
         onClose={closeTools}
         position={narrow ? "bottom" : "right"}
@@ -1998,6 +2026,8 @@ export function App() {
         title={null}
         withCloseButton={false}
         padding={0}
+        storageKey="tools"
+        resizable={!narrow}
       >
         <ToolsPanel
           tools={toolsQuery.data?.tools ?? []}
@@ -2007,8 +2037,9 @@ export function App() {
           onClearForce={handleClearForceTool}
           onClose={closeTools}
         />
-      </Drawer>
-      <Drawer
+      </ResizableDrawer>
+
+      <ResizableDrawer
         opened={rulesDrawerOpen}
         onClose={closeRules}
         position={narrow ? "bottom" : "right"}
@@ -2016,6 +2047,8 @@ export function App() {
         title={null}
         withCloseButton={false}
         padding={0}
+        storageKey="rules"
+        resizable={!narrow}
       >
         <RulesPanel
           rules={rulesQuery.data?.rules ?? []}
@@ -2028,8 +2061,9 @@ export function App() {
           onRefresh={() => void rulesQuery.refetch()}
           onClose={closeRules}
         />
-      </Drawer>
-      <Drawer
+      </ResizableDrawer>
+
+      <ResizableDrawer
         opened={jobsDrawerOpen}
         onClose={closeJobs}
         position={narrow ? "bottom" : "right"}
@@ -2037,6 +2071,8 @@ export function App() {
         title={null}
         withCloseButton={false}
         padding={0}
+        storageKey="jobs"
+        resizable={!narrow}
       >
         <JobsPanel
           running={jobsQuery.data?.running ?? []}
@@ -2046,8 +2082,9 @@ export function App() {
           onRefresh={() => void jobsQuery.refetch()}
           onClose={closeJobs}
         />
-      </Drawer>
-      <Drawer
+      </ResizableDrawer>
+
+      <ResizableDrawer
         opened={processDrawerOpen}
         onClose={closeProcesses}
         position={narrow ? "bottom" : "right"}
@@ -2055,6 +2092,8 @@ export function App() {
         title={null}
         withCloseButton={false}
         padding={0}
+        storageKey="processes"
+        resizable={!narrow}
       >
         <ProcessPanel
           processes={processesQuery.data?.processes ?? []}
@@ -2065,9 +2104,9 @@ export function App() {
           onRefresh={() => void processesQuery.refetch()}
           onClose={closeProcesses}
         />
-      </Drawer>
+      </ResizableDrawer>
 
-      <Drawer
+      <ResizableDrawer
         opened={annotationsOpen}
         onClose={closeAnnotations}
         position={narrow ? "bottom" : "right"}
@@ -2075,6 +2114,8 @@ export function App() {
         title={null}
         withCloseButton={false}
         padding={0}
+        storageKey="annotations"
+        resizable={!narrow}
       >
         <AnnotationsPanel
           annotations={annotations.annotations}
@@ -2084,8 +2125,7 @@ export function App() {
           onOpenFile={path => setViewingFile(path)}
           onClose={closeAnnotations}
         />
-      </Drawer>
-
+      </ResizableDrawer>
       <AppShell.Main>
         {sessionKey ? (
           <Stack
