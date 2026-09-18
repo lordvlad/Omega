@@ -97,13 +97,20 @@ const TEXT_MIME_TYPES: Record<string, string> = {
   ".toml": "text/toml",
 };
 
-/** Largest file size (500 KB) rendered inline as text/syntax-highlighted code. */
-const MAX_PREVIEW_BYTES = 500_000;
+/** Default largest file size (500 KB) rendered inline as text/syntax-highlighted code. */
+export const DEFAULT_MAX_PREVIEW_BYTES = 500_000;
+export const MAX_PREVIEW_BYTES = Number(
+  process.env.OMEGA_MAX_PREVIEW_BYTES ?? process.env.MAX_PREVIEW_BYTES ?? DEFAULT_MAX_PREVIEW_BYTES,
+);
 
 /**
  * Read the content and metadata of a file within the workspace.
  */
-export async function readFileContent(relPath: string, cwd?: string): Promise<ReadFileResult> {
+export async function readFileContent(
+  relPath: string,
+  cwd?: string,
+  maxPreviewBytes: number = MAX_PREVIEW_BYTES,
+): Promise<ReadFileResult> {
   const root = path.resolve(cwd || process.cwd());
   const fullPath = path.resolve(root, relPath);
 
@@ -135,9 +142,9 @@ export async function readFileContent(relPath: string, cwd?: string): Promise<Re
   }
   const mimeType = TEXT_MIME_TYPES[ext] ?? "text/plain";
 
-  // Files larger than 500 KB are not read into memory as strings to keep
+  // Files larger than maxPreviewBytes are not read into memory as strings to keep
   // wire payloads lightweight and avoid freezing browser syntax highlighters.
-  if (stat.size > MAX_PREVIEW_BYTES) {
+  if (stat.size > maxPreviewBytes) {
     return {
       path: relPath,
       size: stat.size,
