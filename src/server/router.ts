@@ -92,6 +92,7 @@ import { drawCostSurface, drawStatsSurface, drawUsageSurface } from "./stats.ts"
 import { deleteSessionRule, forceSessionTool, listSessionRules, listSessionTools } from "./tools-rules.ts";
 import { flattenSession, pageTranscript } from "./transcript.ts";
 import { listWorkspaces } from "./workspaces.ts";
+import { drawWorktreeSurface } from "./worktree-surface.ts";
 /** Raised by handlers to select a non-200 status. */
 export class HttpError extends Error {
   readonly status: number;
@@ -264,6 +265,10 @@ export class Handlers implements OmpApi {
     if (message === "/stats") {
       await drawStatsSurface(live);
       return { ok: true, detail: "Session statistics rendered." };
+    }
+    if (message === "/wt" || message.startsWith("/wt ")) {
+      await drawWorktreeSurface(live);
+      return { ok: true, detail: "Worktree manager surface rendered." };
     }
     // The browser's outbox retries until a send is acknowledged, so the same
     // message can arrive twice: once delivered, once replayed from a snapshot

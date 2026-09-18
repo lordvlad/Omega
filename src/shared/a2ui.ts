@@ -31,10 +31,18 @@ export const A2UI_BASIC_CATALOG_ID = "https://a2ui.org/specification/v1_0/catalo
 export const COST_SURFACE_ID = "session-cost";
 export const USAGE_SURFACE_ID = "session-usage";
 export const STATS_SURFACE_ID = "session-stats";
+export const WT_SURFACE_ID = "session-wt";
+export const GC_SURFACE_ID = "session-gc";
 
 /** True when the surface came from the agent rather than from omega itself. */
 export function isAgentSurface(surfaceId: string): boolean {
-  return surfaceId !== COST_SURFACE_ID && surfaceId !== USAGE_SURFACE_ID && surfaceId !== STATS_SURFACE_ID;
+  return (
+    surfaceId !== COST_SURFACE_ID &&
+    surfaceId !== USAGE_SURFACE_ID &&
+    surfaceId !== STATS_SURFACE_ID &&
+    surfaceId !== WT_SURFACE_ID &&
+    surfaceId !== GC_SURFACE_ID
+  );
 }
 
 /**

@@ -2300,6 +2300,7 @@ export function App() {
         onShowCost={() => handleSend("/cost", undefined, undefined)}
         onShowUsage={() => handleSend("/usage", undefined, undefined)}
         onShowStats={() => handleSend("/stats", undefined, undefined)}
+        onShowWorktree={() => handleSend("/wt", undefined, undefined)}
         onTogglePlanMode={handleSetPlanMode}
         onFork={handleFork}
         onBranch={point => handleBranch(point.entryId)}

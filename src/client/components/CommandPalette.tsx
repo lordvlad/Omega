@@ -120,6 +120,7 @@ export const PALETTE_COMMAND = {
   plan: "/plan",
   jobs: "/jobs",
   ps: "/ps",
+  wt: "/wt",
   newSession: "/new",
   fork: "/fork",
   branch: "/branch",
@@ -166,6 +167,7 @@ const COMMAND_SPEC: Record<
   "/cost": { kind: "run", placeholder: "Render token economics and cost breakdown…" },
   "/stats": { kind: "run", placeholder: "Render session performance and latency stats…" },
   "/usage": { kind: "run", placeholder: "Render provider rate limits and quota usage…" },
+  "/wt": { kind: "run", placeholder: "Inspect and manage git worktrees…" },
   "/rename": { kind: "scope", placeholder: "Type the new session title…", termIsInput: true },
   "/tools": { kind: "scope", placeholder: "Filter available tools or force one…" },
   "/force": { kind: "scope", placeholder: "Pick a tool to force for next turn…", termIsInput: true },
@@ -428,6 +430,7 @@ export interface CommandPaletteProps {
   onShowCost?: () => void;
   onShowUsage?: () => void;
   onShowStats?: () => void;
+  onShowWorktree?: () => void;
   onAbort: () => void;
   onTogglePlanMode: (enabled: boolean) => void;
   onFork: () => void;
@@ -498,6 +501,7 @@ export function CommandPalette({
   onShowCost,
   onShowUsage,
   onShowStats,
+  onShowWorktree,
   onOmfg,
   onFork,
   onBranch,
@@ -764,6 +768,15 @@ export function CommandPalette({
             onClick: () => onShowStats?.(),
           },
           {
+            id: "command-wt",
+            label: PALETTE_COMMAND.wt,
+            description: "Inspect and manage git worktrees across project and task isolation",
+            keywords: "worktree wt git branch checkout isolate",
+            leftSection: <IconGitBranch size={16} color="var(--mantine-color-teal-4)" />,
+            closeSpotlightOnTrigger: true,
+            onClick: () => onShowWorktree?.(),
+          },
+          {
             id: "command-plan",
             label: PALETTE_COMMAND.plan,
             description: planDescription,
@@ -927,6 +940,7 @@ export function CommandPalette({
       onOpenRules,
       onOpenJobs,
       onOpenProcesses,
+      onShowWorktree,
     ],
   );
 
@@ -1690,6 +1704,7 @@ export function CommandPalette({
     "/omega-settings": settingsActions,
     "/jobs": jobsActions,
     "/ps": processActions,
+    "/wt": [],
   };
   // The command prefix scopes the list rather than searching it, so it is
   // stripped before matching; otherwise every action would have to contain "/cd".
