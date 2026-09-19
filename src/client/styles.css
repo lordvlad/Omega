@@ -125,6 +125,18 @@ body {
   }
 }
 
+/* Mobile-only user message navigation FABs (vertically centered, in line with scroll-to-bottom) */
+.omega-mobile-nav-fabs {
+  display: none !important;
+}
+
+@media (max-width: 900px) {
+  .omega-mobile-nav-fabs {
+    display: flex !important;
+    right: 8px !important;
+  }
+}
+
 .omega-avatar {
   display: grid;
   place-items: center;

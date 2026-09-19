@@ -26,7 +26,9 @@ import {
 import { notifications } from "@mantine/notifications";
 import {
   IconAlertTriangle,
-  IconArrowDown,
+  IconArrowBarToDown,
+  IconArrowDownDashed,
+  IconArrowUpDashed,
   IconBrain,
   IconChevronRight,
   IconCopy,
@@ -732,6 +734,45 @@ export function Transcript({
     if (pinned.current) tail();
   }, [tail]);
 
+  /**
+   * Navigate to the previous or next user message in the conversation.
+   */
+  const navigateUserMessage = useCallback((direction: "prev" | "next") => {
+    const scrollEl = scrollRef.current;
+    if (!scrollEl) return;
+    const userNodes = Array.from(scrollEl.querySelectorAll<HTMLElement>('.omega-msg[data-role="user"]'));
+    if (userNodes.length === 0) return;
+
+    const currentScrollTop = scrollEl.scrollTop;
+    const buffer = 40;
+
+    if (direction === "prev") {
+      const prevNodes = userNodes.filter(node => node.offsetTop < currentScrollTop - buffer);
+      if (prevNodes.length > 0) {
+        const target = prevNodes[prevNodes.length - 1]!;
+        target.scrollIntoView({ behavior: "smooth", block: "start" });
+        pinned.current = false;
+        setAtBottom(false);
+      } else {
+        userNodes[0]!.scrollIntoView({ behavior: "smooth", block: "start" });
+        pinned.current = false;
+        setAtBottom(false);
+      }
+    } else {
+      const nextNodes = userNodes.filter(node => node.offsetTop > currentScrollTop + buffer);
+      if (nextNodes.length > 0) {
+        const target = nextNodes[0]!;
+        target.scrollIntoView({ behavior: "smooth", block: "start" });
+        pinned.current = false;
+        setAtBottom(false);
+      } else {
+        pinned.current = true;
+        setAtBottom(true);
+        scrollEl.scrollTo({ top: scrollEl.scrollHeight, behavior: "smooth" });
+      }
+    }
+  }, []);
+
   // New messages, streamed tokens, and height changes from markdown rendering
   // or a toggled thinking block all re-tail — but only while pinned, so a user
   // reading scrollback is never yanked to the end.
@@ -1088,7 +1129,7 @@ export function Transcript({
                     }}
                     aria-label="Scroll to bottom"
                   >
-                    <IconArrowDown size={20} />
+                    <IconArrowBarToDown size={20} />
                   </ActionIcon>
                 </Tooltip>
               ) : null}
@@ -1097,6 +1138,51 @@ export function Transcript({
           </Box>
         ) : null}
       </Box>
+      {/* Mobile-only vertically centered user message navigation FABs */}
+      <Stack
+        gap={8}
+        className="omega-mobile-nav-fabs"
+        style={{
+          position: "fixed",
+          top: "50%",
+          transform: "translateY(-50%)",
+          right: 12,
+          zIndex: 90,
+          pointerEvents: "auto",
+        }}
+      >
+        <Tooltip label="Previous user message" position="left">
+          <ActionIcon
+            variant="filled"
+            color="plum"
+            size="lg"
+            radius="xl"
+            onClick={() => navigateUserMessage("prev")}
+            aria-label="Previous user message"
+            style={{
+              boxShadow: "0 4px 14px rgba(0, 0, 0, 0.45)",
+            }}
+          >
+            <IconArrowUpDashed size={20} />
+          </ActionIcon>
+        </Tooltip>
+
+        <Tooltip label="Next user message" position="left">
+          <ActionIcon
+            variant="filled"
+            color="plum"
+            size="lg"
+            radius="xl"
+            onClick={() => navigateUserMessage("next")}
+            aria-label="Next user message"
+            style={{
+              boxShadow: "0 4px 14px rgba(0, 0, 0, 0.45)",
+            }}
+          >
+            <IconArrowDownDashed size={20} />
+          </ActionIcon>
+        </Tooltip>
+      </Stack>
     </Box>
   );
 }
