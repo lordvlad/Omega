@@ -1834,26 +1834,35 @@ export function App() {
               left: 0,
               right: 0,
               zIndex: 500,
-              padding: "6px 12px 12px",
+              padding: "10px 12px 12px",
               backgroundColor: "rgba(var(--mantine-color-body-rgb, 15, 17, 23), 0.96)",
               backdropFilter: "blur(12px)",
               borderTop: "1px solid var(--mantine-color-default-border)",
               boxShadow: "0 -4px 24px rgba(0, 0, 0, 0.5)",
             }}
           >
-            <Group justify="flex-end" mb={4}>
-              <Button
-                size="xs"
+            {/* FAB positioned directly above composer to hide it */}
+            <Tooltip label="Hide composer behind file view" position="left">
+              <ActionIcon
+                size="lg"
                 radius="xl"
-                variant="light"
+                variant="filled"
                 color="slate"
-                leftSection={<IconChevronDown size={14} />}
                 onClick={() => setMobileComposerOverFile(false)}
                 aria-label="Hide composer behind file view"
+                style={{
+                  position: "absolute",
+                  bottom: "100%",
+                  marginBottom: 16,
+                  right: 20,
+                  zIndex: 510,
+                  boxShadow: "0 4px 14px rgba(0, 0, 0, 0.45)",
+                }}
               >
-                Hide composer
-              </Button>
-            </Group>
+                <IconChevronDown size={20} />
+              </ActionIcon>
+            </Tooltip>
+
             <Composer
               state={state.data}
               offline={!online}
@@ -1880,29 +1889,25 @@ export function App() {
             />
           </Box>
         ) : (
-          <Paper
-            shadow="lg"
-            radius="xl"
-            style={{
-              position: "fixed",
-              bottom: 20,
-              right: 20,
-              zIndex: 450,
-            }}
-          >
-            <Button
-              size="sm"
+          <Tooltip label="Compose message over file" position="left">
+            <ActionIcon
+              size="lg"
               radius="xl"
               variant="filled"
               color="cyan"
-              leftSection={<IconMessage size={16} />}
               onClick={() => setMobileComposerOverFile(true)}
               aria-label="Pull up composer over file"
-              style={{ boxShadow: "0 4px 16px rgba(0, 0, 0, 0.4)" }}
+              style={{
+                position: "fixed",
+                bottom: 20,
+                right: 20,
+                zIndex: 450,
+                boxShadow: "0 4px 14px rgba(0, 0, 0, 0.45)",
+              }}
             >
-              Compose
-            </Button>
-          </Paper>
+              <IconMessage size={20} />
+            </ActionIcon>
+          </Tooltip>
         )
       ) : null}
 
