@@ -217,7 +217,50 @@ export function App() {
   const [paletteQuery, setPaletteQuery] = useState("");
   const [todoOpen, { toggle: toggleTodo, close: closeTodo }] = useDisclosure(false);
   const [treeOpen, { toggle: toggleTree, close: closeTree }] = useDisclosure(false);
-  const [viewingFile, setViewingFile] = useState<string | null>(null);
+  const [viewingFile, setViewingFile] = useState<string | null>(() => {
+    const match = /^#file=(.+)$/.exec(window.location.hash);
+    if (!match) return null;
+    try {
+      return decodeURIComponent(match[1] ?? "");
+    } catch {
+      return match[1] ?? null;
+    }
+  });
+
+  // A link inside a rendered markdown file writes `#file=<path>` directly
+  // (see `openInternalFile` in lib/markdown.tsx) so that clicking a repo
+  // link works the same as clicking a row in the file tree, and so the
+  // browser's back/forward buttons step through visited files.
+  useEffect(() => {
+    const syncFromHash = (): void => {
+      const match = /^#file=(.+)$/.exec(window.location.hash);
+      if (!match) {
+        setViewingFile(null);
+        return;
+      }
+      try {
+        setViewingFile(decodeURIComponent(match[1] ?? ""));
+      } catch {
+        setViewingFile(match[1] ?? null);
+      }
+    };
+    window.addEventListener("hashchange", syncFromHash);
+    return () => window.removeEventListener("hashchange", syncFromHash);
+  }, []);
+
+  // The reverse direction: opening a file from the tree, an annotation, or
+  // a `@` reference updates `viewingFile` state directly, so the hash is
+  // kept in sync here rather than at every call site.
+  useEffect(() => {
+    const desired = viewingFile ? `#file=${encodeURIComponent(viewingFile)}` : "";
+    const current = window.location.hash;
+    if (current === desired) return;
+    if (desired) {
+      window.history.replaceState(null, "", desired);
+    } else if (current.startsWith("#file=")) {
+      window.history.replaceState(null, "", window.location.pathname + window.location.search);
+    }
+  }, [viewingFile]);
   const [mobileComposerOverFile, setMobileComposerOverFile] = useState(false);
 
   useEffect(() => {

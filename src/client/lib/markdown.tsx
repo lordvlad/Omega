@@ -19,26 +19,79 @@ const cache = new Map<string, string>();
 /** Parse and render server-rendered HTML directly. */
 const MERMAID_REGEX = /<div class="omega-mermaid-block" data-code="([^"]*)"><\/div>/g;
 
-export function RenderedHtml({ html, className }: { html: string; className?: string }): ReactNode {
-  const handleClick = useCallback(async (event: React.MouseEvent<HTMLDivElement>) => {
-    const target = event.target as HTMLElement;
-    // Check if clicked inside a code block to copy
-    const codeBlock = target.closest(".omega-code-block") as HTMLElement | null;
-    if (codeBlock && (target.tagName.toLowerCase() === "pre" || target.closest("pre"))) {
-      const code = codeBlock.getAttribute("data-code");
-      if (code) {
-        const ok = await copyText(code);
-        if (ok) {
-          notifications.show({
-            color: "cyan",
-            title: "Copied code",
-            message: "Code snippet copied to clipboard.",
-            autoClose: 2000,
-          });
+/**
+ * Resolve a repo-relative link href against the file it appears in.
+ *
+ * Markdown links are written relative to their own file, not to the
+ * workspace root, so `[x](../arch.md)` inside `docs/guide.md` means
+ * `arch.md`, not `docs/../arch.md` left unresolved. `basePath` is the
+ * currently open file; its directory is the resolution root.
+ */
+function resolveRepoPath(href: string, basePath: string | undefined): string {
+  let clean = href.replace(/^\.\//, "");
+  if (clean.startsWith("/")) return clean.slice(1);
+  if (!basePath) return clean;
+
+  const baseDir = basePath.includes("/") ? basePath.slice(0, basePath.lastIndexOf("/")) : "";
+  const segments = baseDir ? baseDir.split("/") : [];
+  for (const part of clean.split("/")) {
+    if (part === "" || part === ".") continue;
+    if (part === "..") segments.pop();
+    else segments.push(part);
+  }
+  return segments.join("/");
+}
+
+/** Navigate the file viewer to a repo-relative path via the URL hash. */
+function openInternalFile(path: string): void {
+  window.location.hash = `file=${encodeURIComponent(path)}`;
+}
+
+export function RenderedHtml({
+  html,
+  className,
+  baseFilePath,
+}: {
+  html: string;
+  className?: string;
+  /** The file this markdown was rendered from, for resolving relative links. */
+  baseFilePath?: string;
+}): ReactNode {
+  const handleClick = useCallback(
+    async (event: React.MouseEvent<HTMLDivElement>) => {
+      const target = event.target as HTMLElement;
+
+      // Internal repo links navigate the file viewer instead of the browser.
+      const internalLink = target.closest("a[data-internal-file]") as HTMLAnchorElement | null;
+      if (internalLink) {
+        event.preventDefault();
+        const rawHref = internalLink.getAttribute("data-internal-file") ?? "";
+        // Drop a trailing "#heading" fragment; the file viewer has no anchor scroll.
+        const [pathPart] = rawHref.split("#");
+        const resolved = resolveRepoPath(pathPart ?? rawHref, baseFilePath);
+        if (resolved) openInternalFile(resolved);
+        return;
+      }
+
+      // Check if clicked inside a code block to copy
+      const codeBlock = target.closest(".omega-code-block") as HTMLElement | null;
+      if (codeBlock && (target.tagName.toLowerCase() === "pre" || target.closest("pre"))) {
+        const code = codeBlock.getAttribute("data-code");
+        if (code) {
+          const ok = await copyText(code);
+          if (ok) {
+            notifications.show({
+              color: "cyan",
+              title: "Copied code",
+              message: "Code snippet copied to clipboard.",
+              autoClose: 2000,
+            });
+          }
         }
       }
-    }
-  }, []);
+    },
+    [baseFilePath],
+  );
 
   const segments = useMemo(() => {
     if (!html || !html.includes("omega-mermaid-block")) return null;
@@ -190,7 +243,7 @@ function renderQueued(text: string): Promise<string> {
  * Streaming text without a server render yet falls back to raw text with line
  * breaks preserved, so the turn stays readable token by token.
  */
-export function Markdown({ text }: { text: string }): ReactNode {
+export function Markdown({ text, baseFilePath }: { text: string; baseFilePath?: string }): ReactNode {
   const [html, setHtml] = useState(() => cache.get(text) ?? "");
 
   useEffect(() => {
@@ -212,5 +265,5 @@ export function Markdown({ text }: { text: string }): ReactNode {
     return <div className="omega-markdown-raw">{text}</div>;
   }
 
-  return <RenderedHtml html={html} />;
+  return <RenderedHtml html={html} baseFilePath={baseFilePath} />;
 }

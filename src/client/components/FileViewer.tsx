@@ -666,7 +666,7 @@ export function FileViewer({ filePath, cwd, gitStatus, onInsertRef, onAnnotate, 
         ) : isMarkdown && viewMode === "rendered" && fileData?.content ? (
           <ScrollArea style={{ height: "100%" }} p="md">
             <Box className="omega-markdown" style={{ maxWidth: 900, margin: "0 auto" }}>
-              <Markdown text={fileData.content} />
+              <Markdown text={fileData.content} baseFilePath={filePath ?? undefined} />
             </Box>
           </ScrollArea>
         ) : fileData?.content != null ? (

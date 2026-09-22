@@ -96,8 +96,50 @@ export async function renderMarkdownServer(text: string): Promise<string> {
           children,
         );
       },
-      a: ({ href, title, children }) =>
-        React.createElement("a", { href, title, target: "_blank", rel: "noreferrer noopener" }, children),
+      a: ({ href, title, children }) => {
+        const url = String(href ?? "").trim();
+        const isAnchor = url.startsWith("#");
+        const isExternal =
+          url.startsWith("http://") ||
+          url.startsWith("https://") ||
+          url.startsWith("mailto:") ||
+          url.startsWith("tel:") ||
+          url.startsWith("//");
+
+        if (isAnchor) {
+          return React.createElement(
+            "a",
+            { href: url, title, className: "omega-markdown-link omega-markdown-anchor" },
+            children,
+          );
+        }
+
+        if (isExternal) {
+          return React.createElement(
+            "a",
+            {
+              href: url,
+              title,
+              target: "_blank",
+              rel: "noreferrer noopener",
+              className: "omega-markdown-link omega-markdown-external",
+            },
+            children,
+          );
+        }
+
+        // Internal repository link (e.g. "./docs/api.md", "README.md", "src/server/files.ts")
+        return React.createElement(
+          "a",
+          {
+            href: `#file=${encodeURIComponent(url.replace(/^\.\//, "").replace(/^file:\/\//, ""))}`,
+            title,
+            "data-internal-file": url,
+            className: "omega-markdown-link omega-markdown-internal",
+          },
+          children,
+        );
+      },
       blockquote: ({ children }) =>
         React.createElement("blockquote", { className: "omega-markdown-blockquote" }, children),
     },
