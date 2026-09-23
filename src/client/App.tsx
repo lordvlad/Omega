@@ -569,11 +569,16 @@ export function App() {
     },
     [settings.notifyOnYield, state.data?.title, openPlan],
   );
+  const seenCrossSessionNotifications = useRef<Set<string>>(new Set());
+
   const handleCrossSessionNotification = useCallback(
     (event: CrossSessionNotificationEvent): void => {
       // Ignore notifications for the session currently in view
       if (event.key === sessionKey) return;
 
+      const dedupeKey = `${event.key}:${event.status}:${event.timestamp ?? event.summary ?? ""}`;
+      if (seenCrossSessionNotifications.current.has(dedupeKey)) return;
+      seenCrossSessionNotifications.current.add(dedupeKey);
       const isError = event.status === "error";
       const sessionLabel = event.title || event.key.slice(0, 8);
       const title = isError ? `Turn failed: ${sessionLabel}` : `Turn finished: ${sessionLabel}`;

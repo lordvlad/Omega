@@ -179,6 +179,10 @@ export class LiveSession {
     if (this.#replay.length > REPLAY_LIMIT) this.#replay.splice(0, this.#replay.length - REPLAY_LIMIT);
     for (const sink of this.#sinks) sink(frame);
   }
+  /** Send an ephemeral frame to currently attached live sinks without storing in #replay. */
+  broadcastLive(frame: AguiFrame): void {
+    for (const sink of this.#sinks) sink(frame);
+  }
 
   /**
    * Push an out-of-band frame, e.g. a plan proposal.
@@ -440,7 +444,7 @@ export class Registry {
   /** Called with the key and idle minutes whenever a session is reclaimed. */
   #onEvict: ((key: string, idleMinutes: number) => void) | undefined;
 
-  /** Broadcast a session lifecycle event (turn complete / error) to all active sessions. */
+  /** Broadcast an ephemeral session lifecycle event to currently attached live sinks. */
   broadcastCrossSessionNotification(event: {
     key: string;
     title: string;
@@ -449,9 +453,12 @@ export class Registry {
     summary?: string;
     error?: string;
   }): void {
-    const frame = custom("omp.cross_session_notification", event);
+    const frame = custom("omp.cross_session_notification", {
+      ...event,
+      timestamp: Date.now(),
+    });
     for (const live of this.#sessions.values()) {
-      live.emitCustom(frame);
+      live.broadcastLive(frame);
     }
   }
   /** Detailed overview of all currently active/live sessions. */

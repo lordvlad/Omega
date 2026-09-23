@@ -75,6 +75,7 @@ export interface CrossSessionNotificationEvent {
   status: "completed" | "error";
   summary?: string;
   error?: string;
+  timestamp?: number;
 }
 
 /** Everything the chat pane needs about the turn currently in flight. */
