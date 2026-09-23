@@ -67,6 +67,7 @@ import type {
  * generated client — is a type error here.
  */
 import type { OmpApi } from "../shared/service.ts";
+import { drawContextSurface } from "./context-surface.ts";
 import { listFiles, readFileContent } from "./files.ts";
 import { drawGcSurface } from "./gc-surface.ts";
 import { getGitDiff, getGitStatus } from "./git.ts";
@@ -266,6 +267,10 @@ export class Handlers implements OmpApi {
     if (message === "/stats") {
       await drawStatsSurface(live);
       return { ok: true, detail: "Session statistics rendered." };
+    }
+    if (message === "/context") {
+      await drawContextSurface(live);
+      return { ok: true, detail: "Context window usage rendered." };
     }
     if (message === "/worktrees" || message.startsWith("/worktrees ")) {
       await drawWorktreeSurface(live);

@@ -51,6 +51,7 @@ import {
   IconFolder,
   IconFolderPlus,
   IconFolderSymlink,
+  IconGauge,
   IconGitBranch,
   IconGitFork,
   IconHistory,
@@ -440,6 +441,7 @@ export interface CommandPaletteProps {
   onShowCost?: () => void;
   onShowUsage?: () => void;
   onShowStats?: () => void;
+  onShowContext?: () => void;
   onShowWorktrees?: () => void;
   onCreateWorktree?: (arg: string) => void;
   onShowGc?: () => void;
@@ -513,6 +515,7 @@ export function CommandPalette({
   onShowCost,
   onShowUsage,
   onShowStats,
+  onShowContext,
   onShowWorktrees,
   onCreateWorktree,
   onShowGc,
@@ -780,6 +783,15 @@ export function CommandPalette({
             leftSection: <IconChartBar size={16} color="var(--mantine-color-cyan-4)" />,
             closeSpotlightOnTrigger: true,
             onClick: () => onShowStats?.(),
+          },
+          {
+            id: "command-context",
+            label: PALETTE_COMMAND.context,
+            description: "Render context window usage breakdown and growth trend",
+            keywords: "context window usage breakdown tokens compact shake reduce",
+            leftSection: <IconGauge size={16} color="var(--mantine-color-teal-4)" />,
+            closeSpotlightOnTrigger: true,
+            onClick: () => onShowContext?.(),
           },
           {
             id: "command-worktrees",
@@ -1394,9 +1406,23 @@ export function CommandPalette({
     ],
     [onShowStats],
   );
-  /** `/context`: context reduction choices. */
+  /** `/context`: render the usage dashboard, or jump to a reduction action. */
   const contextActions = useMemo<PaletteAction[]>(
     () => [
+      {
+        group: "Context Usage",
+        actions: [
+          {
+            id: "context-show",
+            label: PALETTE_COMMAND.context,
+            description: "Render context window usage breakdown and growth trend",
+            keywords: "context window usage breakdown tokens dashboard chart",
+            leftSection: <IconGauge size={16} color="var(--mantine-color-teal-4)" />,
+            closeSpotlightOnTrigger: true,
+            onClick: () => onShowContext?.(),
+          },
+        ],
+      },
       {
         group: "Reduce Context Size",
         actions: [
@@ -1421,7 +1447,7 @@ export function CommandPalette({
         ],
       },
     ],
-    [onQueryChange],
+    [onQueryChange, onShowContext],
   );
   /** `/tools`: tool inspector and forcing. */
   const toolsActions = useMemo<PaletteAction[]>(() => {

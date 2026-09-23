@@ -31,6 +31,7 @@ export const A2UI_BASIC_CATALOG_ID = "https://a2ui.org/specification/v1_0/catalo
 export const COST_SURFACE_ID = "session-cost";
 export const USAGE_SURFACE_ID = "session-usage";
 export const STATS_SURFACE_ID = "session-stats";
+export const CONTEXT_SURFACE_ID = "session-context";
 export const WT_SURFACE_ID = "session-wt";
 export const GC_SURFACE_ID = "session-gc";
 
@@ -40,6 +41,7 @@ export function isAgentSurface(surfaceId: string): boolean {
     surfaceId !== COST_SURFACE_ID &&
     surfaceId !== USAGE_SURFACE_ID &&
     surfaceId !== STATS_SURFACE_ID &&
+    surfaceId !== CONTEXT_SURFACE_ID &&
     surfaceId !== WT_SURFACE_ID &&
     surfaceId !== GC_SURFACE_ID
   );

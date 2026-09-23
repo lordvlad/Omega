@@ -1653,10 +1653,13 @@ export function App() {
               </>
             ) : null}
             {state.data?.contextUsage && state.data.contextUsage.percent >= 60 ? (
-              <Tooltip label="Context usage high — click to /compact or /shake" position="bottom-start">
+              <Tooltip
+                label="Context usage high — click to view breakdown, /compact, or /shake"
+                position="bottom-start"
+              >
                 <UnstyledButton
                   onClick={() => openPalette(PALETTE_COMMAND.context, setPaletteQuery)}
-                  aria-label="Reduce context size (/compact or /shake)"
+                  aria-label="View context usage breakdown, or reduce context size"
                   style={{ display: "inline-flex", alignItems: "center" }}
                 >
                   <Badge
@@ -2441,6 +2444,7 @@ export function App() {
         onShowCost={() => handleSend("/cost", undefined, undefined)}
         onShowUsage={() => handleSend("/usage", undefined, undefined)}
         onShowStats={() => handleSend("/stats", undefined, undefined)}
+        onShowContext={() => handleSend("/context", undefined, undefined)}
         onShowWorktrees={() => handleSend("/worktrees", undefined, undefined)}
         onCreateWorktree={arg => handleSend(arg ? `/wt ${arg}` : "/wt", undefined, undefined)}
         onShowGc={() => handleSend("/gc", undefined, undefined)}
