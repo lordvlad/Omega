@@ -26,7 +26,8 @@ export type OmpCustomName =
   | "omp.todo"
   | "omp.tool_update"
   | "omp.a2ui"
-  | "omp.subagents";
+  | "omp.subagents"
+  | "omp.cross_session_notification";
 
 /** Build a `CUSTOM` frame carrying omp state the AG-UI vocabulary has no slot for. */
 export function custom(name: OmpCustomName, value: unknown): AguiFrame {

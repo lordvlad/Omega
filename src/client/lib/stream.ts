@@ -67,6 +67,15 @@ export interface YieldEvent {
   summary?: string;
   error?: string;
 }
+/** A cross-session lifecycle event broadcast from the server when any session turn ends or errors. */
+export interface CrossSessionNotificationEvent {
+  key: string;
+  title: string;
+  cwd: string;
+  status: "completed" | "error";
+  summary?: string;
+  error?: string;
+}
 
 /** Everything the chat pane needs about the turn currently in flight. */
 export interface LiveTurn {
@@ -113,6 +122,7 @@ export function useLiveTurn(
   key: string | undefined,
   onStale: () => void,
   onYield?: (event: YieldEvent) => void,
+  onCrossSessionNotification?: (event: CrossSessionNotificationEvent) => void,
 ): LiveTurn {
   const [status, setStatus] = useState<StreamStatus>("closed");
   const [running, setRunning] = useState(false);
@@ -134,6 +144,8 @@ export function useLiveTurn(
   stale.current = onStale;
   const yieldCallback = useRef(onYield);
   yieldCallback.current = onYield;
+  const crossSessionCallback = useRef(onCrossSessionNotification);
+  crossSessionCallback.current = onCrossSessionNotification;
   const reset = useCallback(() => {
     blocks.current = [];
     tools.current = [];
@@ -391,6 +403,11 @@ export function useLiveTurn(
             const val = frame.value as { subagents?: SubagentTask[] } | null;
             if (val?.subagents) {
               setSubagents(val.subagents);
+            }
+          } else if (name === "omp.cross_session_notification") {
+            const val = frame.value as CrossSessionNotificationEvent | null;
+            if (val) {
+              crossSessionCallback.current?.(val);
             }
           }
           break;

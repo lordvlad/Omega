@@ -59,6 +59,7 @@ export class LiveSession {
   readonly session: AgentSession;
   readonly manager: SessionManager;
   readonly a2ui: A2uiChannel;
+  readonly registry?: Registry;
   #translator: AguiTranslator;
   readonly #sinks = new Set<FrameSink>();
   readonly #closeListeners = new Set<() => void>();
@@ -73,11 +74,18 @@ export class LiveSession {
   #lastError: string | undefined;
   readonly #subagents = new Map<string, SubagentTask>();
 
-  constructor(key: string, session: AgentSession, manager: SessionManager, a2ui: A2uiChannel) {
+  constructor(
+    key: string,
+    session: AgentSession,
+    manager: SessionManager,
+    a2ui: A2uiChannel,
+    registry?: Registry,
+  ) {
     this.#key = key;
     this.session = session;
     this.manager = manager;
     this.a2ui = a2ui;
+    this.registry = registry;
     this.#translator = new AguiTranslator(key);
   }
 
@@ -140,6 +148,25 @@ export class LiveSession {
         // the replay buffer so a freshly reconnecting socket never replays stale
         // streaming frames from an already-completed turn.
         this.#replay.length = 0;
+
+        // Broadcast cross-session turn completion notification to all other sessions
+        const assistantMsgs = this.session.messages.filter((m: any) => m.role === "assistant");
+        const lastAssistant = assistantMsgs[assistantMsgs.length - 1];
+        let summaryText: string | undefined;
+        if (lastAssistant && "content" in lastAssistant && Array.isArray(lastAssistant.content)) {
+          const textParts = (lastAssistant.content as any[])
+            .filter((c: any) => c && c.type === "text" && typeof c.text === "string")
+            .map((c: any) => c.text);
+          summaryText = textParts.join("\n").trim().slice(0, 180);
+        }
+
+        this.registry?.broadcastCrossSessionNotification({
+          key: this.key,
+          title: this.manager.getSessionName() || "Untitled session",
+          cwd: this.manager.getCwd(),
+          status: "completed",
+          summary: summaryText || "Turn completed.",
+        });
       }
     });
   }
@@ -159,7 +186,16 @@ export class LiveSession {
   emitCustom(frame: AguiFrame): void {
     if (frame.type === "RUN_ERROR") {
       const message = (frame as { message?: unknown }).message;
-      this.#lastError = typeof message === "string" ? message : "The turn failed.";
+      const errorText = typeof message === "string" ? message : "The turn failed.";
+      this.#lastError = errorText;
+
+      this.registry?.broadcastCrossSessionNotification({
+        key: this.key,
+        title: this.manager.getSessionName() || "Untitled session",
+        cwd: this.manager.getCwd(),
+        status: "error",
+        error: errorText,
+      });
     }
     this.#emit(frame);
   }
@@ -401,6 +437,20 @@ export class Registry {
   /** Called with the key and idle minutes whenever a session is reclaimed. */
   #onEvict: ((key: string, idleMinutes: number) => void) | undefined;
 
+  /** Broadcast a session lifecycle event (turn complete / error) to all active sessions. */
+  broadcastCrossSessionNotification(event: {
+    key: string;
+    title: string;
+    cwd: string;
+    status: "completed" | "error";
+    summary?: string;
+    error?: string;
+  }): void {
+    const frame = custom("omp.cross_session_notification", event);
+    for (const live of this.#sessions.values()) {
+      live.emitCustom(frame);
+    }
+  }
   /**
    * Start the idle sweep. One timer serves every session, so an idle process
    * wakes on a fixed cadence rather than once per conversation.
@@ -521,7 +571,7 @@ export class Registry {
       return existing;
     }
 
-    const live = new LiveSession(key, session, manager, a2uiChannel);
+    const live = new LiveSession(key, session, manager, a2uiChannel, this);
     live.start();
     live.armPlanProposals();
     this.#sessions.set(key, live);

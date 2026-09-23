@@ -12,6 +12,7 @@
  */
 import {
   ActionIcon,
+  Anchor,
   AppShell,
   Badge,
   Box,
@@ -29,9 +30,10 @@ import {
 import { useDisclosure, useLocalStorage, useMediaQuery } from "@mantine/hooks";
 import { notifications } from "@mantine/notifications";
 import {
+  IconAlertTriangle,
+  IconCheck,
   IconChevronDown,
   IconFolder,
-  IconHighlight,
   IconHistory,
   IconLayout2,
   IconListCheck,
@@ -158,7 +160,7 @@ import { showYieldNotification } from "./lib/notifications.ts";
 import { useOnline } from "./lib/online.ts";
 import { newSendId } from "./lib/outbox.ts";
 import { useProjectSettings } from "./lib/settings.ts";
-import { type YieldEvent, useLiveTurn } from "./lib/stream.ts";
+import { type CrossSessionNotificationEvent, type YieldEvent, useLiveTurn } from "./lib/stream.ts";
 import { forgetTranscript, usePersistedTranscript } from "./lib/transcript-cache.ts";
 import { useVisualViewport } from "./lib/viewport.ts";
 
@@ -558,8 +560,66 @@ export function App() {
     },
     [settings.notifyOnYield, state.data?.title, openPlan],
   );
+  const handleCrossSessionNotification = useCallback(
+    (event: CrossSessionNotificationEvent): void => {
+      // Ignore notifications for the session currently in view
+      if (event.key === sessionKey) return;
 
-  const live = useLiveTurn(sessionKey, refresh, handleYield);
+      const isError = event.status === "error";
+      const sessionLabel = event.title || event.key.slice(0, 8);
+      const title = isError ? `Turn failed: ${sessionLabel}` : `Turn finished: ${sessionLabel}`;
+      const messageText = isError
+        ? event.error || "Turn failed with an error."
+        : event.summary || "Agent finished their turn.";
+
+      // 1. In-app notification with a clickable direct link to jump to that session
+      notifications.show({
+        id: `cross-session-${event.key}-${Date.now()}`,
+        color: isError ? "red" : "cyan",
+        icon: isError ? <IconAlertTriangle size={16} /> : <IconCheck size={16} />,
+        title,
+        message: (
+          <Stack gap={4}>
+            <Text size="xs" lineClamp={2} style={{ wordBreak: "break-word" }}>
+              {messageText}
+            </Text>
+            <Anchor
+              size="xs"
+              c="cyan.4"
+              fw={600}
+              href={`/s/${encodeURIComponent(event.key)}`}
+              onClick={e => {
+                e.preventDefault();
+                setSwitchingSession(`Opening session ${sessionLabel}…`);
+                navigateTo({ session: event.key });
+              }}
+            >
+              Open session ({sessionLabel}) →
+            </Anchor>
+          </Stack>
+        ),
+        autoClose: 10_000,
+      });
+
+      // 2. Native OS/desktop notification if tab is in background
+      if (settings.notifyOnYield && (document.visibilityState === "hidden" || !document.hasFocus())) {
+        void showYieldNotification({
+          title,
+          body: messageText,
+          tag: `omega-cross-session-${event.key}`,
+          icon: "/icon-192.png",
+          badge: "/icon-192.png",
+          onClick: () => {
+            window.focus();
+            navigateTo({ project: event.cwd, session: event.key });
+          },
+        });
+      }
+    },
+    [sessionKey, settings.notifyOnYield, navigateTo],
+  );
+
+  const live = useLiveTurn(sessionKey, refresh, handleYield, handleCrossSessionNotification);
   /**
    * What the pull-up gesture asks for.
    *
