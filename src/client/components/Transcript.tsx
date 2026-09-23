@@ -615,6 +615,8 @@ export function Transcript({
         streaming: false,
       });
     }
+    const hasPendingPrompt =
+      pendingUser.length > 0 || (messages.length > 0 && messages[messages.length - 1]!.role === "user");
     const visibleLive = visibleParts(liveParts, { showThinking, showToolCalls });
     if (visibleLive.length > 0) {
       result.push({
@@ -623,7 +625,7 @@ export function Transcript({
         message: { id: "live", role: "assistant", parts: liveParts },
         streaming: running,
       });
-    } else if (running) {
+    } else if (running && hasPendingPrompt) {
       result.push({ kind: "working" });
     }
 

@@ -138,6 +138,7 @@ export function useLiveTurn(
     blocks.current = [];
     tools.current = [];
     order.current = [];
+    setRunning(false);
     setTick(value => value + 1);
   }, []);
 
@@ -193,6 +194,7 @@ export function useLiveTurn(
 
     socket.addEventListener("open", () => {
       setStatus("open");
+      setRunning(false);
       failureCount.current = 0;
       setFailures(0);
       lastFrame = Date.now();
@@ -208,6 +210,7 @@ export function useLiveTurn(
     // the idle sweep released the session.
     const reconnect = (): void => {
       setStatus("closed");
+      setRunning(false);
       if (releasing) return;
       if (retry !== undefined) return;
       failureCount.current += 1;
@@ -220,10 +223,13 @@ export function useLiveTurn(
     // On mobile or when switching tabs, browsers pause timers and sockets time out.
     // When the user returns, reconnect immediately without waiting for a retry timer.
     const onWake = (): void => {
+      stale.current();
       if (socket.readyState === WebSocket.OPEN) return;
       releasing = true;
       if (retry !== undefined) window.clearTimeout(retry);
       socket.close();
+      setRunning(false);
+      reset();
       // Returning to the tab is a deliberate act, so it skips the backoff
       // rather than inheriting however long the last one had grown to.
       setAttempt(value => value + 1);

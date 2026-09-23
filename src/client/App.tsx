@@ -601,7 +601,7 @@ export function App() {
    * prompts the panel can actually edit, where the snapshot's `queued` also
    * counts agent-authored entries nobody can act on.
    */
-  const streaming = live.running || state.data?.streaming === true;
+  const streaming = live.running || (live.status !== "open" && state.data?.streaming === true);
   const queueLive = Boolean(sessionKey) && (queueOpen || streaming);
   const queue = useListQueue(
     { path: { key: sessionKey ?? "" } },

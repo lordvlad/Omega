@@ -124,14 +124,22 @@ export class LiveSession {
       // a long tool-heavy turn is never evicted mid-flight.
       this.touch();
       // A new turn supersedes the last failure; keeping it would caption a
-      // running turn with the reason the previous one stopped.
-      if (event.type === "agent_start") this.#lastError = undefined;
+      // running turn with the reason the previous one stopped. Clear prior
+      // turn replay frames so a reconnect mid-turn only receives the current turn.
+      if (event.type === "agent_start") {
+        this.#lastError = undefined;
+        this.#replay.length = 0;
+      }
       for (const frame of this.#translator.translate(event)) this.#emit(frame);
       // A settled turn changes model/queue/context/plan state that the REST
       // snapshot owns; tell the client to refetch rather than duplicating
       // every field in the stream.
       if (event.type === "agent_end" && event.isTerminal !== false) {
         this.#emit(custom("omp.state", { reason: "agent_end" }));
+        // Once the turn is finished and durable in transcript storage, clear
+        // the replay buffer so a freshly reconnecting socket never replays stale
+        // streaming frames from an already-completed turn.
+        this.#replay.length = 0;
       }
     });
   }
