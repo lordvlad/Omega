@@ -30,6 +30,7 @@
  * `/stop` and `/delete` remain the keyboard path to the same two operations.
  */
 import { ActionIcon, Badge, Group, Tooltip } from "@mantine/core";
+import { useLocalStorage } from "@mantine/hooks";
 import {
   isActionsGroup,
   Spotlight,
@@ -585,6 +586,19 @@ export function CommandPalette({
       ),
     [workspaces],
   );
+  const [recentCommandIds, setRecentCommandIds] = useLocalStorage<string[]>({
+    key: "omega:command-lru",
+    defaultValue: [],
+    getInitialValueInEffect: false,
+    sync: true,
+  });
+
+  const recordCommandUsage = useCallback(
+    (id: string) => {
+      setRecentCommandIds(prev => [id, ...(prev ?? []).filter(item => item !== id)].slice(0, 40));
+    },
+    [setRecentCommandIds],
+  );
   /** Helper to close and clear spotlight when opening an application drawer. */
   const handleOpenDrawer = useCallback(
     (openFn?: () => void) => {
@@ -689,339 +703,356 @@ export function CommandPalette({
       },
     ];
   }, [files, onPickFile]);
-  const commandActions = useMemo<PaletteAction[]>(
-    () => [
+  const commandActions = useMemo<PaletteAction[]>(() => {
+    const rawActions: SpotlightActionData[] = [
+      {
+        id: "command-switch",
+        label: PALETTE_COMMAND.model,
+        description: sessionKey ? "Change the model for this session" : "Open a session first",
+        keywords: "model provider switch",
+        leftSection: <IconCpu size={16} />,
+        closeSpotlightOnTrigger: false,
+        onClick: () => onQueryChange(`${PALETTE_COMMAND.model} `),
+      },
+      {
+        id: "command-cd",
+        label: PALETTE_COMMAND.project,
+        description: "Switch workspace, or open any session",
+        keywords: "project workspace directory cd",
+        leftSection: <IconFolder size={16} />,
+        closeSpotlightOnTrigger: false,
+        onClick: () => onQueryChange(`${PALETTE_COMMAND.project} `),
+      },
+      {
+        id: "command-resume",
+        label: PALETTE_COMMAND.session,
+        description: activeProject ? `Resume a session in ${activeProject}` : "Pick a workspace first",
+        keywords: "session resume history",
+        leftSection: <IconHistory size={16} />,
+        closeSpotlightOnTrigger: false,
+        onClick: () => onQueryChange(`${PALETTE_COMMAND.session} `),
+      },
+      {
+        id: "command-compact",
+        label: PALETTE_COMMAND.compact,
+        description: `Summarize the conversation${state?.contextUsage ? ` · ${Math.round(state.contextUsage.percent)}% of context used` : ""}`,
+        keywords: "compact summarize context shrink",
+        leftSection: <IconArchive size={16} />,
+        closeSpotlightOnTrigger: false,
+        onClick: () => onQueryChange(`${PALETTE_COMMAND.compact} `),
+      },
+      {
+        id: "command-shake",
+        label: PALETTE_COMMAND.shake,
+        description: "Drop tool results, large blocks, or images from context",
+        keywords: "shake elide images drop context",
+        leftSection: <IconFilterX size={16} />,
+        closeSpotlightOnTrigger: false,
+        onClick: () => onQueryChange(`${PALETTE_COMMAND.shake} `),
+      },
+      {
+        id: "command-think",
+        label: PALETTE_COMMAND.think,
+        description: `Thinking level · currently ${state?.thinkingLevel ?? "unknown"}`,
+        keywords: "thinking reasoning effort budget",
+        leftSection: <IconBrain size={16} />,
+        closeSpotlightOnTrigger: false,
+        onClick: () => onQueryChange(`${PALETTE_COMMAND.think} `),
+      },
+      {
+        id: "command-rename",
+        label: PALETTE_COMMAND.rename,
+        description: `Rename this session${state?.title ? ` (now “${state.title}”)` : ""}`,
+        keywords: "rename title name",
+        leftSection: <IconPencil size={16} />,
+        closeSpotlightOnTrigger: false,
+        onClick: () => onQueryChange(`${PALETTE_COMMAND.rename} `),
+      },
+      {
+        id: "command-retry",
+        label: PALETTE_COMMAND.retry,
+        description: RETRY_DESCRIPTION,
+        keywords: "retry again failed",
+        leftSection: <IconRefresh size={16} />,
+        onClick: onRetry,
+      },
+      {
+        id: "command-btw",
+        label: PALETTE_COMMAND.btw,
+        description: "Ask a transient side-question without polluting history",
+        keywords: "btw side question ask ephemeral",
+        leftSection: <IconMessageQuestion size={16} color="var(--mantine-color-cyan-4)" />,
+        closeSpotlightOnTrigger: false,
+        onClick: () => onQueryChange(`${PALETTE_COMMAND.btw} `),
+      },
+      {
+        id: "command-omfg",
+        label: PALETTE_COMMAND.omfg,
+        description: "Create a rule (TTSR) from a recurring mistake in this session",
+        keywords: "omfg rule mistake fix ttsr stream",
+        leftSection: <IconShield size={16} color="var(--mantine-color-orange-4)" />,
+        closeSpotlightOnTrigger: false,
+        onClick: () => onQueryChange(`${PALETTE_COMMAND.omfg} `),
+      },
+      {
+        id: "command-todo",
+        label: PALETTE_COMMAND.todo,
+        description:
+          state?.todos && state.todos.length > 0
+            ? `Manage tasks and checklists (${state.todos.flatMap(p => p.tasks).length} tasks across ${state.todos.length} phases)`
+            : "Inspect and manage multi-step todos and phase checklists",
+        keywords: "todo tasks phases checklist done append start rm clear",
+        leftSection: <IconChecklist size={16} color="var(--mantine-color-cyan-4)" />,
+        closeSpotlightOnTrigger: false,
+        onClick: () => handleOpenDrawer(onOpenTodos),
+      },
+      {
+        id: "command-agents",
+        label: PALETTE_COMMAND.agents,
+        description: "Inspect specialist agent roster, tool grants, and dispatch workloads",
+        keywords: "agents subagents hub scout reviewer sonic worker dispatch delegate",
+        leftSection: <IconRobot size={16} color="var(--mantine-color-plum-4)" />,
+        closeSpotlightOnTrigger: true,
+        onClick: () => onShowAgents?.(),
+      },
+      {
+        id: "command-mcp-manage",
+        label: PALETTE_COMMAND.mcp,
+        description: "Manage MCP servers, test connections, and configure tools",
+        keywords: "mcp servers plugins tools manage add test",
+        leftSection: <IconPlugConnected size={16} color="var(--mantine-color-cyan-4)" />,
+        onClick: () => handleOpenDrawer(onOpenMcp),
+      },
+      {
+        id: "command-session-info",
+        label: PALETTE_COMMAND.sessionInfo,
+        description: sessionKey
+          ? "Inspect active session identity, storage path, model, and runtime"
+          : "Open a session first",
+        keywords: "session info details properties status model path id",
+        leftSection: <IconInfoCircle size={16} color="var(--mantine-color-teal-4)" />,
+        closeSpotlightOnTrigger: true,
+        onClick: () => onShowSessionInfo?.(),
+      },
+      {
+        id: "command-changelog",
+        label: PALETTE_COMMAND.changelog,
+        description: "Render release highlights, recent changes, and version notes",
+        keywords: "changelog release notes news updates version what's new",
+        leftSection: <IconNews size={16} color="var(--mantine-color-cyan-4)" />,
+        closeSpotlightOnTrigger: true,
+        onClick: () => onShowChangelog?.(false),
+      },
+      {
+        id: "command-abort",
+        label: PALETTE_COMMAND.abort,
+        description: abortDescription,
+        keywords: "abort interrupt stop escape cancel",
+        leftSection: <IconPlayerStopFilled size={16} />,
+        onClick: onAbort,
+      },
+      {
+        id: "command-cost",
+        label: PALETTE_COMMAND.cost,
+        description: "Render token economics, burn rate, and cost breakdown",
+        keywords: "cost tokens economics breakdown burn expense",
+        leftSection: <IconCoin size={16} color="var(--mantine-color-yellow-4)" />,
+        closeSpotlightOnTrigger: true,
+        onClick: () => onShowCost?.(),
+      },
+      {
+        id: "command-usage",
+        label: PALETTE_COMMAND.usage,
+        description: "Render provider rate limits and quota window usage",
+        keywords: "usage quota provider rate limits capacity",
+        leftSection: <IconCpu size={16} color="var(--mantine-color-plum-4)" />,
+        closeSpotlightOnTrigger: true,
+        onClick: () => onShowUsage?.(),
+      },
+      {
+        id: "command-stats",
+        label: PALETTE_COMMAND.stats,
+        description: "Render session latency and tool usage dashboard",
+        keywords: "stats metrics latency performance dashboard tool calls",
+        leftSection: <IconChartBar size={16} color="var(--mantine-color-cyan-4)" />,
+        closeSpotlightOnTrigger: true,
+        onClick: () => onShowStats?.(),
+      },
+      {
+        id: "command-context",
+        label: PALETTE_COMMAND.context,
+        description: "Render context window usage breakdown and growth trend",
+        keywords: "context window usage breakdown tokens compact shake reduce",
+        leftSection: <IconGauge size={16} color="var(--mantine-color-teal-4)" />,
+        closeSpotlightOnTrigger: true,
+        onClick: () => onShowContext?.(),
+      },
+      {
+        id: "command-worktrees",
+        label: PALETTE_COMMAND.worktrees,
+        description: "Inspect git worktrees dashboard across repository and task isolation",
+        keywords: "worktrees list wt git branches dashboard",
+        leftSection: <IconGitBranch size={16} color="var(--mantine-color-teal-4)" />,
+        closeSpotlightOnTrigger: true,
+        onClick: () => onShowWorktrees?.(),
+      },
+      {
+        id: "command-wt",
+        label: PALETTE_COMMAND.wt,
+        description: "Create a new git worktree and move work to it",
+        keywords: "worktree wt create add branch new isolate checkout",
+        leftSection: <IconGitFork size={16} color="var(--mantine-color-cyan-4)" />,
+        closeSpotlightOnTrigger: false,
+        onClick: () => onQueryChange(`${PALETTE_COMMAND.wt} `),
+      },
+      {
+        id: "command-gc",
+        label: PALETTE_COMMAND.gc,
+        description: "Run on-disk storage maintenance, sweep unused blobs, and checkpoint WAL",
+        keywords: "gc garbage collection storage sweep blobs archive clean wal",
+        leftSection: <IconTrash size={16} color="var(--mantine-color-teal-4)" />,
+        closeSpotlightOnTrigger: true,
+        onClick: () => onShowGc?.(),
+      },
+      {
+        id: "command-plan",
+        label: PALETTE_COMMAND.plan,
+        description: planDescription,
+        keywords: "plan mode planning research",
+        leftSection: <IconRoute size={16} />,
+        onClick: () => onTogglePlanMode(!planEnabled),
+      },
+      {
+        id: "command-new",
+        label: PALETTE_COMMAND.newSession,
+        description: newDescription,
+        keywords: "new session start",
+        leftSection: <IconPlus size={16} />,
+        disabled: !activeProject,
+        onClick: () => {
+          if (activeProject) onNewSession(activeProject);
+        },
+      },
+      {
+        id: "command-fork",
+        label: PALETTE_COMMAND.fork,
+        description: FORK_DESCRIPTION,
+        keywords: "fork copy duplicate branch",
+        leftSection: <IconGitFork size={16} />,
+        onClick: onFork,
+      },
+      {
+        id: "command-tools",
+        label: PALETTE_COMMAND.tools,
+        description: "Inspect available tools across built-in, custom, MCP, and xdev",
+        keywords: "tools inspect mcp custom xdev parameters schema",
+        leftSection: <IconTools size={16} color="var(--mantine-color-teal-4)" />,
+        onClick: () => handleOpenDrawer(onOpenTools),
+      },
+      {
+        id: "command-force",
+        label: PALETTE_COMMAND.force,
+        description: "Force the agent to use a specific tool on the next turn",
+        keywords: "force tool choice override hammer",
+        leftSection: <IconBolt size={16} color="var(--mantine-color-cyan-4)" />,
+        closeSpotlightOnTrigger: false,
+        onClick: () => onQueryChange(`${PALETTE_COMMAND.force} `),
+      },
+      {
+        id: "command-rules",
+        label: PALETTE_COMMAND.rules,
+        description: "View and manage active stream rules (TTSR) across project and global",
+        keywords: "rules stream ttsr regex conditions manage",
+        leftSection: <IconShieldCheck size={16} color="var(--mantine-color-orange-4)" />,
+        onClick: () => handleOpenDrawer(onOpenRules),
+      },
+      {
+        id: "command-jobs",
+        label: PALETTE_COMMAND.jobs,
+        description: "Inspect active background jobs and worker pools",
+        keywords: "jobs background async workers subagents cancel",
+        leftSection: <IconStack2 size={16} color="var(--mantine-color-cyan-4)" />,
+        onClick: () => handleOpenDrawer(onOpenJobs),
+      },
+      {
+        id: "command-ps",
+        label: PALETTE_COMMAND.ps,
+        description: "Manage supervised processes, send signals, and inspect daemons",
+        keywords: "ps processes daemons services supervisor signal restart stop",
+        leftSection: <IconTerminal2 size={16} color="var(--mantine-color-teal-4)" />,
+        onClick: () => handleOpenDrawer(onOpenProcesses),
+      },
+      {
+        id: "command-branch",
+        description:
+          branchPoints.length > 0
+            ? `Restart from one of ${branchPoints.length} earlier messages`
+            : "No user messages to branch from",
+        keywords: "branch rewind edit message",
+        leftSection: <IconGitBranch size={16} />,
+        closeSpotlightOnTrigger: false,
+        onClick: () => onQueryChange(`${PALETTE_COMMAND.branch} `),
+      },
+      {
+        id: "command-stop",
+        label: PALETTE_COMMAND.stop,
+        description:
+          liveSessions.length > 0
+            ? `Release a live session (${liveSessions.length} running)`
+            : "No sessions are live",
+        keywords: "stop halt release live",
+        leftSection: <IconPlayerStopFilled size={16} />,
+        closeSpotlightOnTrigger: false,
+        onClick: () => onQueryChange(`${PALETTE_COMMAND.stop} `),
+      },
+      {
+        id: "command-delete",
+        label: PALETTE_COMMAND.delete,
+        description: "Delete a session and its artifacts from disk",
+        keywords: "delete remove rm erase",
+        leftSection: <IconTrash size={16} />,
+        closeSpotlightOnTrigger: false,
+        onClick: () => onQueryChange(`${PALETTE_COMMAND.delete} `),
+      },
+      {
+        id: "command-file",
+        label: PALETTE_COMMAND.file,
+        description: activeProject ? `Mention a file from ${activeProject}` : "Pick a workspace first",
+        keywords: "file mention disk workspace path @",
+        leftSection: <IconFile size={16} />,
+        closeSpotlightOnTrigger: false,
+        onClick: () => onQueryChange("@"),
+      },
+      {
+        id: "command-settings",
+        label: PALETTE_COMMAND.settings,
+        description: "Toggle workspace display and notification settings",
+        keywords: "settings preferences thinking tool calls notifications notify yield show hide",
+        leftSection: <IconSettings size={16} />,
+        closeSpotlightOnTrigger: false,
+        onClick: () => onQueryChange(`${PALETTE_COMMAND.settings} `),
+      },
+    ];
+
+    const lruIndex = new Map((recentCommandIds ?? []).map((id, index) => [id, index]));
+    const trackedActions = rawActions.map(cmd => ({
+      ...cmd,
+      onClick: (action: any) => {
+        recordCommandUsage(cmd.id);
+        cmd.onClick?.(action);
+      },
+    }));
+
+    const sortedActions = [...trackedActions].sort((a, b) => {
+      const aRank = lruIndex.has(a.id) ? lruIndex.get(a.id)! : Infinity;
+      const bRank = lruIndex.has(b.id) ? lruIndex.get(b.id)! : Infinity;
+      return aRank - bRank;
+    });
+
+    return [
       {
         group: "Commands",
-        actions: [
-          {
-            id: "command-switch",
-            label: PALETTE_COMMAND.model,
-            description: sessionKey ? "Change the model for this session" : "Open a session first",
-            keywords: "model provider switch",
-            leftSection: <IconCpu size={16} />,
-            closeSpotlightOnTrigger: false,
-            onClick: () => onQueryChange(`${PALETTE_COMMAND.model} `),
-          },
-          {
-            id: "command-cd",
-            label: PALETTE_COMMAND.project,
-            description: "Switch workspace, or open any session",
-            keywords: "project workspace directory cd",
-            leftSection: <IconFolder size={16} />,
-            closeSpotlightOnTrigger: false,
-            onClick: () => onQueryChange(`${PALETTE_COMMAND.project} `),
-          },
-          {
-            id: "command-resume",
-            label: PALETTE_COMMAND.session,
-            description: activeProject ? `Resume a session in ${activeProject}` : "Pick a workspace first",
-            keywords: "session resume history",
-            leftSection: <IconHistory size={16} />,
-            closeSpotlightOnTrigger: false,
-            onClick: () => onQueryChange(`${PALETTE_COMMAND.session} `),
-          },
-          {
-            id: "command-compact",
-            label: PALETTE_COMMAND.compact,
-            description: `Summarize the conversation${state?.contextUsage ? ` · ${Math.round(state.contextUsage.percent)}% of context used` : ""}`,
-            keywords: "compact summarize context shrink",
-            leftSection: <IconArchive size={16} />,
-            closeSpotlightOnTrigger: false,
-            onClick: () => onQueryChange(`${PALETTE_COMMAND.compact} `),
-          },
-          {
-            id: "command-shake",
-            label: PALETTE_COMMAND.shake,
-            description: "Drop tool results, large blocks, or images from context",
-            keywords: "shake elide images drop context",
-            leftSection: <IconFilterX size={16} />,
-            closeSpotlightOnTrigger: false,
-            onClick: () => onQueryChange(`${PALETTE_COMMAND.shake} `),
-          },
-          {
-            id: "command-think",
-            label: PALETTE_COMMAND.think,
-            description: `Thinking level · currently ${state?.thinkingLevel ?? "unknown"}`,
-            keywords: "thinking reasoning effort budget",
-            leftSection: <IconBrain size={16} />,
-            closeSpotlightOnTrigger: false,
-            onClick: () => onQueryChange(`${PALETTE_COMMAND.think} `),
-          },
-          {
-            id: "command-rename",
-            label: PALETTE_COMMAND.rename,
-            description: `Rename this session${state?.title ? ` (now “${state.title}”)` : ""}`,
-            keywords: "rename title name",
-            leftSection: <IconPencil size={16} />,
-            closeSpotlightOnTrigger: false,
-            onClick: () => onQueryChange(`${PALETTE_COMMAND.rename} `),
-          },
-          {
-            id: "command-retry",
-            label: PALETTE_COMMAND.retry,
-            description: RETRY_DESCRIPTION,
-            keywords: "retry again failed",
-            leftSection: <IconRefresh size={16} />,
-            onClick: onRetry,
-          },
-          {
-            id: "command-btw",
-            label: PALETTE_COMMAND.btw,
-            description: "Ask a transient side-question without polluting history",
-            keywords: "btw side question ask ephemeral",
-            leftSection: <IconMessageQuestion size={16} color="var(--mantine-color-cyan-4)" />,
-            closeSpotlightOnTrigger: false,
-            onClick: () => onQueryChange(`${PALETTE_COMMAND.btw} `),
-          },
-          {
-            id: "command-omfg",
-            label: PALETTE_COMMAND.omfg,
-            description: "Create a rule (TTSR) from a recurring mistake in this session",
-            keywords: "omfg rule mistake fix ttsr stream",
-            leftSection: <IconShield size={16} color="var(--mantine-color-orange-4)" />,
-            closeSpotlightOnTrigger: false,
-            onClick: () => onQueryChange(`${PALETTE_COMMAND.omfg} `),
-          },
-          {
-            id: "command-todo",
-            label: PALETTE_COMMAND.todo,
-            description:
-              state?.todos && state.todos.length > 0
-                ? `Manage tasks and checklists (${state.todos.flatMap(p => p.tasks).length} tasks across ${state.todos.length} phases)`
-                : "Inspect and manage multi-step todos and phase checklists",
-            keywords: "todo tasks phases checklist done append start rm clear",
-            leftSection: <IconChecklist size={16} color="var(--mantine-color-cyan-4)" />,
-            closeSpotlightOnTrigger: false,
-            onClick: () => handleOpenDrawer(onOpenTodos),
-          },
-          {
-            id: "command-agents",
-            label: PALETTE_COMMAND.agents,
-            description: "Inspect specialist agent roster, tool grants, and dispatch workloads",
-            keywords: "agents subagents hub scout reviewer sonic worker dispatch delegate",
-            leftSection: <IconRobot size={16} color="var(--mantine-color-plum-4)" />,
-            closeSpotlightOnTrigger: true,
-            onClick: () => onShowAgents?.(),
-          },
-          {
-            id: "command-mcp-manage",
-            label: PALETTE_COMMAND.mcp,
-            description: "Manage MCP servers, test connections, and configure tools",
-            keywords: "mcp servers plugins tools manage add test",
-            leftSection: <IconPlugConnected size={16} color="var(--mantine-color-cyan-4)" />,
-            onClick: () => handleOpenDrawer(onOpenMcp),
-          },
-          {
-            id: "command-session-info",
-            label: PALETTE_COMMAND.sessionInfo,
-            description: sessionKey
-              ? "Inspect active session identity, storage path, model, and runtime"
-              : "Open a session first",
-            keywords: "session info details properties status model path id",
-            leftSection: <IconInfoCircle size={16} color="var(--mantine-color-teal-4)" />,
-            closeSpotlightOnTrigger: true,
-            onClick: () => onShowSessionInfo?.(),
-          },
-          {
-            id: "command-changelog",
-            label: PALETTE_COMMAND.changelog,
-            description: "Render release highlights, recent changes, and version notes",
-            keywords: "changelog release notes news updates version what's new",
-            leftSection: <IconNews size={16} color="var(--mantine-color-cyan-4)" />,
-            closeSpotlightOnTrigger: true,
-            onClick: () => onShowChangelog?.(false),
-          },
-          {
-            id: "command-abort",
-            label: PALETTE_COMMAND.abort,
-            description: abortDescription,
-            keywords: "abort interrupt stop escape cancel",
-            leftSection: <IconPlayerStopFilled size={16} />,
-            onClick: onAbort,
-          },
-          {
-            id: "command-cost",
-            label: PALETTE_COMMAND.cost,
-            description: "Render token economics, burn rate, and cost breakdown",
-            keywords: "cost tokens economics breakdown burn expense",
-            leftSection: <IconCoin size={16} color="var(--mantine-color-yellow-4)" />,
-            closeSpotlightOnTrigger: true,
-            onClick: () => onShowCost?.(),
-          },
-          {
-            id: "command-usage",
-            label: PALETTE_COMMAND.usage,
-            description: "Render provider rate limits and quota window usage",
-            keywords: "usage quota provider rate limits capacity",
-            leftSection: <IconCpu size={16} color="var(--mantine-color-plum-4)" />,
-            closeSpotlightOnTrigger: true,
-            onClick: () => onShowUsage?.(),
-          },
-          {
-            id: "command-stats",
-            label: PALETTE_COMMAND.stats,
-            description: "Render session latency and tool usage dashboard",
-            keywords: "stats metrics latency performance dashboard tool calls",
-            leftSection: <IconChartBar size={16} color="var(--mantine-color-cyan-4)" />,
-            closeSpotlightOnTrigger: true,
-            onClick: () => onShowStats?.(),
-          },
-          {
-            id: "command-context",
-            label: PALETTE_COMMAND.context,
-            description: "Render context window usage breakdown and growth trend",
-            keywords: "context window usage breakdown tokens compact shake reduce",
-            leftSection: <IconGauge size={16} color="var(--mantine-color-teal-4)" />,
-            closeSpotlightOnTrigger: true,
-            onClick: () => onShowContext?.(),
-          },
-          {
-            id: "command-worktrees",
-            label: PALETTE_COMMAND.worktrees,
-            description: "Inspect git worktrees dashboard across repository and task isolation",
-            keywords: "worktrees list wt git branches dashboard",
-            leftSection: <IconGitBranch size={16} color="var(--mantine-color-teal-4)" />,
-            closeSpotlightOnTrigger: true,
-            onClick: () => onShowWorktrees?.(),
-          },
-          {
-            id: "command-wt",
-            label: PALETTE_COMMAND.wt,
-            description: "Create a new git worktree and move work to it",
-            keywords: "worktree wt create add branch new isolate checkout",
-            leftSection: <IconGitFork size={16} color="var(--mantine-color-cyan-4)" />,
-            closeSpotlightOnTrigger: false,
-            onClick: () => onQueryChange(`${PALETTE_COMMAND.wt} `),
-          },
-          {
-            id: "command-gc",
-            label: PALETTE_COMMAND.gc,
-            description: "Run on-disk storage maintenance, sweep unused blobs, and checkpoint WAL",
-            keywords: "gc garbage collection storage sweep blobs archive clean wal",
-            leftSection: <IconTrash size={16} color="var(--mantine-color-teal-4)" />,
-            closeSpotlightOnTrigger: true,
-            onClick: () => onShowGc?.(),
-          },
-          {
-            id: "command-plan",
-            label: PALETTE_COMMAND.plan,
-            description: planDescription,
-            keywords: "plan mode planning research",
-            leftSection: <IconRoute size={16} />,
-            onClick: () => onTogglePlanMode(!planEnabled),
-          },
-          {
-            id: "command-new",
-            label: PALETTE_COMMAND.newSession,
-            description: newDescription,
-            keywords: "new session start",
-            leftSection: <IconPlus size={16} />,
-            disabled: !activeProject,
-            onClick: () => {
-              if (activeProject) onNewSession(activeProject);
-            },
-          },
-          {
-            id: "command-fork",
-            label: PALETTE_COMMAND.fork,
-            description: FORK_DESCRIPTION,
-            keywords: "fork copy duplicate branch",
-            leftSection: <IconGitFork size={16} />,
-            onClick: onFork,
-          },
-          {
-            id: "command-tools",
-            label: PALETTE_COMMAND.tools,
-            description: "Inspect available tools across built-in, custom, MCP, and xdev",
-            keywords: "tools inspect mcp custom xdev parameters schema",
-            leftSection: <IconTools size={16} color="var(--mantine-color-teal-4)" />,
-            onClick: () => handleOpenDrawer(onOpenTools),
-          },
-          {
-            id: "command-force",
-            label: PALETTE_COMMAND.force,
-            description: "Force the agent to use a specific tool on the next turn",
-            keywords: "force tool choice override hammer",
-            leftSection: <IconBolt size={16} color="var(--mantine-color-cyan-4)" />,
-            closeSpotlightOnTrigger: false,
-            onClick: () => onQueryChange(`${PALETTE_COMMAND.force} `),
-          },
-          {
-            id: "command-rules",
-            label: PALETTE_COMMAND.rules,
-            description: "View and manage active stream rules (TTSR) across project and global",
-            keywords: "rules stream ttsr regex conditions manage",
-            leftSection: <IconShieldCheck size={16} color="var(--mantine-color-orange-4)" />,
-            onClick: () => handleOpenDrawer(onOpenRules),
-          },
-          {
-            id: "command-jobs",
-            label: PALETTE_COMMAND.jobs,
-            description: "Inspect active background jobs and worker pools",
-            keywords: "jobs background async workers subagents cancel",
-            leftSection: <IconStack2 size={16} color="var(--mantine-color-cyan-4)" />,
-            onClick: () => handleOpenDrawer(onOpenJobs),
-          },
-          {
-            id: "command-ps",
-            label: PALETTE_COMMAND.ps,
-            description: "Manage supervised processes, send signals, and inspect daemons",
-            keywords: "ps processes daemons services supervisor signal restart stop",
-            leftSection: <IconTerminal2 size={16} color="var(--mantine-color-teal-4)" />,
-            onClick: () => handleOpenDrawer(onOpenProcesses),
-          },
-          {
-            id: "command-branch",
-            description:
-              branchPoints.length > 0
-                ? `Restart from one of ${branchPoints.length} earlier messages`
-                : "No user messages to branch from",
-            keywords: "branch rewind edit message",
-            leftSection: <IconGitBranch size={16} />,
-            closeSpotlightOnTrigger: false,
-            onClick: () => onQueryChange(`${PALETTE_COMMAND.branch} `),
-          },
-          {
-            id: "command-stop",
-            label: PALETTE_COMMAND.stop,
-            description:
-              liveSessions.length > 0
-                ? `Release a live session (${liveSessions.length} running)`
-                : "No sessions are live",
-            keywords: "stop halt release live",
-            leftSection: <IconPlayerStopFilled size={16} />,
-            closeSpotlightOnTrigger: false,
-            onClick: () => onQueryChange(`${PALETTE_COMMAND.stop} `),
-          },
-          {
-            id: "command-delete",
-            label: PALETTE_COMMAND.delete,
-            description: "Delete a session and its artifacts from disk",
-            keywords: "delete remove rm erase",
-            leftSection: <IconTrash size={16} />,
-            closeSpotlightOnTrigger: false,
-            onClick: () => onQueryChange(`${PALETTE_COMMAND.delete} `),
-          },
-          {
-            id: "command-file",
-            label: PALETTE_COMMAND.file,
-            description: activeProject ? `Mention a file from ${activeProject}` : "Pick a workspace first",
-            keywords: "file mention disk workspace path @",
-            leftSection: <IconFile size={16} />,
-            closeSpotlightOnTrigger: false,
-            onClick: () => onQueryChange("@"),
-          },
-          {
-            id: "command-settings",
-            label: PALETTE_COMMAND.settings,
-            description: "Toggle workspace display and notification settings",
-            keywords: "settings preferences thinking tool calls notifications notify yield show hide",
-            leftSection: <IconSettings size={16} />,
-            closeSpotlightOnTrigger: false,
-            onClick: () => onQueryChange(`${PALETTE_COMMAND.settings} `),
-          },
-        ],
+        actions: sortedActions,
       },
       // Listed after the built-ins and only when a server actually published
       // something, so a session without MCP shows no empty heading.
@@ -1037,41 +1068,45 @@ export function CommandPalette({
                 // searchable; the rest lets "mcp" or "prompt" find them all.
                 keywords: `mcp prompt ${command.name.replace(/[:_-]+/gu, " ")}`,
                 leftSection: <IconPlugConnected size={16} />,
-                onClick: () => onPickCommand(command.name),
+                onClick: () => {
+                  recordCommandUsage(`mcp-${command.name}`);
+                  onPickCommand(command.name);
+                },
               })),
             },
           ]
         : []),
-    ],
-    [
-      sessionKey,
-      activeProject,
-      liveSessions,
-      onQueryChange,
-      state,
-      branchPoints,
-      planEnabled,
-      abortDescription,
-      planDescription,
-      newDescription,
-      onRetry,
-      onAbort,
-      onTogglePlanMode,
-      onNewSession,
-      onFork,
-      mcpCommands,
-      onPickCommand,
-      handleOpenDrawer,
-      onOpenMcp,
-      onOpenTools,
-      onOpenRules,
-      onOpenJobs,
-      onOpenProcesses,
-      onShowWorktrees,
-      onCreateWorktree,
-      onShowGc,
-    ],
-  );
+    ];
+  }, [
+    recentCommandIds,
+    recordCommandUsage,
+    sessionKey,
+    activeProject,
+    liveSessions,
+    onQueryChange,
+    state,
+    branchPoints,
+    planEnabled,
+    abortDescription,
+    planDescription,
+    newDescription,
+    onRetry,
+    onAbort,
+    onTogglePlanMode,
+    onNewSession,
+    onFork,
+    mcpCommands,
+    onPickCommand,
+    handleOpenDrawer,
+    onOpenMcp,
+    onOpenTools,
+    onOpenRules,
+    onOpenJobs,
+    onOpenProcesses,
+    onShowWorktrees,
+    onCreateWorktree,
+    onShowGc,
+  ]);
 
   /** `/switch`: recently used models first, then every model by provider. */
   const modelActions = useMemo<PaletteAction[]>(() => {
@@ -1108,33 +1143,54 @@ export function CommandPalette({
     return groups;
   }, [models, recentModels, onSelectModel]);
 
-  /** `/cd`: every workspace with its sessions under it, as the nav tree had them. */
+  /** `/cd`: top 5 most recently used sessions first, then every workspace with its sessions under it. */
   const projectActions = useMemo<PaletteAction[]>(() => {
-    const groups: PaletteAction[] = workspaces.map(workspace => ({
-      group: `${workspace.name} — ${workspace.cwd}`,
-      actions: [
-        {
-          id: `cd-${workspace.cwd}`,
-          label: workspace.name,
-          description: `${workspace.cwd} · ${workspace.sessions.length} session${workspace.sessions.length === 1 ? "" : "s"}`,
-          keywords: [workspace.cwd, "workspace", "project", "cd"],
-          leftSection: <IconFolderSymlink size={16} />,
-          onClick: () => onSelectProject(workspace.cwd),
-        },
-        {
-          id: `new-${workspace.cwd}`,
-          label: "New session",
-          description: workspace.exists ? workspace.cwd : `${workspace.cwd} (directory is gone)`,
-          keywords: [workspace.cwd, workspace.name, "new", "start"],
-          leftSection: <IconPlus size={16} />,
-          disabled: !workspace.exists,
-          onClick: () => onNewSession(workspace.cwd),
-        },
-        ...workspace.sessions.map(session =>
-          sessionRow(session, "session-", [workspace.cwd, workspace.name]),
+    const allSessions = workspaces.flatMap(workspace =>
+      workspace.sessions.map(session => ({ session, workspace })),
+    );
+    const recentSessions = allSessions
+      .sort((a, b) => (Date.parse(b.session.modified) || 0) - (Date.parse(a.session.modified) || 0))
+      .slice(0, 5);
+
+    const groups: PaletteAction[] = [];
+
+    // Prepend top 5 most recently used sessions across all workspaces
+    if (recentSessions.length > 0) {
+      groups.push({
+        group: "Recent Sessions",
+        actions: recentSessions.map(({ session, workspace }) =>
+          sessionRow(session, "recent-session-", [workspace.cwd, workspace.name, "recent", "recent session"]),
         ),
-      ],
-    }));
+      });
+    }
+
+    for (const workspace of workspaces) {
+      groups.push({
+        group: `${workspace.name} — ${workspace.cwd}`,
+        actions: [
+          {
+            id: `cd-${workspace.cwd}`,
+            label: workspace.name,
+            description: `${workspace.cwd} · ${workspace.sessions.length} session${workspace.sessions.length === 1 ? "" : "s"}`,
+            keywords: [workspace.cwd, "workspace", "project", "cd"],
+            leftSection: <IconFolderSymlink size={16} />,
+            onClick: () => onSelectProject(workspace.cwd),
+          },
+          {
+            id: `new-${workspace.cwd}`,
+            label: "New session",
+            description: workspace.exists ? workspace.cwd : `${workspace.cwd} (directory is gone)`,
+            keywords: [workspace.cwd, workspace.name, "new", "start"],
+            leftSection: <IconPlus size={16} />,
+            disabled: !workspace.exists,
+            onClick: () => onNewSession(workspace.cwd),
+          },
+          ...workspace.sessions.map(session =>
+            sessionRow(session, "session-", [workspace.cwd, workspace.name]),
+          ),
+        ],
+      });
+    }
 
     groups.push({
       group: "Workspaces",
@@ -1152,7 +1208,6 @@ export function CommandPalette({
 
     return groups;
   }, [workspaces, onSelectProject, onNewSession, onAddWorkspace, sessionRow]);
-
   /** `/resume`: only the sessions of the workspace currently open. */
   const sessionActions = useMemo<PaletteAction[]>(() => {
     const workspace = workspaces.find(candidate => candidate.cwd === activeProject);
