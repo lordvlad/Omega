@@ -16,6 +16,7 @@ import {
   Stack,
   Text,
   TextInput,
+  Switch,
   ThemeIcon,
   Tooltip,
 } from "@mantine/core";
@@ -26,6 +27,8 @@ import {
   IconPlugConnected,
   IconPlus,
   IconRefresh,
+  IconSearch,
+  IconTools,
   IconTrash,
   IconX,
 } from "@tabler/icons-react";
@@ -38,6 +41,7 @@ import type {
   RemoveMcpServerRequest,
   TestMcpServerRequest,
   TestMcpServerResult,
+  ToggleMcpServerRequest,
 } from "../api/model.ts";
 
 export interface McpPanelProps {
@@ -46,6 +50,7 @@ export interface McpPanelProps {
   onAddServer: (req: AddMcpServerRequest) => Promise<void>;
   onRemoveServer: (req: RemoveMcpServerRequest) => Promise<void>;
   onTestServer: (req: TestMcpServerRequest) => Promise<TestMcpServerResult>;
+  onToggleServer?: (req: ToggleMcpServerRequest) => Promise<void>;
   onRefresh?: () => void;
   onClose?: () => void;
 }
@@ -56,10 +61,14 @@ export function McpPanel({
   onAddServer,
   onRemoveServer,
   onTestServer,
+  onToggleServer,
   onRefresh,
   onClose,
 }: McpPanelProps): React.ReactNode {
+  const [filterQuery, setFilterQuery] = useState("");
   const [showAdd, setShowAdd] = useState(false);
+  const [togglingName, setTogglingName] = useState<string | null>(null);
+  const [testingAll, setTestingAll] = useState(false);
   const [addName, setAddName] = useState("");
   const [addScope, setAddScope] = useState<McpServerScope>("project");
   const [addCommand, setAddCommand] = useState("");
@@ -90,6 +99,73 @@ export function McpPanel({
       }
     } finally {
       setTestingName(null);
+    }
+  };
+
+  const handleToggle = async (server: McpServerInfo, targetDisabled: boolean): Promise<void> => {
+    if (!onToggleServer) return;
+    setTogglingName(server.name);
+    try {
+      await onToggleServer({
+        name: server.name,
+        scope: server.scope,
+        disabled: targetDisabled,
+      });
+      notifications.show({
+        color: targetDisabled ? "gray" : "teal",
+        title: `Server "${server.name}" ${targetDisabled ? "disabled" : "enabled"}`,
+        message: `Updated in ${server.scope} configuration.`,
+      });
+      onRefresh?.();
+    } catch (error) {
+      notifications.show({
+        color: "red",
+        title: `Failed to toggle "${server.name}"`,
+        message: error instanceof Error ? error.message : "Error updating server state.",
+      });
+    } finally {
+      setTogglingName(null);
+    }
+  };
+
+  const handleTestAll = async (): Promise<void> => {
+    if (servers.length === 0) return;
+    setTestingAll(true);
+    try {
+      const results = await Promise.all(
+        servers.map(async s => {
+          try {
+            const res = await onTestServer({ name: s.name, scope: s.scope });
+            return { name: s.name, res };
+          } catch (err) {
+            return {
+              name: s.name,
+              res: {
+                name: s.name,
+                ok: false,
+                latencyMs: 0,
+                tools: [],
+                error: err instanceof Error ? err.message : "Failed",
+              },
+            };
+          }
+        }),
+      );
+      setTestResults(prev => {
+        const next = { ...prev };
+        for (const item of results) {
+          next[item.name] = item.res;
+        }
+        return next;
+      });
+      const healthy = results.filter(r => r.res.ok).length;
+      notifications.show({
+        color: healthy === servers.length ? "teal" : "yellow",
+        title: `Tested ${servers.length} MCP servers`,
+        message: `${healthy}/${servers.length} servers healthy.`,
+      });
+    } finally {
+      setTestingAll(false);
     }
   };
 
@@ -169,15 +245,29 @@ export function McpPanel({
             <Text size="xs" fw={700} c="dimmed" tt="uppercase">
               Configured Servers
             </Text>
-            <Button
-              size="xs"
-              variant={showAdd ? "subtle" : "light"}
-              color="cyan"
-              leftSection={<IconPlus size={14} />}
-              onClick={() => setShowAdd(prev => !prev)}
-            >
-              {showAdd ? "Cancel" : "Add Server"}
-            </Button>
+            <Group gap="xs" wrap="nowrap">
+              {servers.length > 1 ? (
+                <Button
+                  size="xs"
+                  variant="subtle"
+                  color="cyan"
+                  loading={testingAll}
+                  leftSection={<IconRefresh size={14} />}
+                  onClick={handleTestAll}
+                >
+                  Test All
+                </Button>
+              ) : null}
+              <Button
+                size="xs"
+                variant={showAdd ? "subtle" : "light"}
+                color="cyan"
+                leftSection={<IconPlus size={14} />}
+                onClick={() => setShowAdd(prev => !prev)}
+              >
+                {showAdd ? "Cancel" : "Add Server"}
+              </Button>
+            </Group>
           </Group>
 
           <Collapse expanded={showAdd}>
@@ -252,6 +342,28 @@ export function McpPanel({
             </Card>
           </Collapse>
 
+          {servers.length > 2 ? (
+            <TextInput
+              size="xs"
+              placeholder="Filter servers by name, command, or url..."
+              leftSection={<IconSearch size={14} />}
+              value={filterQuery}
+              onChange={e => setFilterQuery(e.currentTarget.value)}
+              rightSection={
+                filterQuery ? (
+                  <ActionIcon
+                    size="xs"
+                    variant="subtle"
+                    onClick={() => setFilterQuery("")}
+                    aria-label="Clear filter"
+                  >
+                    <IconX size={12} />
+                  </ActionIcon>
+                ) : null
+              }
+            />
+          ) : null}
+
           {loading ? (
             <Stack align="center" justify="center" py="xl">
               <Loader size="sm" color="cyan" />
@@ -268,111 +380,156 @@ export function McpPanel({
             </Stack>
           ) : (
             <Stack gap="sm">
-              {servers.map(server => {
-                const isTesting = testingName === server.name;
-                const testResult = testResults[server.name];
+              {servers
+                .filter(s => {
+                  if (!filterQuery.trim()) return true;
+                  const q = filterQuery.toLowerCase();
+                  return (
+                    s.name.toLowerCase().includes(q) ||
+                    s.scope.toLowerCase().includes(q) ||
+                    (s.command && s.command.toLowerCase().includes(q)) ||
+                    (s.url && s.url.toLowerCase().includes(q))
+                  );
+                })
+                .map(server => {
+                  const isTesting = testingName === server.name || testingAll;
+                  const isToggling = togglingName === server.name;
+                  const testResult = testResults[server.name];
 
-                return (
-                  <Card key={`${server.scope}-${server.name}`} withBorder radius="md" p="sm" shadow="xs">
-                    <Stack gap="xs">
-                      <Group justify="space-between" align="center" wrap="nowrap">
-                        <Group gap="xs" wrap="nowrap">
-                          <Text size="xs" fw={700}>
-                            {server.name}
-                          </Text>
-                          <Badge
-                            size="xs"
-                            variant="light"
-                            color={server.scope === "project" ? "cyan" : "plum"}
-                          >
-                            {server.scope}
-                          </Badge>
-                          <Badge size="xs" variant="outline" color={server.disabled ? "gray" : "teal"}>
-                            {server.disabled ? "disabled" : "configured"}
-                          </Badge>
-                        </Group>
-
-                        <Group gap={6} wrap="nowrap">
-                          <Button
-                            size="compact-xs"
-                            variant="light"
-                            color="cyan"
-                            loading={isTesting}
-                            leftSection={<IconRefresh size={12} />}
-                            onClick={() => handleTest(server)}
-                          >
-                            Test
-                          </Button>
-                          <Tooltip label="Remove from config">
-                            <ActionIcon
+                  return (
+                    <Card key={`${server.scope}-${server.name}`} withBorder radius="md" p="sm" shadow="xs">
+                      <Stack gap="xs">
+                        <Group justify="space-between" align="center" wrap="nowrap">
+                          <Group gap="xs" wrap="nowrap">
+                            <Text size="xs" fw={700}>
+                              {server.name}
+                            </Text>
+                            <Badge
                               size="xs"
-                              variant="subtle"
-                              color="red"
-                              onClick={() => handleRemove(server)}
-                              aria-label={`Remove ${server.name}`}
+                              variant="light"
+                              color={server.scope === "project" ? "cyan" : "plum"}
                             >
-                              <IconTrash size={14} />
-                            </ActionIcon>
-                          </Tooltip>
-                        </Group>
-                      </Group>
+                              {server.scope}
+                            </Badge>
+                            <Badge size="xs" variant="outline" color={server.disabled ? "gray" : "teal"}>
+                              {server.disabled ? "disabled" : "configured"}
+                            </Badge>
+                          </Group>
 
-                      {server.command ? (
-                        <Group gap={4} wrap="nowrap">
-                          <Text size="xs" c="dimmed">
-                            Command:
-                          </Text>
-                          <Code style={{ fontSize: "11px" }}>
-                            {[server.command, ...(server.args ?? [])].join(" ")}
-                          </Code>
-                        </Group>
-                      ) : null}
-
-                      {server.url ? (
-                        <Group gap={4} wrap="nowrap">
-                          <Text size="xs" c="dimmed">
-                            URL:
-                          </Text>
-                          <Code style={{ fontSize: "11px" }}>{server.url}</Code>
-                        </Group>
-                      ) : null}
-
-                      {testResult ? (
-                        <Box pt={4} style={{ borderTop: "1px solid var(--omega-line)" }}>
-                          <Group justify="space-between" align="center">
-                            <Group gap={6}>
-                              {testResult.ok ? (
-                                <Badge
+                          <Group gap={8} wrap="nowrap">
+                            {onToggleServer ? (
+                              <Tooltip label={server.disabled ? "Enable server" : "Disable server"}>
+                                <Switch
                                   size="xs"
                                   color="teal"
-                                  variant="filled"
-                                  leftSection={<IconCheck size={10} />}
-                                >
-                                  Connected ({testResult.latencyMs}ms)
-                                </Badge>
-                              ) : (
-                                <Badge
-                                  size="xs"
-                                  color="red"
-                                  variant="filled"
-                                  leftSection={<IconAlertTriangle size={10} />}
-                                >
-                                  Failed
-                                </Badge>
-                              )}
-                            </Group>
-                            {testResult.error ? (
-                              <Text size="xs" c="red.4">
-                                {testResult.error}
-                              </Text>
+                                  checked={!server.disabled}
+                                  disabled={isToggling}
+                                  onChange={e => handleToggle(server, !e.currentTarget.checked)}
+                                  aria-label={`Toggle ${server.name}`}
+                                />
+                              </Tooltip>
                             ) : null}
+                            <Button
+                              size="compact-xs"
+                              variant="light"
+                              color="cyan"
+                              loading={isTesting}
+                              leftSection={<IconRefresh size={12} />}
+                              onClick={() => handleTest(server)}
+                            >
+                              Test
+                            </Button>
+                            <Tooltip label="Remove from config">
+                              <ActionIcon
+                                size="xs"
+                                variant="subtle"
+                                color="red"
+                                onClick={() => handleRemove(server)}
+                                aria-label={`Remove ${server.name}`}
+                              >
+                                <IconTrash size={14} />
+                              </ActionIcon>
+                            </Tooltip>
                           </Group>
-                        </Box>
-                      ) : null}
-                    </Stack>
-                  </Card>
-                );
-              })}
+                        </Group>
+
+                        {server.command ? (
+                          <Group gap={4} wrap="nowrap">
+                            <Text size="xs" c="dimmed">
+                              Command:
+                            </Text>
+                            <Code style={{ fontSize: "11px" }}>
+                              {[server.command, ...(server.args ?? [])].join(" ")}
+                            </Code>
+                          </Group>
+                        ) : null}
+
+                        {server.url ? (
+                          <Group gap={4} wrap="nowrap">
+                            <Text size="xs" c="dimmed">
+                              URL:
+                            </Text>
+                            <Code style={{ fontSize: "11px" }}>{server.url}</Code>
+                          </Group>
+                        ) : null}
+
+                        {testResult ? (
+                          <Stack gap={4} pt={4} style={{ borderTop: "1px solid var(--omega-line)" }}>
+                            <Group justify="space-between" align="center">
+                              <Group gap={6}>
+                                {testResult.ok ? (
+                                  <Badge
+                                    size="xs"
+                                    color="teal"
+                                    variant="filled"
+                                    leftSection={<IconCheck size={10} />}
+                                  >
+                                    Connected ({testResult.latencyMs}ms)
+                                  </Badge>
+                                ) : (
+                                  <Badge
+                                    size="xs"
+                                    color="red"
+                                    variant="filled"
+                                    leftSection={<IconAlertTriangle size={10} />}
+                                  >
+                                    Failed
+                                  </Badge>
+                                )}
+                              </Group>
+                              {testResult.error ? (
+                                <Text size="xs" c="red.4">
+                                  {testResult.error}
+                                </Text>
+                              ) : null}
+                            </Group>
+
+                            {testResult.ok && testResult.tools && testResult.tools.length > 0 ? (
+                              <Stack gap={4} pt={2}>
+                                <Text size="xs" fw={600} c="dimmed">
+                                  Exposed Tools ({testResult.tools.length}):
+                                </Text>
+                                <Group gap={4} wrap="wrap">
+                                  {testResult.tools.map(tool => (
+                                    <Badge
+                                      key={tool}
+                                      size="xs"
+                                      variant="light"
+                                      color="cyan"
+                                      leftSection={<IconTools size={10} />}
+                                    >
+                                      {tool}
+                                    </Badge>
+                                  ))}
+                                </Group>
+                              </Stack>
+                            ) : null}
+                          </Stack>
+                        ) : null}
+                      </Stack>
+                    </Card>
+                  );
+                })}
             </Stack>
           )}
         </Stack>

@@ -9,6 +9,7 @@ import {
   readDisabledServers,
   readMCPConfigFile,
   removeMCPServer,
+  setServerDisabled,
   updateMCPServer,
 } from "@oh-my-pi/pi-coding-agent/mcp/config-writer";
 import type { MCPServerConfig } from "@oh-my-pi/pi-coding-agent/mcp/types";
@@ -22,6 +23,7 @@ import type {
   RemoveMcpServerRequest,
   TestMcpServerRequest,
   TestMcpServerResult,
+  ToggleMcpServerRequest,
 } from "../shared/model.ts";
 
 /**
@@ -200,4 +202,24 @@ export async function removeMcpServerConfig(
 
   await removeMCPServer(configPath, name);
   return { ok: true, detail: `Removed MCP server "${name}" from ${request.scope} config.` };
+}
+
+/**
+ * Enable or disable an MCP server in project or global config.
+ */
+export async function toggleMcpServerConfig(
+  cwd: string | undefined,
+  request: ToggleMcpServerRequest,
+): Promise<Ack> {
+  const name = request.name.trim();
+  if (!name) throw new Error("Server name is required.");
+
+  const scope = request.scope === "global" ? "user" : "project";
+  const configPath = getMCPConfigPath(scope, cwd);
+
+  await setServerDisabled(configPath, name, request.disabled);
+  return {
+    ok: true,
+    detail: `Server "${name}" in ${request.scope ?? scope} config is now ${request.disabled ? "disabled" : "enabled"}.`,
+  };
 }
