@@ -45,6 +45,7 @@ import {
 import React, { useState } from "react";
 
 import type { ActiveSessionOverview } from "../api/model.ts";
+import { useSpinning } from "../lib/useSpinning.ts";
 
 export interface MultiSessionOverviewProps {
   opened: boolean;
@@ -113,6 +114,7 @@ export function MultiSessionOverview({
   onStopSession,
   onRefresh,
 }: MultiSessionOverviewProps): React.ReactNode {
+  const isSpinning = useSpinning(loading);
   const [filterQuery, setFilterQuery] = useState("");
 
   const filteredSessions = activeSessions.filter(s => {
@@ -191,11 +193,11 @@ export function MultiSessionOverview({
                   size="md"
                   variant="subtle"
                   color="cyan"
-                  loading={loading}
+                  disabled={isSpinning}
                   onClick={onRefresh}
                   aria-label="Refresh active sessions"
                 >
-                  <IconRefresh size={18} />
+                  <IconRefresh size={18} className={isSpinning ? "omega-spin" : undefined} />
                 </ActionIcon>
               </Tooltip>
             ) : null}

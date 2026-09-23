@@ -472,7 +472,7 @@ export function App() {
   const dismissSurface = useDismissSurface();
   const activeSessions = useListActiveSessions(undefined, {
     enabled: overviewOpen,
-    refetchInterval: overviewOpen ? 3_000 : false,
+    refetchInterval: overviewOpen ? 10_000 : false,
   });
   const toolsQuery = useListTools({ path: { key: sessionKey ?? "" } }, { enabled: Boolean(sessionKey) });
   const rulesQuery = useListRules({ path: { key: sessionKey ?? "" } }, { enabled: Boolean(sessionKey) });

@@ -460,11 +460,16 @@ body {
   pointer-events: none;
 }
 
+.omega-spin,
 .omega-pull-spin {
-  animation: omega-pull-spin 700ms linear infinite;
+  animation: omega-spin 750ms linear infinite;
+  transform-origin: center;
 }
 
-@keyframes omega-pull-spin {
+@keyframes omega-spin {
+  from {
+    transform: rotate(0deg);
+  }
   to {
     transform: rotate(360deg);
   }
