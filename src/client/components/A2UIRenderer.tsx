@@ -347,7 +347,7 @@ export function A2UIRenderer({ surface, onAction, onUpdateData }: A2UIRendererPr
             size={variant === "caption" ? "xs" : "sm"}
             c={variant === "caption" ? "dimmed" : undefined}
             fw={variant === "heading" ? 600 : undefined}
-            style={style}
+            style={{ whiteSpace: "pre-wrap", ...style }}
           >
             {textVal ?? ""}
           </Text>

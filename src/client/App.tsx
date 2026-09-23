@@ -2477,6 +2477,8 @@ export function App() {
         onShowWorktrees={() => handleSend("/worktrees", undefined, undefined)}
         onCreateWorktree={arg => handleSend(arg ? `/wt ${arg}` : "/wt", undefined, undefined)}
         onShowGc={() => handleSend("/gc", undefined, undefined)}
+        onShowChangelog={full => handleSend(full ? "/changelog full" : "/changelog", undefined, undefined)}
+        onShowSessionInfo={() => handleSend("/session", undefined, undefined)}
         onTogglePlanMode={handleSetPlanMode}
         onFork={handleFork}
         onBranch={point => handleBranch(point.entryId)}

@@ -59,8 +59,10 @@ import {
   IconGitBranch,
   IconGitFork,
   IconHistory,
+  IconInfoCircle,
   IconMessage,
   IconMessageQuestion,
+  IconNews,
   IconPencil,
   IconPlayerPlayFilled,
   IconPlayerStopFilled,
@@ -118,6 +120,8 @@ export const PALETTE_COMMAND = {
   omfg: "/omfg",
   todo: "/todo",
   mcp: "/mcp",
+  sessionInfo: "/session",
+  changelog: "/changelog",
   cost: "/cost",
   stats: "/stats",
   usage: "/usage",
@@ -177,6 +181,8 @@ const COMMAND_SPEC: Record<
     placeholder: "Describe what the agent got wrong to generate a rule…",
     termIsInput: true,
   },
+  "/changelog": { kind: "run", placeholder: "View recent releases or /changelog full…" },
+  "/session": { kind: "scope", placeholder: "Inspect session details, /session info, /session delete…" },
   "/mcp": { kind: "scope", placeholder: "Manage and configure MCP servers…" },
   "/cost": { kind: "run", placeholder: "Render token economics and cost breakdown…" },
   "/stats": { kind: "run", placeholder: "Render session performance and latency stats…" },
@@ -465,6 +471,8 @@ export interface CommandPaletteProps {
   onShowWorktrees?: () => void;
   onCreateWorktree?: (arg: string) => void;
   onShowGc?: () => void;
+  onShowChangelog?: (full?: boolean) => void;
+  onShowSessionInfo?: () => void;
   onAbort: () => void;
   onTogglePlanMode: (enabled: boolean) => void;
   onFork: () => void;
@@ -544,6 +552,8 @@ export function CommandPalette({
   onShowWorktrees,
   onCreateWorktree,
   onShowGc,
+  onShowChangelog,
+  onShowSessionInfo,
   onOmfg,
   onFork,
   onBranch,
@@ -785,6 +795,26 @@ export function CommandPalette({
             keywords: "mcp servers plugins tools manage add test",
             leftSection: <IconPlugConnected size={16} color="var(--mantine-color-cyan-4)" />,
             onClick: () => handleOpenDrawer(onOpenMcp),
+          },
+          {
+            id: "command-session-info",
+            label: PALETTE_COMMAND.sessionInfo,
+            description: sessionKey
+              ? "Inspect active session identity, storage path, model, and runtime"
+              : "Open a session first",
+            keywords: "session info details properties status model path id",
+            leftSection: <IconInfoCircle size={16} color="var(--mantine-color-teal-4)" />,
+            closeSpotlightOnTrigger: true,
+            onClick: () => onShowSessionInfo?.(),
+          },
+          {
+            id: "command-changelog",
+            label: PALETTE_COMMAND.changelog,
+            description: "Render release highlights, recent changes, and version notes",
+            keywords: "changelog release notes news updates version what's new",
+            leftSection: <IconNews size={16} color="var(--mantine-color-cyan-4)" />,
+            closeSpotlightOnTrigger: true,
+            onClick: () => onShowChangelog?.(false),
           },
           {
             id: "command-abort",
@@ -1516,6 +1546,75 @@ export function CommandPalette({
       },
     ];
   }, [mcpServersList, handleOpenDrawer, onOpenMcp, onToggleMcp, onTestMcp]);
+  /** `/changelog`: release notes viewer. */
+  const changelogActions = useMemo<PaletteAction[]>(
+    () => [
+      {
+        group: "Release Changelog",
+        actions: [
+          {
+            id: "changelog-recent",
+            label: PALETTE_COMMAND.changelog,
+            description: "View recent release highlights and change summaries",
+            keywords: "changelog recent releases what's new updates",
+            leftSection: <IconNews size={16} color="var(--mantine-color-cyan-4)" />,
+            closeSpotlightOnTrigger: true,
+            onClick: () => onShowChangelog?.(false),
+          },
+          {
+            id: "changelog-full",
+            label: `${PALETTE_COMMAND.changelog} full`,
+            description: "View complete changelog across all releases",
+            keywords: "changelog full all history releases",
+            leftSection: <IconNews size={16} color="var(--mantine-color-plum-4)" />,
+            closeSpotlightOnTrigger: true,
+            onClick: () => onShowChangelog?.(true),
+          },
+        ],
+      },
+    ],
+    [onShowChangelog],
+  );
+
+  /** `/session`: session details and actions. */
+  const sessionInfoActions = useMemo<PaletteAction[]>(
+    () => [
+      {
+        group: "Session Management",
+        actions: [
+          {
+            id: "session-show-info",
+            label: "/session info",
+            description: "Render session details, storage path, model, and runtime economics",
+            keywords: "session info details properties path model id",
+            leftSection: <IconInfoCircle size={16} color="var(--mantine-color-teal-4)" />,
+            closeSpotlightOnTrigger: true,
+            onClick: () => onShowSessionInfo?.(),
+          },
+          {
+            id: "session-rename-quick",
+            label: "/rename",
+            description: `Change this session's title${state?.title ? ` (now “${state.title}”)` : ""}`,
+            keywords: "rename title session name",
+            leftSection: <IconPencil size={16} color="var(--mantine-color-cyan-4)" />,
+            closeSpotlightOnTrigger: false,
+            onClick: () => onQueryChange(`${PALETTE_COMMAND.rename} `),
+          },
+          {
+            id: "session-compact-quick",
+            label: "/compact",
+            description: "Summarize conversation history into a concise checkpoint",
+            keywords: "compact summarize shrink context",
+            leftSection: <IconArchive size={16} color="var(--mantine-color-plum-4)" />,
+            closeSpotlightOnTrigger: false,
+            onClick: () => onQueryChange(`${PALETTE_COMMAND.compact} `),
+          },
+        ],
+      },
+    ],
+    [state?.title, onShowSessionInfo, onQueryChange],
+  );
+
   const costActions = useMemo<PaletteAction[]>(
     () => [
       {
@@ -1936,6 +2035,8 @@ export function CommandPalette({
     "/omfg": omfgActions,
     "/todo": todoActions,
     "/mcp": mcpServerActions,
+    "/changelog": changelogActions,
+    "/session": sessionInfoActions,
     "/cost": costActions,
     "/stats": statsActions,
     "/context": contextActions,

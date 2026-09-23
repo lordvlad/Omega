@@ -69,6 +69,7 @@ import type {
  * generated client — is a type error here.
  */
 import type { OmpApi } from "../shared/service.ts";
+import { drawChangelogSurface } from "./changelog-surface.ts";
 import { drawContextSurface } from "./context-surface.ts";
 import { listFiles, readFileContent } from "./files.ts";
 import { drawGcSurface } from "./gc-surface.ts";
@@ -93,6 +94,7 @@ import { analyzeOmfgRule, saveOmfgRule } from "./omfg.ts";
 import { planDocument, resolvePlan, writePlan } from "./plan.ts";
 import { dropQueued, editQueued, listQueue } from "./queue.ts";
 import { type LiveSession, registry } from "./registry.ts";
+import { drawSessionInfoSurface } from "./session-surface.ts";
 import { drawCostSurface, drawStatsSurface, drawUsageSurface } from "./stats.ts";
 import { mutateSessionTodos } from "./todos.ts";
 import { deleteSessionRule, forceSessionTool, listSessionRules, listSessionTools } from "./tools-rules.ts";
@@ -301,6 +303,15 @@ export class Handlers implements OmpApi {
     if (message === "/gc" || message === "/GC" || message.startsWith("/gc ") || message.startsWith("/GC ")) {
       await drawGcSurface(live);
       return { ok: true, detail: "Storage maintenance completed and rendered." };
+    }
+    if (message === "/changelog" || message.startsWith("/changelog ")) {
+      const isFull = message.slice(10).trim().toLowerCase() === "full";
+      await drawChangelogSurface(live, isFull);
+      return { ok: true, detail: `Changelog (${isFull ? "full" : "recent"}) rendered.` };
+    }
+    if (message === "/session" || message === "/session info" || message.startsWith("/session info")) {
+      await drawSessionInfoSurface(live);
+      return { ok: true, detail: "Session information rendered." };
     }
     if (message === "/todo" || message.startsWith("/todo ")) {
       const rest = message.startsWith("/todo ") ? message.slice(6).trim() : "";
