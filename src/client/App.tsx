@@ -1518,6 +1518,15 @@ export function App() {
       },
     );
   };
+  const handleDispatchAgent = useCallback(
+    async (agent: string, task: string, context?: string): Promise<void> => {
+      const promptText = context
+        ? `Use the task tool to delegate to a "${agent}" agent:\nTask: ${task}\nContext: ${context}`
+        : `Use the task tool to delegate to a "${agent}" agent:\nTask: ${task}`;
+      await handleSend(promptText, undefined, undefined);
+    },
+    [handleSend],
+  );
 
   /**
    * The composer's send, which carries the pending annotations with it.
@@ -2159,6 +2168,9 @@ export function App() {
         <SubagentPanel
           subagents={live.subagents.length > 0 ? live.subagents : (state.data?.subagents ?? [])}
           onClose={closeSubagents}
+          onDispatchAgent={handleDispatchAgent}
+          onCancelSubagent={id => handleCancelJob({ id })}
+          onShowAgentsHub={() => handleSend("/agents", undefined, undefined)}
         />
       </ResizableDrawer>
 
@@ -2479,6 +2491,8 @@ export function App() {
         onShowGc={() => handleSend("/gc", undefined, undefined)}
         onShowChangelog={full => handleSend(full ? "/changelog full" : "/changelog", undefined, undefined)}
         onShowSessionInfo={() => handleSend("/session", undefined, undefined)}
+        onOpenSubagents={openSubagents}
+        onShowAgents={() => handleSend("/agents", undefined, undefined)}
         onTogglePlanMode={handleSetPlanMode}
         onFork={handleFork}
         onBranch={point => handleBranch(point.entryId)}

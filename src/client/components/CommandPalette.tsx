@@ -69,6 +69,7 @@ import {
   IconPlugConnected,
   IconPlus,
   IconRefresh,
+  IconRobot,
   IconRoute,
   IconSearch,
   IconSettings,
@@ -120,6 +121,7 @@ export const PALETTE_COMMAND = {
   omfg: "/omfg",
   todo: "/todo",
   mcp: "/mcp",
+  agents: "/agents",
   sessionInfo: "/session",
   changelog: "/changelog",
   cost: "/cost",
@@ -183,6 +185,7 @@ const COMMAND_SPEC: Record<
   },
   "/changelog": { kind: "run", placeholder: "View recent releases or /changelog full…" },
   "/session": { kind: "scope", placeholder: "Inspect session details, /session info, /session delete…" },
+  "/agents": { kind: "scope", placeholder: "Inspect specialist agents, dispatch scout / reviewer / worker…" },
   "/mcp": { kind: "scope", placeholder: "Manage and configure MCP servers…" },
   "/cost": { kind: "run", placeholder: "Render token economics and cost breakdown…" },
   "/stats": { kind: "run", placeholder: "Render session performance and latency stats…" },
@@ -479,6 +482,8 @@ export interface CommandPaletteProps {
   onBranch: (point: BranchPoint) => void;
   onOpenJobs?: () => void;
   onOpenProcesses?: () => void;
+  onOpenSubagents?: () => void;
+  onShowAgents?: () => void;
   /** Release a live session from the server's memory; the file is kept. */
   onStopSession: (session: SessionSummary) => void;
   /** Erase a session and its artifacts from disk. Confirms before acting. */
@@ -561,7 +566,9 @@ export function CommandPalette({
   onDeleteSession,
   onOpenJobs,
   onOpenProcesses,
-  mcpCommands,
+  onOpenSubagents,
+  onShowAgents,
+  mcpCommands = [],
   onPickCommand,
   onRefreshWorkspaces,
   files = [],
@@ -787,6 +794,15 @@ export function CommandPalette({
             leftSection: <IconChecklist size={16} color="var(--mantine-color-cyan-4)" />,
             closeSpotlightOnTrigger: false,
             onClick: () => handleOpenDrawer(onOpenTodos),
+          },
+          {
+            id: "command-agents",
+            label: PALETTE_COMMAND.agents,
+            description: "Inspect specialist agent roster, tool grants, and dispatch workloads",
+            keywords: "agents subagents hub scout reviewer sonic worker dispatch delegate",
+            leftSection: <IconRobot size={16} color="var(--mantine-color-plum-4)" />,
+            closeSpotlightOnTrigger: true,
+            onClick: () => onShowAgents?.(),
           },
           {
             id: "command-mcp-manage",
@@ -1546,6 +1562,74 @@ export function CommandPalette({
       },
     ];
   }, [mcpServersList, handleOpenDrawer, onOpenMcp, onToggleMcp, onTestMcp]);
+  /** `/agents`: agents hub and delegation actions. */
+  const agentsActions = useMemo<PaletteAction[]>(() => {
+    const termQuery = term.trim();
+    const actions: SpotlightActionData[] = [
+      {
+        id: "agents-open-hub",
+        label: PALETTE_COMMAND.agents,
+        description: "Open the Agents Hub dashboard surface",
+        keywords: "agents hub dashboard overview roles",
+        leftSection: <IconRobot size={16} color="var(--mantine-color-plum-4)" />,
+        closeSpotlightOnTrigger: true,
+        onClick: () => onShowAgents?.(),
+      },
+      {
+        id: "agents-open-subagents",
+        label: "Open Subagents Drawer",
+        description: "View live active and settled subagents spawned in this session",
+        keywords: "agents subagents drawer active running",
+        leftSection: <IconRobot size={16} color="var(--mantine-color-cyan-4)" />,
+        onClick: () => handleOpenDrawer(onOpenSubagents),
+      },
+    ];
+
+    if (termQuery) {
+      actions.push(
+        {
+          id: "agents-dispatch-scout",
+          label: `/agents scout ${termQuery}`,
+          description: `Dispatch a fast read-only SCOUT agent for: "${termQuery}"`,
+          keywords: "scout search research map inspect",
+          leftSection: <IconSearch size={16} color="var(--mantine-color-cyan-4)" />,
+          closeSpotlightOnTrigger: true,
+          onClick: () => {
+            onPickCommand(`task scout "${termQuery}"`);
+          },
+        },
+        {
+          id: "agents-dispatch-reviewer",
+          label: `/agents reviewer ${termQuery}`,
+          description: `Dispatch a REVIEWER agent for: "${termQuery}"`,
+          keywords: "reviewer review code audit inspect",
+          leftSection: <IconCheck size={16} color="var(--mantine-color-plum-4)" />,
+          closeSpotlightOnTrigger: true,
+          onClick: () => {
+            onPickCommand(`task reviewer "${termQuery}"`);
+          },
+        },
+        {
+          id: "agents-dispatch-task",
+          label: `/agents task ${termQuery}`,
+          description: `Dispatch a general-purpose TASK worker for: "${termQuery}"`,
+          keywords: "task worker execute implement build",
+          leftSection: <IconRobot size={16} color="var(--mantine-color-teal-4)" />,
+          closeSpotlightOnTrigger: true,
+          onClick: () => {
+            onPickCommand(`task worker "${termQuery}"`);
+          },
+        },
+      );
+    }
+
+    return [
+      {
+        group: "Agents & Delegation (/agents)",
+        actions,
+      },
+    ];
+  }, [term, onShowAgents, onOpenSubagents, onPickCommand, handleOpenDrawer]);
   /** `/changelog`: release notes viewer. */
   const changelogActions = useMemo<PaletteAction[]>(
     () => [
@@ -2036,6 +2120,7 @@ export function CommandPalette({
     "/todo": todoActions,
     "/mcp": mcpServerActions,
     "/changelog": changelogActions,
+    "/agents": agentsActions,
     "/session": sessionInfoActions,
     "/cost": costActions,
     "/stats": statsActions,

@@ -36,6 +36,7 @@ export const WT_SURFACE_ID = "session-wt";
 export const GC_SURFACE_ID = "session-gc";
 export const CHANGELOG_SURFACE_ID = "session-changelog";
 export const SESSION_SURFACE_ID = "session-info";
+export const AGENTS_SURFACE_ID = "session-agents";
 
 /** True when the surface came from the agent rather than from omega itself. */
 export function isAgentSurface(surfaceId: string): boolean {
@@ -47,7 +48,8 @@ export function isAgentSurface(surfaceId: string): boolean {
     surfaceId !== WT_SURFACE_ID &&
     surfaceId !== GC_SURFACE_ID &&
     surfaceId !== CHANGELOG_SURFACE_ID &&
-    surfaceId !== SESSION_SURFACE_ID
+    surfaceId !== SESSION_SURFACE_ID &&
+    surfaceId !== AGENTS_SURFACE_ID
   );
 }
 

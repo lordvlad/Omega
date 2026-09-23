@@ -41,7 +41,9 @@ function parseReleaseSections(content: string): ReleaseSection[] {
     if (!trimmed) continue;
 
     // Match ### Section headers
-    const catMatch = /^###+\s*(Added|Changed|Fixed|Removed|Deprecated|Security|Breaking Changes.*)/i.exec(trimmed);
+    const catMatch = /^###+\s*(Added|Changed|Fixed|Removed|Deprecated|Security|Breaking Changes.*)/i.exec(
+      trimmed,
+    );
     if (catMatch) {
       if (currentCategory && currentItems.length > 0) {
         sections.push({ category: currentCategory, items: currentItems });

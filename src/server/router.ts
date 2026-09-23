@@ -69,6 +69,7 @@ import type {
  * generated client — is a type error here.
  */
 import type { OmpApi } from "../shared/service.ts";
+import { drawAgentsSurface } from "./agents-surface.ts";
 import { drawChangelogSurface } from "./changelog-surface.ts";
 import { drawContextSurface } from "./context-surface.ts";
 import { listFiles, readFileContent } from "./files.ts";
@@ -312,6 +313,15 @@ export class Handlers implements OmpApi {
     if (message === "/session" || message === "/session info" || message.startsWith("/session info")) {
       await drawSessionInfoSurface(live);
       return { ok: true, detail: "Session information rendered." };
+    }
+    if (
+      message === "/agents" ||
+      message.startsWith("/agents ") ||
+      message === "/hub" ||
+      message.startsWith("/hub ")
+    ) {
+      await drawAgentsSurface(live);
+      return { ok: true, detail: "Agents Hub rendered." };
     }
     if (message === "/todo" || message.startsWith("/todo ")) {
       const rest = message.startsWith("/todo ") ? message.slice(6).trim() : "";
