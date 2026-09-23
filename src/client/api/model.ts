@@ -37,6 +37,34 @@ export interface SessionSummary {
  */
 export type SessionStatus = "complete" | "interrupted" | "aborted" | "error" | "pending" | "unknown";
 
+/** Detailed snapshot of an active live session for the multi-session overview. */
+export interface ActiveSessionOverview {
+  key: string;
+  sessionFile: string;
+  cwd: string;
+  workdir: string;
+  title: string;
+  gitBranch?: string;
+  model: string;
+  modelName: string;
+  thinkingLevel: ThinkingLevel;
+  agentArchetype: string;
+  state: "error" | "streaming" | "idle" | "awaiting_plan";
+  turnCompletedDot: "error" | "streaming" | "idle" | "completed";
+  messageCount: number;
+  assistantTurns: number;
+  totalTokens: number;
+  totalCost: number;
+  totalTodos: number;
+  completedTodos: number;
+  lastError?: string;
+  lastActivityAt: number;
+  idleSeconds: number;
+}
+
+/** omp thinking levels, in ascending order of budget. */
+export type ThinkingLevel = "off" | "minimal" | "low" | "medium" | "high" | "xhigh" | "max";
+
 /** A model the local omp install is authenticated for. */
 export interface ModelOption {
   provider: string;
@@ -112,9 +140,6 @@ export interface LiveState {
   lastError?: string;
 }
 
-/** omp thinking levels, in ascending order of budget. */
-export type ThinkingLevel = "off" | "minimal" | "low" | "medium" | "high" | "xhigh" | "max";
-
 /** Context-window consumption for the live session. */
 export interface ContextUsage {
   tokens: number;
@@ -144,7 +169,7 @@ export interface TodoTask {
 }
 
 /** Lifecycle status of a task in the todo list. */
-export type TodoTaskStatus = "pending" | "in_progress" | "completed" | "abandoned" | "blocked";
+export type TodoTaskStatus = "pending" | "completed" | "in_progress" | "abandoned" | "blocked";
 
 /** A subagent task spawned by the session. */
 export interface SubagentTask {
@@ -415,7 +440,7 @@ export interface MutateTodosRequest {
   action: TodoMutationAction;
   phase?: string;
   task?: string;
-  status?: "pending" | "in_progress" | "completed" | "abandoned" | "blocked";
+  status?: "pending" | "completed" | "in_progress" | "abandoned" | "blocked";
   blocker?: string;
   phases?: TodoPhase[];
   items?: string[];
@@ -469,7 +494,7 @@ export interface ManagedProcessInfo {
 }
 
 /** Process lifecycle state. */
-export type ProcessLifecycleState = "running" | "ready" | "exited" | "idle" | "starting" | "stopped";
+export type ProcessLifecycleState = "idle" | "running" | "ready" | "exited" | "starting" | "stopped";
 
 /** Send a signal to a supervised process. */
 export interface SignalProcessRequest {

@@ -2,7 +2,7 @@
 // React Query options getters and hooks for query operations. Edit the document, not this file.
 
 import { useQuery, type UseQueryOptions } from "@tanstack/react-query";
-import { defaultClient, type Client, type GetFileContentOptions, type GetFileContentResult, type GetGitDiffOptions, type GetGitDiffResult, type GetGitStatusOptions, type GetGitStatusResult, type GetPlanOptions, type GetPlanResult, type GetStateOptions, type GetStateResult, type GetTranscriptOptions, type GetTranscriptResult, type ListBranchPointsOptions, type ListBranchPointsResult, type ListCommandsOptions, type ListCommandsResult, type ListFilesOptions, type ListFilesResult, type ListJobsOptions, type ListJobsResult2, type ListMcpServersOptions, type ListMcpServersResult2, type ListModelsOptions, type ListModelsResult, type ListProcessesOptions, type ListProcessesResult2, type ListQueueOptions, type ListQueueResult, type ListRulesOptions, type ListRulesResult2, type ListToolsOptions, type ListToolsResult2, type ListWorkspacesOptions, type ListWorkspacesResult } from "./api.ts";
+import { defaultClient, type Client, type GetFileContentOptions, type GetFileContentResult, type GetGitDiffOptions, type GetGitDiffResult, type GetGitStatusOptions, type GetGitStatusResult, type GetPlanOptions, type GetPlanResult, type GetStateOptions, type GetStateResult, type GetTranscriptOptions, type GetTranscriptResult, type ListActiveSessionsOptions, type ListActiveSessionsResult, type ListBranchPointsOptions, type ListBranchPointsResult, type ListCommandsOptions, type ListCommandsResult, type ListFilesOptions, type ListFilesResult, type ListJobsOptions, type ListJobsResult2, type ListMcpServersOptions, type ListMcpServersResult2, type ListModelsOptions, type ListModelsResult, type ListProcessesOptions, type ListProcessesResult2, type ListQueueOptions, type ListQueueResult, type ListRulesOptions, type ListRulesResult2, type ListToolsOptions, type ListToolsResult2, type ListWorkspacesOptions, type ListWorkspacesResult } from "./api.ts";
 import { createMutations } from "./mutations.ts";
 
 /**
@@ -36,6 +36,39 @@ export function useListWorkspaces<
   client: Client = defaultClient()
 ) {
   return useQuery(getListWorkspacesQueryOptions(options!, queryOptions, client));
+}
+
+/**
+ * List active live sessions
+ * 
+ * List active live sessions for the multi-session overview.
+ */
+export function getListActiveSessionsQueryOptions<
+  TData = ListActiveSessionsResult,
+  TError = unknown
+>(
+  options?: ListActiveSessionsOptions,
+  queryOptions?: Omit<UseQueryOptions<ListActiveSessionsResult, TError, TData>, "queryKey" | "queryFn">,
+  client: Client = defaultClient()
+) {
+  return {
+    queryKey: ["/api/sessions/active", options] as const,
+    queryFn: ({ signal }: { signal?: AbortSignal }) =>
+      client.listActiveSessions({ ...options, signal } as any),
+    ...queryOptions,
+  };
+}
+
+/** React Query hook for `listActiveSessions`. */
+export function useListActiveSessions<
+  TData = ListActiveSessionsResult,
+  TError = unknown
+>(
+  options?: ListActiveSessionsOptions,
+  queryOptions?: Omit<UseQueryOptions<ListActiveSessionsResult, TError, TData>, "queryKey" | "queryFn">,
+  client: Client = defaultClient()
+) {
+  return useQuery(getListActiveSessionsQueryOptions(options!, queryOptions, client));
 }
 
 /**
@@ -572,6 +605,14 @@ export function createQueries(client: Client = defaultClient()) {
       options?: ListWorkspacesOptions,
       queryOptions?: Omit<UseQueryOptions<ListWorkspacesResult, TError, TData>, "queryKey" | "queryFn">
     ) => useListWorkspaces<TData, TError>(options!, queryOptions, client),
+    getListActiveSessionsQueryOptions: <TData = ListActiveSessionsResult, TError = unknown>(
+      options?: ListActiveSessionsOptions,
+      queryOptions?: Omit<UseQueryOptions<ListActiveSessionsResult, TError, TData>, "queryKey" | "queryFn">
+    ) => getListActiveSessionsQueryOptions<TData, TError>(options!, queryOptions, client),
+    useListActiveSessions: <TData = ListActiveSessionsResult, TError = unknown>(
+      options?: ListActiveSessionsOptions,
+      queryOptions?: Omit<UseQueryOptions<ListActiveSessionsResult, TError, TData>, "queryKey" | "queryFn">
+    ) => useListActiveSessions<TData, TError>(options!, queryOptions, client),
     getListModelsQueryOptions: <TData = ListModelsResult, TError = unknown>(
       options?: ListModelsOptions,
       queryOptions?: Omit<UseQueryOptions<ListModelsResult, TError, TData>, "queryKey" | "queryFn">

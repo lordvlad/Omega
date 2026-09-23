@@ -37,6 +37,32 @@
         }
       }
     },
+    "/api/sessions/active": {
+      "get": {
+        "operationId": "listActiveSessions",
+        "x-service": "OmpApi",
+        "tags": [
+          "OmpApi"
+        ],
+        "summary": "List active live sessions",
+        "description": "List active live sessions for the multi-session overview.",
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ActiveSessionOverview"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/models": {
       "get": {
         "operationId": "listModels",
@@ -2756,6 +2782,148 @@
           }
         ]
       },
+      "ActiveSessionOverview": {
+        "description": "Detailed snapshot of an active live session for the multi-session overview.",
+        "type": "object",
+        "properties": {
+          "key": {
+            "type": "string"
+          },
+          "sessionFile": {
+            "type": "string"
+          },
+          "cwd": {
+            "type": "string"
+          },
+          "workdir": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "gitBranch": {
+            "type": "string"
+          },
+          "model": {
+            "type": "string"
+          },
+          "modelName": {
+            "type": "string"
+          },
+          "thinkingLevel": {
+            "$ref": "#/components/schemas/ThinkingLevel"
+          },
+          "agentArchetype": {
+            "type": "string"
+          },
+          "state": {
+            "anyOf": [
+              {
+                "const": "error"
+              },
+              {
+                "const": "streaming"
+              },
+              {
+                "const": "idle"
+              },
+              {
+                "const": "awaiting_plan"
+              }
+            ]
+          },
+          "turnCompletedDot": {
+            "anyOf": [
+              {
+                "const": "error"
+              },
+              {
+                "const": "streaming"
+              },
+              {
+                "const": "idle"
+              },
+              {
+                "const": "completed"
+              }
+            ]
+          },
+          "messageCount": {
+            "type": "number"
+          },
+          "assistantTurns": {
+            "type": "number"
+          },
+          "totalTokens": {
+            "type": "number"
+          },
+          "totalCost": {
+            "type": "number"
+          },
+          "totalTodos": {
+            "type": "number"
+          },
+          "completedTodos": {
+            "type": "number"
+          },
+          "lastError": {
+            "type": "string"
+          },
+          "lastActivityAt": {
+            "type": "number"
+          },
+          "idleSeconds": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "key",
+          "sessionFile",
+          "cwd",
+          "workdir",
+          "title",
+          "model",
+          "modelName",
+          "thinkingLevel",
+          "agentArchetype",
+          "state",
+          "turnCompletedDot",
+          "messageCount",
+          "assistantTurns",
+          "totalTokens",
+          "totalCost",
+          "totalTodos",
+          "completedTodos",
+          "lastActivityAt",
+          "idleSeconds"
+        ]
+      },
+      "ThinkingLevel": {
+        "description": "omp thinking levels, in ascending order of budget.",
+        "anyOf": [
+          {
+            "const": "off"
+          },
+          {
+            "const": "minimal"
+          },
+          {
+            "const": "low"
+          },
+          {
+            "const": "medium"
+          },
+          {
+            "const": "high"
+          },
+          {
+            "const": "xhigh"
+          },
+          {
+            "const": "max"
+          }
+        ]
+      },
       "ModelOption": {
         "description": "A model the local omp install is authenticated for.",
         "type": "object",
@@ -3068,32 +3236,6 @@
           "queued"
         ]
       },
-      "ThinkingLevel": {
-        "description": "omp thinking levels, in ascending order of budget.",
-        "anyOf": [
-          {
-            "const": "off"
-          },
-          {
-            "const": "minimal"
-          },
-          {
-            "const": "low"
-          },
-          {
-            "const": "medium"
-          },
-          {
-            "const": "high"
-          },
-          {
-            "const": "xhigh"
-          },
-          {
-            "const": "max"
-          }
-        ]
-      },
       "ContextUsage": {
         "description": "Context-window consumption for the live session.",
         "type": "object",
@@ -3187,10 +3329,10 @@
             "const": "pending"
           },
           {
-            "const": "in_progress"
+            "const": "completed"
           },
           {
-            "const": "completed"
+            "const": "in_progress"
           },
           {
             "const": "abandoned"
@@ -4071,10 +4213,10 @@
                 "const": "pending"
               },
               {
-                "const": "in_progress"
+                "const": "completed"
               },
               {
-                "const": "completed"
+                "const": "in_progress"
               },
               {
                 "const": "abandoned"
@@ -4273,6 +4415,9 @@
         "description": "Process lifecycle state.",
         "anyOf": [
           {
+            "const": "idle"
+          },
+          {
             "const": "running"
           },
           {
@@ -4280,9 +4425,6 @@
           },
           {
             "const": "exited"
-          },
-          {
-            "const": "idle"
           },
           {
             "const": "starting"

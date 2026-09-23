@@ -1,4 +1,5 @@
 import * as fs from "node:fs";
+import * as path from "node:path";
 
 /**
  * The live-session registry.
@@ -27,6 +28,7 @@ import {
 
 import type { A2uiMessage } from "../shared/a2ui.ts";
 import type {
+  ActiveSessionOverview,
   LiveState,
   ModelOption,
   PlanState,
@@ -36,6 +38,7 @@ import type {
 } from "../shared/model.ts";
 import { A2uiChannel, createA2uiTools } from "./a2ui.ts";
 import { type AguiFrame, AguiTranslator, custom } from "./agui.ts";
+import { getGitStatus } from "./git.ts";
 /** Frames retained per session so a reconnecting browser can catch up. */
 const REPLAY_LIMIT = 2000;
 
@@ -421,7 +424,7 @@ export class LiveSession {
  * thing that reclaims an abandoned agent and the child processes, MCP
  * connections and eval kernels it owns.
  */
-const IDLE_MINUTES = Number(process.env.OMEGA_IDLE_MINUTES ?? 15);
+const IDLE_MINUTES = Number(process.env.OMEGA_IDLE_MINUTES ?? 60);
 
 /**
  * Longest gap between idle sweeps. A short idle window sweeps proportionally
@@ -450,6 +453,89 @@ export class Registry {
     for (const live of this.#sessions.values()) {
       live.emitCustom(frame);
     }
+  }
+  /** Detailed overview of all currently active/live sessions. */
+  async listActiveSessions(): Promise<ActiveSessionOverview[]> {
+    const active: ActiveSessionOverview[] = [];
+    const now = Date.now();
+
+    for (const [key, live] of this.#sessions) {
+      const state = live.state();
+      const cwd = live.manager.getCwd();
+      const workdir = path.basename(cwd);
+      const title = live.manager.getSessionName() || "Untitled session";
+      const model = live.session.model;
+      const modelName = model?.name || model?.id || "Default model";
+      const thinkingLevel = (live.session.thinkingLevel ?? "off") as ThinkingLevel;
+      const agentArchetype = (live.session as any).agent?.name || "main";
+
+      let assistantTurns = 0;
+      let totalTokens = 0;
+      let totalCost = 0;
+      for (const msg of live.session.messages) {
+        if (msg.role === "assistant") {
+          assistantTurns++;
+          if (msg.usage) {
+            totalTokens += msg.usage.totalTokens;
+            if (msg.usage.cost) totalCost += msg.usage.cost.total;
+          }
+        }
+      }
+
+      const allTodos = state.todos?.flatMap(p => p.tasks) ?? [];
+      const completedTodos = allTodos.filter(t => t.status === "completed").length;
+
+      let gitBranch: string | undefined;
+      try {
+        const gitStatus = await getGitStatus(cwd);
+        gitBranch = gitStatus.branch;
+      } catch {
+        gitBranch = undefined;
+      }
+
+      let sessionState: "streaming" | "idle" | "awaiting_plan" | "error" = "idle";
+      let turnCompletedDot: "completed" | "error" | "streaming" | "idle" = "idle";
+
+      if (live.session.isStreaming) {
+        sessionState = "streaming";
+        turnCompletedDot = "streaming";
+      } else if (state.lastError) {
+        sessionState = "error";
+        turnCompletedDot = "error";
+      } else if (state.plan?.awaitingApproval) {
+        sessionState = "awaiting_plan";
+        turnCompletedDot = "completed";
+      } else if (assistantTurns > 0) {
+        sessionState = "idle";
+        turnCompletedDot = "completed";
+      }
+
+      active.push({
+        key,
+        sessionFile: live.session.sessionFile ?? "",
+        cwd,
+        workdir,
+        title,
+        gitBranch,
+        model: model ? `${model.provider}/${model.id}` : "",
+        modelName,
+        thinkingLevel,
+        agentArchetype,
+        state: sessionState,
+        turnCompletedDot,
+        messageCount: live.session.messages.length,
+        assistantTurns,
+        totalTokens,
+        totalCost,
+        totalTodos: allTodos.length,
+        completedTodos,
+        lastError: state.lastError,
+        lastActivityAt: live.idleFor(now),
+        idleSeconds: Math.round(live.idleFor(now) / 1000),
+      });
+    }
+
+    return active.sort((a, b) => a.lastActivityAt - b.lastActivityAt);
   }
   /**
    * Start the idle sweep. One timer serves every session, so an idle process

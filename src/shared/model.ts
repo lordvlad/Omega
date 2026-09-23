@@ -111,6 +111,30 @@ export interface LiveState {
    */
   lastError?: string;
 }
+/** Detailed snapshot of an active live session for the multi-session overview. */
+export interface ActiveSessionOverview {
+  key: string;
+  sessionFile: string;
+  cwd: string;
+  workdir: string;
+  title: string;
+  gitBranch?: string;
+  model: string;
+  modelName: string;
+  thinkingLevel: ThinkingLevel;
+  agentArchetype: string;
+  state: "streaming" | "idle" | "awaiting_plan" | "error";
+  turnCompletedDot: "completed" | "error" | "streaming" | "idle";
+  messageCount: number;
+  assistantTurns: number;
+  totalTokens: number;
+  totalCost: number;
+  totalTodos: number;
+  completedTodos: number;
+  lastError?: string;
+  lastActivityAt: number;
+  idleSeconds: number;
+}
 
 /** Lifecycle status of a task in the todo list. */
 export type TodoTaskStatus = "pending" | "in_progress" | "completed" | "abandoned" | "blocked";

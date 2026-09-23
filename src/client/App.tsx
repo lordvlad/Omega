@@ -41,6 +41,7 @@ import {
   IconNote,
   IconPencil,
   IconSettings,
+  IconStack2,
   IconTrash,
 } from "@tabler/icons-react";
 import { useQueryClient } from "@tanstack/react-query";
@@ -125,6 +126,7 @@ import {
   useListQueue,
   useListModels,
   useListWorkspaces,
+  useListActiveSessions,
   useGetGitStatus,
   useListFiles,
 } from "./api/queries.ts";
@@ -144,6 +146,7 @@ import { FileTreePanel } from "./components/FileTreePanel.tsx";
 import { FileViewer } from "./components/FileViewer.tsx";
 import { JobsPanel } from "./components/JobsPanel.tsx";
 import { McpPanel } from "./components/McpPanel.tsx";
+import { MultiSessionOverview } from "./components/MultiSessionOverview.tsx";
 import { OmfgPanel } from "./components/OmfgPanel.tsx";
 import { Planning } from "./components/Planning.tsx";
 import { ProcessPanel } from "./components/ProcessPanel.tsx";
@@ -295,6 +298,8 @@ export function App() {
   const [processDrawerOpen, { open: openProcesses, close: closeProcesses }] = useDisclosure(false);
   /** The annotations drawer, opened from the composer's annotation count. */
   const [annotationsOpen, { open: openAnnotations, close: closeAnnotations }] = useDisclosure(false);
+  /** Fullscreen multi-session overview. */
+  const [overviewOpen, { open: openOverview, close: closeOverview }] = useDisclosure(false);
   /**
    * Which surface has a tool armed, if any.
    *
@@ -465,6 +470,10 @@ export function App() {
   const toggleMcp = useToggleMcpServer();
   const mutateTodos = useMutateTodos();
   const dismissSurface = useDismissSurface();
+  const activeSessions = useListActiveSessions(undefined, {
+    enabled: overviewOpen,
+    refetchInterval: overviewOpen ? 3_000 : false,
+  });
   const toolsQuery = useListTools({ path: { key: sessionKey ?? "" } }, { enabled: Boolean(sessionKey) });
   const rulesQuery = useListRules({ path: { key: sessionKey ?? "" } }, { enabled: Boolean(sessionKey) });
   const forceTool = useForceTool();
@@ -997,6 +1006,21 @@ export function App() {
       },
     );
   };
+  const handleStopSessionByKey = useCallback(
+    (keyToStop: string): void => {
+      stopSession.mutate(
+        { path: { key: keyToStop } },
+        {
+          onSuccess: () => {
+            void activeSessions.refetch();
+            void workspaces.refetch();
+          },
+          onError: fail,
+        },
+      );
+    },
+    [stopSession, activeSessions, workspaces],
+  );
 
   /** Erase a session and its artifacts from disk, after an explicit confirm. */
   const handleDeleteSession = (session: SessionSummary): void => {
@@ -1703,6 +1727,18 @@ export function App() {
       <AppShell.Header>
         <Group h="100%" px="sm" justify="space-between" wrap="nowrap">
           <Group gap={6} wrap="nowrap" align="center" style={{ flex: 1, minWidth: 0 }}>
+            <Tooltip label="Multi-Session Overview" position="bottom-start">
+              <ActionIcon
+                size="sm"
+                variant="subtle"
+                color={overviewOpen ? "cyan" : "gray"}
+                onClick={openOverview}
+                aria-label="Multi-Session Overview"
+                style={{ flexShrink: 0 }}
+              >
+                <IconStack2 size={16} />
+              </ActionIcon>
+            </Tooltip>
             {/* The status bar gave back the space the connection badge and the
                 plan switch were using, so the workspace survives on a phone. */}
             <Group gap={6} wrap="nowrap" style={{ minWidth: 0 }}>
@@ -2559,6 +2595,16 @@ export function App() {
         onStopSession={handleStopSession}
         onDeleteSession={handleDeleteSession}
         onRefreshWorkspaces={() => void workspaces.refetch()}
+      />
+      <MultiSessionOverview
+        opened={overviewOpen}
+        onClose={closeOverview}
+        activeSessions={activeSessions.data ?? []}
+        loading={activeSessions.isFetching}
+        onSelectSession={(cwd, key) => navigateTo({ project: cwd, session: key })}
+        onNewSession={handleNew}
+        onStopSession={handleStopSessionByKey}
+        onRefresh={() => void activeSessions.refetch()}
       />
     </AppShell>
   );

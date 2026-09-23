@@ -4,6 +4,7 @@ import type { ImageContent } from "@oh-my-pi/pi-ai";
 import type {
   A2uiDismissRequest,
   Ack,
+  ActiveSessionOverview,
   AddMcpServerRequest,
   Attachment,
   BranchPoint,
@@ -201,6 +202,9 @@ function longestBacktickRun(text: string): number {
 export class Handlers implements OmpApi {
   listWorkspaces(): Promise<Workspace[]> {
     return listWorkspaces(id => registry.isLive(id));
+  }
+  listActiveSessions(): Promise<ActiveSessionOverview[]> {
+    return registry.listActiveSessions();
   }
 
   listModels(): Promise<ModelOption[]> {

@@ -17,6 +17,7 @@
 import type {
   A2uiDismissRequest,
   Ack,
+  ActiveSessionOverview,
   AddMcpServerRequest,
   BranchPoint,
   BranchRequest,
@@ -86,6 +87,14 @@ export interface OmpApi {
    * @response 200 application/json Workspace[]
    */
   listWorkspaces(): Promise<Workspace[]>;
+  /**
+   * List active live sessions for the multi-session overview.
+   *
+   * @get /api/sessions/active
+   * @summary List active live sessions
+   * @response 200 application/json ActiveSessionOverview[]
+   */
+  listActiveSessions(): Promise<ActiveSessionOverview[]>;
 
   /**
    * Models the local omp install is authenticated for.

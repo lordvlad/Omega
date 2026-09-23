@@ -151,6 +151,9 @@ const server = serve({
         return json(() => handlers.toggleMcpServer(body));
       },
     },
+    "/api/sessions/active": {
+      GET: () => json(() => handlers.listActiveSessions()),
+    },
 
     "/api/sessions": {
       POST: async request => {
