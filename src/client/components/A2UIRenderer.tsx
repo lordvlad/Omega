@@ -122,6 +122,14 @@ export interface A2UIRendererProps {
   onUpdateData?: (surfaceId: string, path: string | undefined, value: unknown) => void;
 }
 
+/**
+ * Minimum width of one weighted `Row` child before the row wraps to fewer
+ * columns. Small enough that four metric cards still fit a phone-width
+ * `Row` at one per line without feeling cramped; wide enough that a chart
+ * card never renders too thin for its axis labels to stay legible.
+ */
+const GRID_CELL_MIN_WIDTH = 170;
+
 /** Map A2UI icon names to Tabler icon components. */
 function renderTablerIcon(name: string | undefined, size = 18): React.ReactNode {
   switch (name) {
@@ -319,7 +327,15 @@ export function A2UIRenderer({ surface, onAction, onUpdateData }: A2UIRendererPr
 
     const key = keyOverride ?? `${id}-${index ?? 0}`;
     const weight = typeof comp.weight === "number" ? comp.weight : undefined;
-    const style: React.CSSProperties = weight !== undefined ? { flexGrow: weight, flexBasis: 0 } : {};
+    // Weighted children are the "equal card/chart grid" convention every
+    // dashboard surface uses (metrics row, charts row, …). `flexBasis: 0`
+    // alone lets a `Row` squeeze them to unreadable widths on a narrow
+    // drawer/viewport; a minimum floor makes the row (now `wrap: "wrap"`)
+    // fold into fewer columns instead, so the number of columns is
+    // responsive rather than fixed by however many children the author put
+    // in the row.
+    const style: React.CSSProperties =
+      weight !== undefined ? { flexGrow: weight, flexBasis: 0, minWidth: GRID_CELL_MIN_WIDTH } : {};
 
     switch (comp.component) {
       case "Text": {
@@ -413,7 +429,7 @@ export function A2UIRenderer({ surface, onAction, onUpdateData }: A2UIRendererPr
         const justify = mapJustify(comp.justify);
         const align = mapAlign(comp.align);
         return (
-          <Group key={key} justify={justify} align={align} gap="sm" wrap="nowrap" style={style}>
+          <Group key={key} justify={justify} align={align} gap="sm" wrap="wrap" style={style}>
             {renderChildren(comp.children as A2uiChildList, scope, index)}
           </Group>
         );
@@ -434,7 +450,7 @@ export function A2UIRenderer({ surface, onAction, onUpdateData }: A2UIRendererPr
         const align = mapAlign(comp.align);
         if (isHoriz) {
           return (
-            <Group key={key} align={align} gap="sm" wrap="nowrap" style={style}>
+            <Group key={key} align={align} gap="sm" wrap="wrap" style={style}>
               {renderChildren(comp.children as A2uiChildList, scope, index)}
             </Group>
           );
@@ -863,30 +879,32 @@ export function A2UIRenderer({ surface, onAction, onUpdateData }: A2UIRendererPr
         const striped = comp.striped === true;
         const highlightOnHover = comp.highlightOnHover === true;
         return (
-          <Table key={key} striped={striped} highlightOnHover={highlightOnHover} style={style}>
-            {headers.length > 0 ? (
-              <Table.Thead>
-                <Table.Tr>
-                  {headers.map((h, i) => (
-                    <Table.Th key={String(i)}>
-                      {resolveDynamic<string>(h, dataModel, scope, index) ?? ""}
-                    </Table.Th>
-                  ))}
-                </Table.Tr>
-              </Table.Thead>
-            ) : null}
-            <Table.Tbody>
-              {rows.map((row, rIdx) => (
-                <Table.Tr key={String(rIdx)}>
-                  {(row ?? []).map((cell, cIdx) => (
-                    <Table.Td key={String(cIdx)}>
-                      {resolveDynamic<string>(cell, dataModel, scope, index) ?? ""}
-                    </Table.Td>
-                  ))}
-                </Table.Tr>
-              ))}
-            </Table.Tbody>
-          </Table>
+          <Table.ScrollContainer key={key} minWidth={360} style={style}>
+            <Table striped={striped} highlightOnHover={highlightOnHover}>
+              {headers.length > 0 ? (
+                <Table.Thead>
+                  <Table.Tr>
+                    {headers.map((h, i) => (
+                      <Table.Th key={String(i)}>
+                        {resolveDynamic<string>(h, dataModel, scope, index) ?? ""}
+                      </Table.Th>
+                    ))}
+                  </Table.Tr>
+                </Table.Thead>
+              ) : null}
+              <Table.Tbody>
+                {rows.map((row, rIdx) => (
+                  <Table.Tr key={String(rIdx)}>
+                    {(row ?? []).map((cell, cIdx) => (
+                      <Table.Td key={String(cIdx)}>
+                        {resolveDynamic<string>(cell, dataModel, scope, index) ?? ""}
+                      </Table.Td>
+                    ))}
+                  </Table.Tr>
+                ))}
+              </Table.Tbody>
+            </Table>
+          </Table.ScrollContainer>
         );
       }
 

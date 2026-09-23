@@ -167,7 +167,15 @@ export async function drawWorktreeSurface(live: LiveSession): Promise<void> {
       justify: "spaceBetween",
       gap: "sm",
     },
-    { id: "m-total", component: "Card", child: "m-total-col", shadow: "xs", p: "xs", withBorder: true },
+    {
+      id: "m-total",
+      component: "Card",
+      child: "m-total-col",
+      shadow: "xs",
+      p: "xs",
+      withBorder: true,
+      weight: 1,
+    },
     {
       id: "m-total-col",
       component: "Column",
@@ -178,7 +186,15 @@ export async function drawWorktreeSurface(live: LiveSession): Promise<void> {
     { id: "m-total-val", component: "Text", text: String(total), variant: "heading" },
     { id: "m-total-lbl", component: "Text", text: "Total Worktrees", variant: "caption" },
 
-    { id: "m-linked", component: "Card", child: "m-linked-col", shadow: "xs", p: "xs", withBorder: true },
+    {
+      id: "m-linked",
+      component: "Card",
+      child: "m-linked-col",
+      shadow: "xs",
+      p: "xs",
+      withBorder: true,
+      weight: 1,
+    },
     {
       id: "m-linked-col",
       component: "Column",
@@ -189,7 +205,15 @@ export async function drawWorktreeSurface(live: LiveSession): Promise<void> {
     { id: "m-linked-val", component: "Text", text: String(linked), variant: "heading" },
     { id: "m-linked-lbl", component: "Text", text: "Linked / Isolated", variant: "caption" },
 
-    { id: "m-main", component: "Card", child: "m-main-col", shadow: "xs", p: "xs", withBorder: true },
+    {
+      id: "m-main",
+      component: "Card",
+      child: "m-main-col",
+      shadow: "xs",
+      p: "xs",
+      withBorder: true,
+      weight: 1,
+    },
     {
       id: "m-main-col",
       component: "Column",
@@ -200,7 +224,15 @@ export async function drawWorktreeSurface(live: LiveSession): Promise<void> {
     { id: "m-main-val", component: "Text", text: main?.branch ?? "main", variant: "heading" },
     { id: "m-main-lbl", component: "Text", text: "Main Branch", variant: "caption" },
 
-    { id: "m-dir", component: "Card", child: "m-dir-col", shadow: "xs", p: "xs", withBorder: true },
+    {
+      id: "m-dir",
+      component: "Card",
+      child: "m-dir-col",
+      shadow: "xs",
+      p: "xs",
+      withBorder: true,
+      weight: 1,
+    },
     { id: "m-dir-col", component: "Column", children: ["m-dir-val", "m-dir-lbl"], gap: 2, align: "center" },
     { id: "m-dir-val", component: "Text", text: path.basename(cwd), variant: "heading" },
     { id: "m-dir-lbl", component: "Text", text: "Active Project", variant: "caption" },

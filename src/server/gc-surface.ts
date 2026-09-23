@@ -67,6 +67,7 @@ export async function drawGcSurface(live: LiveSession, apply = true): Promise<Gc
       shadow: "xs",
       p: "xs",
       withBorder: true,
+      weight: 1,
     },
     {
       id: "m-reclaimed-col",
@@ -78,7 +79,15 @@ export async function drawGcSurface(live: LiveSession, apply = true): Promise<Gc
     { id: "m-reclaimed-val", component: "Text", text: formatBytes(blobBytes), variant: "heading" },
     { id: "m-reclaimed-lbl", component: "Text", text: "Reclaimed Storage", variant: "caption" },
 
-    { id: "m-blobs", component: "Card", child: "m-blobs-col", shadow: "xs", p: "xs", withBorder: true },
+    {
+      id: "m-blobs",
+      component: "Card",
+      child: "m-blobs-col",
+      shadow: "xs",
+      p: "xs",
+      withBorder: true,
+      weight: 1,
+    },
     {
       id: "m-blobs-col",
       component: "Column",
@@ -89,7 +98,15 @@ export async function drawGcSurface(live: LiveSession, apply = true): Promise<Gc
     { id: "m-blobs-val", component: "Text", text: String(blobsCleaned), variant: "heading" },
     { id: "m-blobs-lbl", component: "Text", text: "Blobs Swept", variant: "caption" },
 
-    { id: "m-sessions", component: "Card", child: "m-sessions-col", shadow: "xs", p: "xs", withBorder: true },
+    {
+      id: "m-sessions",
+      component: "Card",
+      child: "m-sessions-col",
+      shadow: "xs",
+      p: "xs",
+      withBorder: true,
+      weight: 1,
+    },
     {
       id: "m-sessions-col",
       component: "Column",
@@ -105,7 +122,15 @@ export async function drawGcSurface(live: LiveSession, apply = true): Promise<Gc
     },
     { id: "m-sessions-lbl", component: "Text", text: "Sessions Archived", variant: "caption" },
 
-    { id: "m-wal", component: "Card", child: "m-wal-col", shadow: "xs", p: "xs", withBorder: true },
+    {
+      id: "m-wal",
+      component: "Card",
+      child: "m-wal-col",
+      shadow: "xs",
+      p: "xs",
+      withBorder: true,
+      weight: 1,
+    },
     { id: "m-wal-col", component: "Column", children: ["m-wal-val", "m-wal-lbl"], gap: 2, align: "center" },
     {
       id: "m-wal-val",
