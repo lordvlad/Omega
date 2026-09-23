@@ -54,6 +54,7 @@ import type {
   DeleteRuleRequest,
   ForceToolRequest,
   LiveState,
+  MutateTodosRequest,
   OmfgRuleCandidate,
   PlanAction,
   Problem,
@@ -66,6 +67,7 @@ import type {
   TestMcpServerRequest,
   TestMcpServerResult,
   ThinkingLevel,
+  ToggleMcpServerRequest,
 } from "./api/model.ts";
 import {
   useAbort,
@@ -83,6 +85,7 @@ import {
   useEditQueued,
   useForceTool,
   useForkSession,
+  useMutateTodos,
   useOpenSession,
   usePrompt,
   useRemoveMcpServer,
@@ -100,6 +103,7 @@ import {
   useStopProcess,
   useStopSession,
   useTestMcpServer,
+  useToggleMcpServer,
 } from "./api/mutations.ts";
 import {
   getGetPlanQueryOptions,
@@ -456,6 +460,8 @@ export function App() {
   const addMcp = useAddMcpServer();
   const removeMcp = useRemoveMcpServer();
   const testMcp = useTestMcpServer();
+  const toggleMcp = useToggleMcpServer();
+  const mutateTodos = useMutateTodos();
   const dismissSurface = useDismissSurface();
   const toolsQuery = useListTools({ path: { key: sessionKey ?? "" } }, { enabled: Boolean(sessionKey) });
   const rulesQuery = useListRules({ path: { key: sessionKey ?? "" } }, { enabled: Boolean(sessionKey) });
@@ -1266,6 +1272,23 @@ export function App() {
     [testMcp, project],
   );
 
+  const handleToggleMcp = useCallback(
+    async (req: ToggleMcpServerRequest): Promise<void> => {
+      await toggleMcp.mutateAsync({ body: { ...req, cwd: project } });
+      void mcpServers.refetch();
+    },
+    [toggleMcp, project, mcpServers],
+  );
+
+  const handleMutateTodos = useCallback(
+    async (req: MutateTodosRequest): Promise<void> => {
+      if (!sessionKey) return;
+      await mutateTodos.mutateAsync({ path: { key: sessionKey }, body: req });
+      void state.refetch();
+    },
+    [sessionKey, mutateTodos, state],
+  );
+
   const handleOpenMcp = useCallback((): void => {
     openMcp();
     void mcpServers.refetch();
@@ -1801,7 +1824,7 @@ export function App() {
       </AppShell.Header>
 
       <AppShell.Aside p={0}>
-        <TodoPanel phases={state.data?.todos} onClose={closeTodo} />
+        <TodoPanel phases={state.data?.todos} onClose={closeTodo} onMutateTodos={handleMutateTodos} />
       </AppShell.Aside>
 
       {treeOpen && !narrow ? (
@@ -1979,7 +2002,7 @@ export function App() {
           withCloseButton={false}
           storageKey="todo"
         >
-          <TodoPanel phases={state.data?.todos} onClose={closeTodo} />
+          <TodoPanel phases={state.data?.todos} onClose={closeTodo} onMutateTodos={handleMutateTodos} />
         </ResizableDrawer>
       ) : null}
 
@@ -2189,6 +2212,7 @@ export function App() {
           onAddServer={handleAddMcp}
           onRemoveServer={handleRemoveMcp}
           onTestServer={handleTestMcp}
+          onToggleServer={handleToggleMcp}
           onRefresh={() => void mcpServers.refetch()}
           onClose={closeMcp}
         />
@@ -2425,7 +2449,6 @@ export function App() {
         onOpenSession={handleOpen}
         onNewSession={handleNew}
         onAddWorkspace={handleAddWorkspace}
-        onOpenMcp={handleOpenMcp}
         onOpenTools={handleOpenTools}
         onOpenRules={handleOpenRules}
         onForceTool={handleForceTool}
@@ -2437,6 +2460,12 @@ export function App() {
         onOpenJobs={handleOpenJobs}
         onOpenProcesses={handleOpenProcesses}
         onBtw={handleAskBtw}
+        onOpenTodos={toggleTodo}
+        onMutateTodos={handleMutateTodos}
+        onOpenMcp={handleOpenMcp}
+        mcpServers={mcpServers.data?.servers ?? []}
+        onTestMcp={handleTestMcp}
+        onToggleMcp={handleToggleMcp}
         onOmfg={handleStartOmfg}
         onRename={handleRename}
         onRetry={handleRetry}

@@ -42,6 +42,7 @@ import type {
   LiveState,
   MarkdownRequest,
   ModelOption,
+  MutateTodosRequest,
   OmfgAnalyzeRequest,
   OmfgRuleCandidate,
   OmfgSaveRequest,
@@ -69,6 +70,7 @@ import type {
   TestMcpServerRequest,
   TestMcpServerResult,
   ThinkingRequest,
+  ToggleMcpServerRequest,
   Transcript,
   TranscriptQuery,
   Workspace,
@@ -345,6 +347,27 @@ export interface OmpApi {
    * @response 400 application/json Problem
    */
   removeMcpServer(body: RemoveMcpServerRequest): Promise<Ack>;
+
+  /**
+   * Toggle an MCP server enabled/disabled state.
+   *
+   * @post /api/mcp/toggle
+   * @summary Toggle an MCP server
+   * @response 200 application/json Ack
+   * @response 400 application/json Problem
+   */
+  toggleMcpServer(body: ToggleMcpServerRequest): Promise<Ack>;
+
+  /**
+   * Mutate the session's todo list.
+   *
+   * @post /api/sessions/{key}/todos
+   * @summary Mutate session todos
+   * @response 200 application/json Ack
+   * @response 400 application/json Problem
+   * @response 404 application/json Problem
+   */
+  mutateTodos(key: string, body: MutateTodosRequest): Promise<Ack>;
 
   /**
    * List active and recent async background jobs for this session.

@@ -402,6 +402,28 @@ export interface RemoveMcpServerRequest {
   cwd?: string;
 }
 
+/** Toggle an MCP server enabled/disabled state. */
+export interface ToggleMcpServerRequest {
+  name: string;
+  scope?: "project" | "global";
+  disabled: boolean;
+  cwd?: string;
+}
+
+/** Request to mutate the session's todo list. */
+export interface MutateTodosRequest {
+  action: TodoMutationAction;
+  phase?: string;
+  task?: string;
+  status?: "pending" | "in_progress" | "completed" | "abandoned" | "blocked";
+  blocker?: string;
+  phases?: TodoPhase[];
+  items?: string[];
+}
+
+/** Action to perform when mutating the todo list. */
+export type TodoMutationAction = "append" | "start" | "done" | "drop" | "block" | "unblock" | "rm" | "clear" | "set";
+
 /** List of running and recently settled background jobs. */
 export interface ListJobsResult {
   running: SessionAsyncJob[];

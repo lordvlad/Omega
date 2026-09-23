@@ -30,6 +30,7 @@ import type {
   LiveState,
   MarkdownRequest,
   ModelOption,
+  MutateTodosRequest,
   OmfgAnalyzeRequest,
   OmfgRuleCandidate,
   OmfgSaveRequest,
@@ -55,6 +56,7 @@ import type {
   TestMcpServerRequest,
   TestMcpServerResult,
   ThinkingRequest,
+  ToggleMcpServerRequest,
   Transcript,
   TranscriptQuery,
   Workspace,
@@ -85,12 +87,14 @@ import {
   listAllMcpServers,
   removeMcpServerConfig,
   testMcpServerConnection,
+  toggleMcpServerConfig,
 } from "./mcp.ts";
 import { analyzeOmfgRule, saveOmfgRule } from "./omfg.ts";
 import { planDocument, resolvePlan, writePlan } from "./plan.ts";
 import { dropQueued, editQueued, listQueue } from "./queue.ts";
 import { type LiveSession, registry } from "./registry.ts";
 import { drawCostSurface, drawStatsSurface, drawUsageSurface } from "./stats.ts";
+import { mutateSessionTodos } from "./todos.ts";
 import { deleteSessionRule, forceSessionTool, listSessionRules, listSessionTools } from "./tools-rules.ts";
 import { flattenSession, pageTranscript } from "./transcript.ts";
 import { listWorkspaces } from "./workspaces.ts";
@@ -298,6 +302,52 @@ export class Handlers implements OmpApi {
       await drawGcSurface(live);
       return { ok: true, detail: "Storage maintenance completed and rendered." };
     }
+    if (message === "/todo" || message.startsWith("/todo ")) {
+      const rest = message.startsWith("/todo ") ? message.slice(6).trim() : "";
+      if (!rest) {
+        const phases = live.session.getTodoPhases() as any[];
+        const all = phases.flatMap(p => p.tasks);
+        const done = all.filter(t => t.status === "completed").length;
+        return {
+          ok: true,
+          detail: `Todos: ${all.length - done} open, ${done} completed (${phases.length} phases).`,
+        };
+      }
+      const [verb, ...parts] = rest.split(/\s+/);
+      const target = parts.join(" ").trim();
+      if (verb === "done") {
+        await mutateSessionTodos(live, { action: "done", task: target || undefined });
+        return { ok: true, detail: target ? `Marked "${target}" completed.` : "Marked all tasks completed." };
+      }
+      if (verb === "start" && target) {
+        await mutateSessionTodos(live, { action: "start", task: target });
+        return { ok: true, detail: `Marked "${target}" in progress.` };
+      }
+      if (verb === "drop") {
+        await mutateSessionTodos(live, { action: "drop", task: target || undefined });
+        return { ok: true, detail: target ? `Abandoned "${target}".` : "Abandoned all tasks." };
+      }
+      if (verb === "rm" && target) {
+        await mutateSessionTodos(live, { action: "rm", task: target });
+        return { ok: true, detail: `Removed task "${target}".` };
+      }
+      if (verb === "append" && target) {
+        await mutateSessionTodos(live, { action: "append", task: target });
+        return { ok: true, detail: `Appended task "${target}".` };
+      }
+      if (verb === "clear") {
+        await mutateSessionTodos(live, { action: "clear" });
+        return { ok: true, detail: "Cleared all todos." };
+      }
+    }
+    if (message.startsWith("/mcp enable ") || message.startsWith("/mcp disable ")) {
+      const isDisable = message.startsWith("/mcp disable ");
+      const serverName = (isDisable ? message.slice(13) : message.slice(12)).trim();
+      if (serverName) {
+        await toggleMcpServerConfig(live.manager.getCwd(), { name: serverName, disabled: isDisable });
+        return { ok: true, detail: `MCP server "${serverName}" ${isDisable ? "disabled" : "enabled"}.` };
+      }
+    }
     // The browser's outbox retries until a send is acknowledged, so the same
     // message can arrive twice: once delivered, once replayed from a snapshot
     // written before the acknowledgement. Answering a key already seen keeps
@@ -409,6 +459,23 @@ export class Handlers implements OmpApi {
   async removeMcpServer(body: RemoveMcpServerRequest): Promise<Ack> {
     try {
       return await removeMcpServerConfig(body.cwd, body);
+    } catch (error) {
+      throw new HttpError(400, error instanceof Error ? error.message : String(error));
+    }
+  }
+
+  async toggleMcpServer(body: ToggleMcpServerRequest): Promise<Ack> {
+    try {
+      return await toggleMcpServerConfig(body.cwd, body);
+    } catch (error) {
+      throw new HttpError(400, error instanceof Error ? error.message : String(error));
+    }
+  }
+
+  async mutateTodos(key: string, body: MutateTodosRequest): Promise<Ack> {
+    const live = this.#require(key);
+    try {
+      return await mutateSessionTodos(live, body);
     } catch (error) {
       throw new HttpError(400, error instanceof Error ? error.message : String(error));
     }

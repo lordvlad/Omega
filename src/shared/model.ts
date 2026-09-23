@@ -128,6 +128,29 @@ export interface TodoPhase {
   name: string;
   tasks: TodoTask[];
 }
+
+/** Action to perform when mutating the todo list. */
+export type TodoMutationAction =
+  | "append"
+  | "start"
+  | "done"
+  | "drop"
+  | "block"
+  | "unblock"
+  | "rm"
+  | "clear"
+  | "set";
+
+/** Request to mutate the session's todo list. */
+export interface MutateTodosRequest {
+  action: TodoMutationAction;
+  phase?: string;
+  task?: string;
+  status?: TodoTaskStatus;
+  blocker?: string;
+  phases?: TodoPhase[];
+  items?: string[];
+}
 /** Lifecycle status of a spawned subagent. */
 export type SubagentStatus = "running" | "completed" | "failed" | "aborted";
 
@@ -431,6 +454,14 @@ export interface AddMcpServerRequest {
 export interface RemoveMcpServerRequest {
   name: string;
   scope: McpServerScope;
+  cwd?: string;
+}
+
+/** Toggle an MCP server enabled/disabled state. */
+export interface ToggleMcpServerRequest {
+  name: string;
+  scope?: McpServerScope;
+  disabled: boolean;
   cwd?: string;
 }
 /** Test connection to an MCP server. */

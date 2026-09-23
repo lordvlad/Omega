@@ -1230,6 +1230,112 @@
         }
       }
     },
+    "/api/mcp/toggle": {
+      "post": {
+        "operationId": "toggleMcpServer",
+        "x-service": "OmpApi",
+        "tags": [
+          "OmpApi"
+        ],
+        "summary": "Toggle an MCP server",
+        "description": "Toggle an MCP server enabled/disabled state.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ToggleMcpServerRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Ack"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/sessions/{key}/todos": {
+      "post": {
+        "operationId": "mutateTodos",
+        "x-service": "OmpApi",
+        "tags": [
+          "OmpApi"
+        ],
+        "summary": "Mutate session todos",
+        "description": "Mutate the session's todo list.",
+        "parameters": [
+          {
+            "name": "key",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MutateTodosRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Ack"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/sessions/{key}/jobs": {
       "get": {
         "operationId": "listJobs",
@@ -3915,6 +4021,119 @@
         "required": [
           "name",
           "scope"
+        ]
+      },
+      "ToggleMcpServerRequest": {
+        "description": "Toggle an MCP server enabled/disabled state.",
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "scope": {
+            "anyOf": [
+              {
+                "const": "project"
+              },
+              {
+                "const": "global"
+              }
+            ]
+          },
+          "disabled": {
+            "type": "boolean"
+          },
+          "cwd": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "disabled"
+        ]
+      },
+      "MutateTodosRequest": {
+        "description": "Request to mutate the session's todo list.",
+        "type": "object",
+        "properties": {
+          "action": {
+            "$ref": "#/components/schemas/TodoMutationAction"
+          },
+          "phase": {
+            "type": "string"
+          },
+          "task": {
+            "type": "string"
+          },
+          "status": {
+            "anyOf": [
+              {
+                "const": "pending"
+              },
+              {
+                "const": "in_progress"
+              },
+              {
+                "const": "completed"
+              },
+              {
+                "const": "abandoned"
+              },
+              {
+                "const": "blocked"
+              }
+            ]
+          },
+          "blocker": {
+            "type": "string"
+          },
+          "phases": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/TodoPhase"
+            }
+          },
+          "items": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "required": [
+          "action"
+        ]
+      },
+      "TodoMutationAction": {
+        "description": "Action to perform when mutating the todo list.",
+        "anyOf": [
+          {
+            "const": "append"
+          },
+          {
+            "const": "start"
+          },
+          {
+            "const": "done"
+          },
+          {
+            "const": "drop"
+          },
+          {
+            "const": "block"
+          },
+          {
+            "const": "unblock"
+          },
+          {
+            "const": "rm"
+          },
+          {
+            "const": "clear"
+          },
+          {
+            "const": "set"
+          }
         ]
       },
       "ListJobsResult": {

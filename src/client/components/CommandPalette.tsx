@@ -38,11 +38,15 @@ import {
   type SpotlightActionGroupData,
 } from "@mantine/spotlight";
 import {
+  IconAlertOctagon,
   IconArchive,
   IconBell,
   IconBolt,
   IconBrain,
   IconChartBar,
+  IconCheck,
+  IconChecklist,
+  IconCircle,
   IconCoin,
   IconCornerDownLeft,
   IconCpu,
@@ -58,6 +62,7 @@ import {
   IconMessage,
   IconMessageQuestion,
   IconPencil,
+  IconPlayerPlayFilled,
   IconPlayerStopFilled,
   IconPlugConnected,
   IconPlus,
@@ -78,12 +83,16 @@ import type {
   BranchPoint,
   CompactRequest,
   LiveState,
+  McpServerInfo,
   ModelOption,
+  MutateTodosRequest,
   SessionSummary,
   SessionToolInfo,
   ShakeMode,
   SlashCommand,
+  TestMcpServerRequest,
   ThinkingLevel,
+  ToggleMcpServerRequest,
   Workspace,
 } from "../api/model.ts";
 import type { ProjectSettings } from "../lib/settings.ts";
@@ -107,6 +116,7 @@ export const PALETTE_COMMAND = {
   think: "/think",
   btw: "/btw",
   omfg: "/omfg",
+  todo: "/todo",
   mcp: "/mcp",
   cost: "/cost",
   stats: "/stats",
@@ -175,6 +185,11 @@ const COMMAND_SPEC: Record<
   "/worktree": {
     kind: "scope",
     placeholder: "Type branch name or path for new worktree…",
+    termIsInput: true,
+  },
+  "/todo": {
+    kind: "scope",
+    placeholder: "Filter tasks or run /todo append, /todo done, /todo start…",
     termIsInput: true,
   },
   "/wt": { kind: "scope", placeholder: "Type branch name or path for new worktree…", termIsInput: true },
@@ -431,7 +446,12 @@ export interface CommandPaletteProps {
   onBtw?: (question: string) => void;
   onOmfg?: (complaint: string) => void;
   onRename: (title: string) => void;
+  onOpenTodos?: () => void;
+  onMutateTodos?: (req: MutateTodosRequest) => Promise<void>;
   onOpenMcp?: () => void;
+  mcpServers?: McpServerInfo[];
+  onTestMcp?: (req: TestMcpServerRequest) => Promise<any>;
+  onToggleMcp?: (req: ToggleMcpServerRequest) => Promise<void>;
   onOpenTools?: () => void;
   onOpenRules?: () => void;
   onForceTool?: (tool: string) => void;
@@ -506,7 +526,12 @@ export function CommandPalette({
   onAbort,
   onTogglePlanMode,
   onBtw,
+  onOpenTodos,
+  onMutateTodos,
   onOpenMcp,
+  mcpServers: mcpServersList,
+  onTestMcp,
+  onToggleMcp,
   onOpenTools,
   onOpenRules,
   onForceTool,
@@ -740,6 +765,18 @@ export function CommandPalette({
             leftSection: <IconShield size={16} color="var(--mantine-color-orange-4)" />,
             closeSpotlightOnTrigger: false,
             onClick: () => onQueryChange(`${PALETTE_COMMAND.omfg} `),
+          },
+          {
+            id: "command-todo",
+            label: PALETTE_COMMAND.todo,
+            description:
+              state?.todos && state.todos.length > 0
+                ? `Manage tasks and checklists (${state.todos.flatMap(p => p.tasks).length} tasks across ${state.todos.length} phases)`
+                : "Inspect and manage multi-step todos and phase checklists",
+            keywords: "todo tasks phases checklist done append start rm clear",
+            leftSection: <IconChecklist size={16} color="var(--mantine-color-cyan-4)" />,
+            closeSpotlightOnTrigger: false,
+            onClick: () => handleOpenDrawer(onOpenTodos),
           },
           {
             id: "command-mcp-manage",
@@ -1334,24 +1371,151 @@ export function CommandPalette({
     ];
   }, [term, onOmfg, onQueryChange]);
 
+  /** `/todo`: view and mutate todos list. */
+  const todoActions = useMemo<PaletteAction[]>(() => {
+    const rawPhases = state?.todos ?? [];
+    const allTasks = rawPhases.flatMap(p => p.tasks);
+    const completedCount = allTasks.filter(t => t.status === "completed").length;
+
+    const quickActions: SpotlightActionData[] = [
+      {
+        id: "todo-open-panel",
+        label: "Open Todo Panel",
+        description: `View and interact with ${allTasks.length} tasks across ${rawPhases.length} phases`,
+        keywords: "todo panel drawer tasks checklist",
+        leftSection: <IconChecklist size={16} color="var(--mantine-color-cyan-4)" />,
+        onClick: () => handleOpenDrawer(onOpenTodos),
+      },
+    ];
+
+    if (term.trim()) {
+      const q = term.trim();
+      quickActions.push({
+        id: "todo-append-term",
+        label: `/todo append ${q}`,
+        description: `Add "${q}" as a new pending task`,
+        keywords: "todo add append task new",
+        leftSection: <IconPlus size={16} color="var(--mantine-color-teal-4)" />,
+        closeSpotlightOnTrigger: true,
+        onClick: () => onMutateTodos?.({ action: "append", task: q }),
+      });
+    }
+
+    if (allTasks.length > 0) {
+      quickActions.push({
+        id: "todo-mark-all-done",
+        label: "/todo done",
+        description: `Mark all ${allTasks.length} tasks as completed`,
+        keywords: "todo done complete all",
+        leftSection: <IconCheck size={16} color="var(--mantine-color-cyan-4)" />,
+        closeSpotlightOnTrigger: true,
+        onClick: () => onMutateTodos?.({ action: "done" }),
+      });
+      if (completedCount > 0) {
+        quickActions.push({
+          id: "todo-clear-completed",
+          label: "/todo clear",
+          description: `Clear ${completedCount} completed tasks`,
+          keywords: "todo clear completed remove",
+          leftSection: <IconTrash size={16} color="var(--mantine-color-plum-4)" />,
+          closeSpotlightOnTrigger: true,
+          onClick: () => onMutateTodos?.({ action: "clear", status: "completed" }),
+        });
+      }
+    }
+
+    const groups: PaletteAction[] = [
+      {
+        group: "Todo Actions",
+        actions: quickActions,
+      },
+    ];
+
+    const openTasks = allTasks.filter(
+      t => t.status === "pending" || t.status === "in_progress" || t.status === "blocked",
+    );
+    if (openTasks.length > 0) {
+      groups.push({
+        group: `Open Tasks (${openTasks.length})`,
+        actions: openTasks.map((t, idx) => ({
+          id: `todo-task-${idx}`,
+          label: t.content,
+          description:
+            t.status === "in_progress"
+              ? "In Progress · Click to complete"
+              : t.status === "blocked"
+                ? `Blocked (${t.blocker}) · Click to start`
+                : "Pending · Click to start",
+          keywords: `todo task ${t.content}`,
+          leftSection:
+            t.status === "in_progress" ? (
+              <IconPlayerPlayFilled size={16} color="var(--mantine-color-plum-4)" />
+            ) : t.status === "blocked" ? (
+              <IconAlertOctagon size={16} color="var(--mantine-color-orange-4)" />
+            ) : (
+              <IconCircle size={16} color="var(--mantine-color-gray-5)" />
+            ),
+          closeSpotlightOnTrigger: true,
+          onClick: () => {
+            if (t.status === "in_progress") {
+              onMutateTodos?.({ action: "done", task: t.content });
+            } else {
+              onMutateTodos?.({ action: "start", task: t.content });
+            }
+          },
+        })),
+      });
+    }
+
+    return groups;
+  }, [state?.todos, term, handleOpenDrawer, onOpenTodos, onMutateTodos]);
+
   /** `/mcp`: manage and configure MCP servers. */
   const mcpServerActions = useMemo<PaletteAction[]>(() => {
+    const list = mcpServersList ?? [];
+    const serverActions: SpotlightActionData[] = [
+      {
+        id: "mcp-manage-action",
+        label: "Open MCP Server Manager",
+        description: `Manage ${list.length} configured servers, test connections, and add new ones`,
+        keywords: "mcp servers tools plugins connect add test",
+        leftSection: <IconPlugConnected size={16} color="var(--mantine-color-cyan-4)" />,
+        onClick: () => handleOpenDrawer(onOpenMcp),
+      },
+    ];
+
+    if (list.length > 0) {
+      for (const s of list) {
+        serverActions.push({
+          id: `mcp-server-${s.scope}-${s.name}`,
+          label: `${s.name} (${s.scope})`,
+          description: s.disabled ? "Disabled · Click to enable" : "Configured · Click to test",
+          keywords: `mcp server ${s.name} ${s.scope}`,
+          leftSection: s.disabled ? (
+            <IconPlugConnected size={16} color="var(--mantine-color-gray-5)" />
+          ) : (
+            <IconCheck size={16} color="var(--mantine-color-teal-4)" />
+          ),
+          closeSpotlightOnTrigger: true,
+          onClick: () => {
+            if (s.disabled) {
+              void onToggleMcp?.({ name: s.name, scope: s.scope, disabled: false });
+            } else {
+              void onTestMcp?.({ name: s.name, scope: s.scope });
+              handleOpenDrawer(onOpenMcp);
+            }
+          },
+        });
+      }
+    }
+
     return [
       {
         group: "MCP Servers (/mcp)",
-        actions: [
-          {
-            id: "mcp-manage-action",
-            label: "Open MCP Server Manager",
-            description: "View configured servers, test connections, and add new ones",
-            keywords: "mcp servers tools plugins connect add test",
-            leftSection: <IconPlugConnected size={16} color="var(--mantine-color-cyan-4)" />,
-            onClick: () => handleOpenDrawer(onOpenMcp),
-          },
-        ],
+        actions: serverActions,
       },
     ];
-  }, [handleOpenDrawer, onOpenMcp]);
+  }, [mcpServersList, handleOpenDrawer, onOpenMcp, onToggleMcp, onTestMcp]);
   const costActions = useMemo<PaletteAction[]>(
     () => [
       {
@@ -1770,6 +1934,7 @@ export function CommandPalette({
     "/think": thinkActions,
     "/btw": btwActions,
     "/omfg": omfgActions,
+    "/todo": todoActions,
     "/mcp": mcpServerActions,
     "/cost": costActions,
     "/stats": statsActions,

@@ -145,6 +145,12 @@ const server = serve({
         return json(() => handlers.removeMcpServer(body));
       },
     },
+    "/api/mcp/toggle": {
+      POST: async request => {
+        const body = await request.json();
+        return json(() => handlers.toggleMcpServer(body));
+      },
+    },
 
     "/api/sessions": {
       POST: async request => {
@@ -247,6 +253,12 @@ const server = serve({
       POST: async request => {
         const body = await request.json();
         return json(() => handlers.cancelJob(request.params.key, body));
+      },
+    },
+    "/api/sessions/:key/todos": {
+      POST: async request => {
+        const body = await request.json();
+        return json(() => handlers.mutateTodos(request.params.key, body));
       },
     },
     "/api/processes": {

@@ -2,7 +2,7 @@
 // React Query options getters and hooks for mutation operations. Edit the document, not this file.
 
 import { useMutation, type UseMutationOptions } from "@tanstack/react-query";
-import { defaultClient, type Client, type AbortOptions, type AbortResult, type AddMcpServerOptions, type AddMcpServerResult, type AnalyzeOmfgOptions, type AnalyzeOmfgResult, type AskBtwOptions, type AskBtwResult, type BranchSessionOptions, type BranchSessionResult, type CancelJobOptions, type CancelJobResult, type CompactSessionOptions, type CompactSessionResult, type DeleteRuleOptions, type DeleteRuleResult, type DeleteSessionOptions, type DeleteSessionResult, type DismissSurfaceOptions, type DismissSurfaceResult, type DropQueuedOptions, type DropQueuedResult, type EditPlanOptions, type EditPlanResult, type EditQueuedOptions, type EditQueuedResult, type ForceToolOptions, type ForceToolResult, type ForkSessionOptions, type ForkSessionResult, type OpenSessionOptions, type OpenSessionResult, type PromptOptions, type PromptResult, type RemoveMcpServerOptions, type RemoveMcpServerResult, type RenameSessionOptions, type RenameSessionResult, type RenderMarkdownOptions, type RenderMarkdownResult, type ResolvePlanOptions, type ResolvePlanResult, type RestartProcessOptions, type RestartProcessResult, type RetryTurnOptions, type RetryTurnResult, type SaveOmfgRuleOptions, type SaveOmfgRuleResult, type SelectModelOptions, type SelectModelResult, type SetPlanModeOptions, type SetPlanModeResult, type SetThinkingLevelOptions, type SetThinkingLevelResult, type ShakeSessionOptions, type ShakeSessionResult, type SignalProcessOptions, type SignalProcessResult, type StopProcessOptions, type StopProcessResult, type StopSessionOptions, type StopSessionResult, type TestMcpServerOptions, type TestMcpServerResult2 } from "./api.ts";
+import { defaultClient, type Client, type AbortOptions, type AbortResult, type AddMcpServerOptions, type AddMcpServerResult, type AnalyzeOmfgOptions, type AnalyzeOmfgResult, type AskBtwOptions, type AskBtwResult, type BranchSessionOptions, type BranchSessionResult, type CancelJobOptions, type CancelJobResult, type CompactSessionOptions, type CompactSessionResult, type DeleteRuleOptions, type DeleteRuleResult, type DeleteSessionOptions, type DeleteSessionResult, type DismissSurfaceOptions, type DismissSurfaceResult, type DropQueuedOptions, type DropQueuedResult, type EditPlanOptions, type EditPlanResult, type EditQueuedOptions, type EditQueuedResult, type ForceToolOptions, type ForceToolResult, type ForkSessionOptions, type ForkSessionResult, type MutateTodosOptions, type MutateTodosResult, type OpenSessionOptions, type OpenSessionResult, type PromptOptions, type PromptResult, type RemoveMcpServerOptions, type RemoveMcpServerResult, type RenameSessionOptions, type RenameSessionResult, type RenderMarkdownOptions, type RenderMarkdownResult, type ResolvePlanOptions, type ResolvePlanResult, type RestartProcessOptions, type RestartProcessResult, type RetryTurnOptions, type RetryTurnResult, type SaveOmfgRuleOptions, type SaveOmfgRuleResult, type SelectModelOptions, type SelectModelResult, type SetPlanModeOptions, type SetPlanModeResult, type SetThinkingLevelOptions, type SetThinkingLevelResult, type ShakeSessionOptions, type ShakeSessionResult, type SignalProcessOptions, type SignalProcessResult, type StopProcessOptions, type StopProcessResult, type StopSessionOptions, type StopSessionResult, type TestMcpServerOptions, type TestMcpServerResult2, type ToggleMcpServerOptions, type ToggleMcpServerResult } from "./api.ts";
 
 /**
  * Open or create a live session
@@ -354,6 +354,64 @@ export function useRemoveMcpServer<
   client: Client = defaultClient()
 ) {
   return useMutation(getRemoveMcpServerMutationOptions<TError>(mutationOptions, client));
+}
+
+/**
+ * Toggle an MCP server
+ * 
+ * Toggle an MCP server enabled/disabled state.
+ */
+export function getToggleMcpServerMutationOptions<
+  TError = unknown
+>(
+  mutationOptions?: Omit<UseMutationOptions<ToggleMcpServerResult, TError, ToggleMcpServerOptions>, "mutationFn">,
+  client: Client = defaultClient()
+) {
+  return {
+    mutationKey: ["/api/mcp/toggle", "POST"] as const,
+    mutationFn: (options: ToggleMcpServerOptions) =>
+      client.toggleMcpServer(options as any),
+    ...mutationOptions,
+  };
+}
+
+/** React Query hook for `toggleMcpServer`. */
+export function useToggleMcpServer<
+  TError = unknown
+>(
+  mutationOptions?: Omit<UseMutationOptions<ToggleMcpServerResult, TError, ToggleMcpServerOptions>, "mutationFn">,
+  client: Client = defaultClient()
+) {
+  return useMutation(getToggleMcpServerMutationOptions<TError>(mutationOptions, client));
+}
+
+/**
+ * Mutate session todos
+ * 
+ * Mutate the session's todo list.
+ */
+export function getMutateTodosMutationOptions<
+  TError = unknown
+>(
+  mutationOptions?: Omit<UseMutationOptions<MutateTodosResult, TError, MutateTodosOptions>, "mutationFn">,
+  client: Client = defaultClient()
+) {
+  return {
+    mutationKey: ["/api/sessions/{key}/todos", "POST"] as const,
+    mutationFn: (options: MutateTodosOptions) =>
+      client.mutateTodos(options as any),
+    ...mutationOptions,
+  };
+}
+
+/** React Query hook for `mutateTodos`. */
+export function useMutateTodos<
+  TError = unknown
+>(
+  mutationOptions?: Omit<UseMutationOptions<MutateTodosResult, TError, MutateTodosOptions>, "mutationFn">,
+  client: Client = defaultClient()
+) {
+  return useMutation(getMutateTodosMutationOptions<TError>(mutationOptions, client));
 }
 
 /**
@@ -1022,6 +1080,18 @@ export function createMutations(client: Client = defaultClient()) {
     useRemoveMcpServer: <TError = unknown>(
       mutationOptions?: Omit<UseMutationOptions<RemoveMcpServerResult, TError, RemoveMcpServerOptions>, "mutationFn">
     ) => useRemoveMcpServer<TError>(mutationOptions, client),
+    getToggleMcpServerMutationOptions: <TError = unknown>(
+      mutationOptions?: Omit<UseMutationOptions<ToggleMcpServerResult, TError, ToggleMcpServerOptions>, "mutationFn">
+    ) => getToggleMcpServerMutationOptions<TError>(mutationOptions, client),
+    useToggleMcpServer: <TError = unknown>(
+      mutationOptions?: Omit<UseMutationOptions<ToggleMcpServerResult, TError, ToggleMcpServerOptions>, "mutationFn">
+    ) => useToggleMcpServer<TError>(mutationOptions, client),
+    getMutateTodosMutationOptions: <TError = unknown>(
+      mutationOptions?: Omit<UseMutationOptions<MutateTodosResult, TError, MutateTodosOptions>, "mutationFn">
+    ) => getMutateTodosMutationOptions<TError>(mutationOptions, client),
+    useMutateTodos: <TError = unknown>(
+      mutationOptions?: Omit<UseMutationOptions<MutateTodosResult, TError, MutateTodosOptions>, "mutationFn">
+    ) => useMutateTodos<TError>(mutationOptions, client),
     getCancelJobMutationOptions: <TError = unknown>(
       mutationOptions?: Omit<UseMutationOptions<CancelJobResult, TError, CancelJobOptions>, "mutationFn">
     ) => getCancelJobMutationOptions<TError>(mutationOptions, client),
