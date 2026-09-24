@@ -195,9 +195,6 @@ export function MultiSessionOverview({
                     : `${activeSessions.length} live session${activeSessions.length === 1 ? "" : "s"}`}
                 </Badge>
               </Group>
-              <Text size="xs" c="dimmed">
-                Real-time monitor across all active agent sessions in memory
-              </Text>
             </Box>
           </Group>
 
