@@ -94,6 +94,26 @@ export interface ModelOption {
 
 export type WorkspaceFile = string;
 
+/** Result of browsing a filesystem directory. */
+export interface DirectoryBrowseResult {
+  current: string;
+  parent?: string;
+  home: string;
+  entries: DirectoryEntry[];
+  isGit: boolean;
+  gitBranch?: string;
+  exists: boolean;
+  error?: string;
+}
+
+/** A single subdirectory entry in the filesystem browser. */
+export interface DirectoryEntry {
+  name: string;
+  path: string;
+  isGit?: false | true;
+  hasChildren?: false | true;
+}
+
 /** File content and metadata. */
 export interface ReadFileResult {
   path: string;

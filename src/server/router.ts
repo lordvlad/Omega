@@ -10,10 +10,12 @@ import type {
   BranchPoint,
   BranchRequest,
   BranchResult,
+  BrowseDirectoryQuery,
   BtwRequest,
   BtwResult,
   CancelJobRequest,
   CompactRequest,
+  DirectoryBrowseResult,
   DeleteRuleRequest,
   ForceToolRequest,
   GitDiffQuery,
@@ -73,7 +75,7 @@ import type { OmpApi } from "../shared/service.ts";
 import { drawAgentsSurface } from "./agents-surface.ts";
 import { drawChangelogSurface } from "./changelog-surface.ts";
 import { drawContextSurface } from "./context-surface.ts";
-import { listFiles, readFileContent } from "./files.ts";
+import { browseDirectory, listFiles, readFileContent } from "./files.ts";
 import { drawGcSurface } from "./gc-surface.ts";
 import { getGitDiff, getGitStatus } from "./git.ts";
 import {
@@ -213,6 +215,9 @@ export class Handlers implements OmpApi {
 
   listFiles(query?: ListFilesQuery): Promise<string[]> {
     return listFiles(query?.cwd);
+  }
+  browseDirectory(query?: BrowseDirectoryQuery): Promise<DirectoryBrowseResult> {
+    return browseDirectory(query);
   }
 
   async getFileContent(query?: ReadFileQuery): Promise<ReadFileResult> {

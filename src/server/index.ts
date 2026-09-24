@@ -104,6 +104,14 @@ const server = serve({
         }
       },
     },
+    "/api/fs/browse": {
+      GET: request => {
+        const url = new URL(request.url);
+        const path = url.searchParams.get("path") || undefined;
+        const showHidden = url.searchParams.get("showHidden") === "true";
+        return json(() => handlers.browseDirectory({ path, showHidden }));
+      },
+    },
     "/api/git/status": {
       GET: request => {
         const url = new URL(request.url);

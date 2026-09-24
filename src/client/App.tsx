@@ -142,6 +142,7 @@ import {
   PALETTE_COMMAND,
 } from "./components/CommandPalette.tsx";
 import { Composer } from "./components/Composer.tsx";
+import { DirectoryPickerModal } from "./components/DirectoryPickerModal.tsx";
 import { FileTreePanel } from "./components/FileTreePanel.tsx";
 import { FileViewer } from "./components/FileViewer.tsx";
 import { JobsPanel } from "./components/JobsPanel.tsx";
@@ -300,6 +301,8 @@ export function App() {
   const [annotationsOpen, { open: openAnnotations, close: closeAnnotations }] = useDisclosure(false);
   /** Fullscreen multi-session overview. */
   const [overviewOpen, { open: openOverview, close: closeOverview }] = useDisclosure(false);
+  /** Directory picker modal for choosing a workspace from filesystem tree. */
+  const [dirPickerOpen, { open: openDirPicker, close: closeDirPicker }] = useDisclosure(false);
   /**
    * Which surface has a tool armed, if any.
    *
@@ -981,9 +984,7 @@ export function App() {
   };
 
   const handleAddWorkspace = (): void => {
-    // The browser cannot pick a server-side directory, so the path is typed.
-    const cwd = window.prompt("Absolute path of the directory to work in:");
-    if (cwd?.trim()) handleNew(cwd.trim());
+    openDirPicker();
   };
 
   /**
@@ -2615,6 +2616,12 @@ export function App() {
         onNewSession={handleNew}
         onStopSession={handleStopSessionByKey}
         onRefresh={() => void activeSessions.refetch()}
+      />
+      <DirectoryPickerModal
+        opened={dirPickerOpen}
+        onClose={closeDirPicker}
+        initialPath={project || state.data?.cwd}
+        onSelectDirectory={handleNew}
       />
     </AppShell>
   );

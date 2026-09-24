@@ -813,6 +813,45 @@ export interface ListFilesQuery {
 
 /** A file path in the workspace. */
 export type WorkspaceFile = string;
+/** Query parameters for browsing filesystem directories. */
+export interface BrowseDirectoryQuery {
+  /** Target directory path to browse. Defaults to server working directory. */
+  path?: string;
+  /** Whether to include hidden directories (starting with .). */
+  showHidden?: boolean;
+}
+
+/** A single subdirectory entry in the filesystem browser. */
+export interface DirectoryEntry {
+  /** Directory base name. */
+  name: string;
+  /** Full absolute path to this directory. */
+  path: string;
+  /** True if this directory contains a git repository root. */
+  isGit?: boolean;
+  /** True if this directory contains further subdirectories. */
+  hasChildren?: boolean;
+}
+
+/** Result of browsing a filesystem directory. */
+export interface DirectoryBrowseResult {
+  /** Resolved absolute path of the directory being inspected. */
+  current: string;
+  /** Parent directory path, or undefined if at root. */
+  parent?: string;
+  /** User's home directory path. */
+  home: string;
+  /** Subdirectories in the current directory. */
+  entries: DirectoryEntry[];
+  /** True if the current directory is a git repository. */
+  isGit: boolean;
+  /** Active git branch name if current directory is a git repository. */
+  gitBranch?: string;
+  /** True if the directory exists on disk. */
+  exists: boolean;
+  /** Error message if directory reading encountered an issue. */
+  error?: string;
+}
 
 /** Query parameters for reading workspace git status. */
 export interface GitStatusQuery {

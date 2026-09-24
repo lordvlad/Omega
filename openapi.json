@@ -125,6 +125,56 @@
         }
       }
     },
+    "/api/fs/browse": {
+      "get": {
+        "operationId": "browseDirectory",
+        "x-service": "OmpApi",
+        "tags": [
+          "OmpApi"
+        ],
+        "summary": "Browse filesystem directories",
+        "description": "Browse filesystem directories for interactive directory selection.",
+        "parameters": [
+          {
+            "name": "path",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Target directory path to browse. Defaults to server working directory."
+          },
+          {
+            "name": "showHidden",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "const": false
+                },
+                {
+                  "const": true
+                }
+              ]
+            },
+            "description": "Whether to include hidden directories (starting with .)."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DirectoryBrowseResult"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/files/content": {
       "get": {
         "operationId": "getFileContent",
@@ -3022,6 +3072,94 @@
       },
       "WorkspaceFile": {
         "type": "string"
+      },
+      "DirectoryBrowseResult": {
+        "description": "Result of browsing a filesystem directory.",
+        "type": "object",
+        "properties": {
+          "current": {
+            "type": "string",
+            "description": "Resolved absolute path of the directory being inspected."
+          },
+          "parent": {
+            "type": "string",
+            "description": "Parent directory path, or undefined if at root."
+          },
+          "home": {
+            "type": "string",
+            "description": "User's home directory path."
+          },
+          "entries": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/DirectoryEntry"
+            },
+            "description": "Subdirectories in the current directory."
+          },
+          "isGit": {
+            "type": "boolean",
+            "description": "True if the current directory is a git repository."
+          },
+          "gitBranch": {
+            "type": "string",
+            "description": "Active git branch name if current directory is a git repository."
+          },
+          "exists": {
+            "type": "boolean",
+            "description": "True if the directory exists on disk."
+          },
+          "error": {
+            "type": "string",
+            "description": "Error message if directory reading encountered an issue."
+          }
+        },
+        "required": [
+          "current",
+          "home",
+          "entries",
+          "isGit",
+          "exists"
+        ]
+      },
+      "DirectoryEntry": {
+        "description": "A single subdirectory entry in the filesystem browser.",
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "Directory base name."
+          },
+          "path": {
+            "type": "string",
+            "description": "Full absolute path to this directory."
+          },
+          "isGit": {
+            "anyOf": [
+              {
+                "const": false
+              },
+              {
+                "const": true
+              }
+            ],
+            "description": "True if this directory contains a git repository root."
+          },
+          "hasChildren": {
+            "anyOf": [
+              {
+                "const": false
+              },
+              {
+                "const": true
+              }
+            ],
+            "description": "True if this directory contains further subdirectories."
+          }
+        },
+        "required": [
+          "name",
+          "path"
+        ]
       },
       "ReadFileResult": {
         "description": "File content and metadata.",

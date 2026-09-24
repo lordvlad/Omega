@@ -6,9 +6,16 @@
  * fuzzy file completions.
  */
 import * as fs from "node:fs/promises";
+import * as os from "node:os";
 import * as path from "node:path";
 
-import type { ReadFileResult } from "../shared/model.ts";
+import type {
+  BrowseDirectoryQuery,
+  DirectoryBrowseResult,
+  DirectoryEntry,
+  ReadFileResult,
+} from "../shared/model.ts";
+import { getGitStatus } from "./git.ts";
 
 const IGNORED_DIRS: Record<string, true> = {
   ".git": true,
@@ -194,5 +201,103 @@ export async function resolveDownloadPath(
     fileName: path.basename(relPath),
     size: stat.size,
     mimeType,
+  };
+}
+/**
+ * Browse filesystem directories for interactive directory selection.
+ */
+export async function browseDirectory(query?: BrowseDirectoryQuery): Promise<DirectoryBrowseResult> {
+  const home = os.homedir();
+  const rawPath = query?.path?.trim();
+  let target = rawPath
+    ? rawPath.startsWith("~")
+      ? path.join(home, rawPath.slice(1))
+      : path.resolve(rawPath)
+    : process.cwd();
+
+  try {
+    const stat = await fs.stat(target);
+    if (!stat.isDirectory()) {
+      target = path.dirname(target);
+    }
+  } catch {
+    try {
+      const parent = path.dirname(target);
+      const parentStat = await fs.stat(parent);
+      if (parentStat.isDirectory()) {
+        target = parent;
+      } else {
+        target = process.cwd();
+      }
+    } catch {
+      target = process.cwd();
+    }
+  }
+
+  const parent = target === path.dirname(target) ? undefined : path.dirname(target);
+
+  let isGit = false;
+  let gitBranch: string | undefined;
+  try {
+    const git = await getGitStatus(target);
+    if (git.branch) {
+      isGit = true;
+      gitBranch = git.branch;
+    }
+  } catch {
+    // Ignore git status errors when inspecting arbitrary filesystem directories
+  }
+
+  const entries: DirectoryEntry[] = [];
+  try {
+    const rawEntries = await fs.readdir(target, { withFileTypes: true });
+    for (const entry of rawEntries) {
+      if (!entry.isDirectory() && !entry.isSymbolicLink()) continue;
+      const name = entry.name;
+      if (!query?.showHidden && name.startsWith(".")) continue;
+      if (name === ".git" || name === "node_modules" || name === ".venv" || name === "venv") continue;
+
+      const fullPath = path.join(target, name);
+      let isEntryGit = false;
+      let hasChildren = false;
+
+      try {
+        const sub = await fs.readdir(fullPath, { withFileTypes: true });
+        isEntryGit = sub.some(s => s.name === ".git");
+        hasChildren = sub.some(s => s.isDirectory());
+      } catch {
+        // Permission denied or unreadable subdirectory
+      }
+
+      entries.push({
+        name,
+        path: fullPath,
+        isGit: isEntryGit,
+        hasChildren,
+      });
+    }
+  } catch (error) {
+    return {
+      current: target,
+      parent,
+      home,
+      entries: [],
+      isGit,
+      gitBranch,
+      exists: false,
+      error: error instanceof Error ? error.message : String(error),
+    };
+  }
+
+  entries.sort((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: "base" }));
+
+  return {
+    current: target,
+    parent,
+    home,
+    entries,
+    isGit,
+    gitBranch,
+    exists: true,
   };
 }

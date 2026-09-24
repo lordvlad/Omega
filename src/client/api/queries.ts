@@ -2,7 +2,7 @@
 // React Query options getters and hooks for query operations. Edit the document, not this file.
 
 import { useQuery, type UseQueryOptions } from "@tanstack/react-query";
-import { defaultClient, type Client, type GetFileContentOptions, type GetFileContentResult, type GetGitDiffOptions, type GetGitDiffResult, type GetGitStatusOptions, type GetGitStatusResult, type GetPlanOptions, type GetPlanResult, type GetStateOptions, type GetStateResult, type GetTranscriptOptions, type GetTranscriptResult, type ListActiveSessionsOptions, type ListActiveSessionsResult, type ListBranchPointsOptions, type ListBranchPointsResult, type ListCommandsOptions, type ListCommandsResult, type ListFilesOptions, type ListFilesResult, type ListJobsOptions, type ListJobsResult2, type ListMcpServersOptions, type ListMcpServersResult2, type ListModelsOptions, type ListModelsResult, type ListProcessesOptions, type ListProcessesResult2, type ListQueueOptions, type ListQueueResult, type ListRulesOptions, type ListRulesResult2, type ListToolsOptions, type ListToolsResult2, type ListWorkspacesOptions, type ListWorkspacesResult } from "./api.ts";
+import { defaultClient, type Client, type BrowseDirectoryOptions, type BrowseDirectoryResult, type GetFileContentOptions, type GetFileContentResult, type GetGitDiffOptions, type GetGitDiffResult, type GetGitStatusOptions, type GetGitStatusResult, type GetPlanOptions, type GetPlanResult, type GetStateOptions, type GetStateResult, type GetTranscriptOptions, type GetTranscriptResult, type ListActiveSessionsOptions, type ListActiveSessionsResult, type ListBranchPointsOptions, type ListBranchPointsResult, type ListCommandsOptions, type ListCommandsResult, type ListFilesOptions, type ListFilesResult, type ListJobsOptions, type ListJobsResult2, type ListMcpServersOptions, type ListMcpServersResult2, type ListModelsOptions, type ListModelsResult, type ListProcessesOptions, type ListProcessesResult2, type ListQueueOptions, type ListQueueResult, type ListRulesOptions, type ListRulesResult2, type ListToolsOptions, type ListToolsResult2, type ListWorkspacesOptions, type ListWorkspacesResult } from "./api.ts";
 import { createMutations } from "./mutations.ts";
 
 /**
@@ -131,6 +131,39 @@ export function useListFiles<
   client: Client = defaultClient()
 ) {
   return useQuery(getListFilesQueryOptions(options!, queryOptions, client));
+}
+
+/**
+ * Browse filesystem directories
+ * 
+ * Browse filesystem directories for interactive directory selection.
+ */
+export function getBrowseDirectoryQueryOptions<
+  TData = BrowseDirectoryResult,
+  TError = unknown
+>(
+  options?: BrowseDirectoryOptions,
+  queryOptions?: Omit<UseQueryOptions<BrowseDirectoryResult, TError, TData>, "queryKey" | "queryFn">,
+  client: Client = defaultClient()
+) {
+  return {
+    queryKey: ["/api/fs/browse", options] as const,
+    queryFn: ({ signal }: { signal?: AbortSignal }) =>
+      client.browseDirectory(options as any, { signal }),
+    ...queryOptions,
+  };
+}
+
+/** React Query hook for `browseDirectory`. */
+export function useBrowseDirectory<
+  TData = BrowseDirectoryResult,
+  TError = unknown
+>(
+  options?: BrowseDirectoryOptions,
+  queryOptions?: Omit<UseQueryOptions<BrowseDirectoryResult, TError, TData>, "queryKey" | "queryFn">,
+  client: Client = defaultClient()
+) {
+  return useQuery(getBrowseDirectoryQueryOptions(options!, queryOptions, client));
 }
 
 /** Read content and metadata of a workspace file. */
@@ -629,6 +662,14 @@ export function createQueries(client: Client = defaultClient()) {
       options?: ListFilesOptions,
       queryOptions?: Omit<UseQueryOptions<ListFilesResult, TError, TData>, "queryKey" | "queryFn">
     ) => useListFiles<TData, TError>(options!, queryOptions, client),
+    getBrowseDirectoryQueryOptions: <TData = BrowseDirectoryResult, TError = unknown>(
+      options?: BrowseDirectoryOptions,
+      queryOptions?: Omit<UseQueryOptions<BrowseDirectoryResult, TError, TData>, "queryKey" | "queryFn">
+    ) => getBrowseDirectoryQueryOptions<TData, TError>(options!, queryOptions, client),
+    useBrowseDirectory: <TData = BrowseDirectoryResult, TError = unknown>(
+      options?: BrowseDirectoryOptions,
+      queryOptions?: Omit<UseQueryOptions<BrowseDirectoryResult, TError, TData>, "queryKey" | "queryFn">
+    ) => useBrowseDirectory<TData, TError>(options!, queryOptions, client),
     getGetFileContentQueryOptions: <TData = GetFileContentResult, TError = unknown>(
       options: GetFileContentOptions,
       queryOptions?: Omit<UseQueryOptions<GetFileContentResult, TError, TData>, "queryKey" | "queryFn">

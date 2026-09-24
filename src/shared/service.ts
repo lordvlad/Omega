@@ -23,11 +23,13 @@ import type {
   BranchRequest,
   BranchResult,
   BtwRequest,
+  BrowseDirectoryQuery,
   BtwResult,
   CancelJobRequest,
   CompactRequest,
   DeleteRuleRequest,
   ForceToolRequest,
+  DirectoryBrowseResult,
   GitDiffQuery,
   GitDiffResult,
   GitStatusQuery,
@@ -112,6 +114,14 @@ export interface OmpApi {
    * @response 200 application/json WorkspaceFile[]
    */
   listFiles(query?: ListFilesQuery): Promise<WorkspaceFile[]>;
+  /**
+   * Browse filesystem directories for interactive directory selection.
+   *
+   * @get /api/fs/browse
+   * @summary Browse filesystem directories
+   * @response 200 application/json DirectoryBrowseResult
+   */
+  browseDirectory(query?: BrowseDirectoryQuery): Promise<DirectoryBrowseResult>;
 
   /**
    * Read content and metadata of a workspace file.
