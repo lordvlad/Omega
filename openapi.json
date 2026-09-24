@@ -2866,6 +2866,25 @@
           "completedTodos": {
             "type": "number"
           },
+          "contextUsage": {
+            "type": "object",
+            "properties": {
+              "tokens": {
+                "type": "number"
+              },
+              "contextWindow": {
+                "type": "number"
+              },
+              "percent": {
+                "type": "number"
+              }
+            },
+            "required": [
+              "tokens",
+              "contextWindow",
+              "percent"
+            ]
+          },
           "lastError": {
             "type": "string"
           },

@@ -15,6 +15,7 @@ import {
   Center,
   Group,
   Modal,
+  Progress,
   ScrollArea,
   SimpleGrid,
   Stack,
@@ -26,11 +27,12 @@ import {
 import {
   IconAlertTriangle,
   IconArrowRight,
+  IconBrain,
   IconCheck,
   IconChecklist,
   IconClock,
-  IconCpu,
   IconFolder,
+  IconGauge,
   IconGitBranch,
   IconMessage,
   IconPlayerPlayFilled,
@@ -66,6 +68,11 @@ function formatRelative(ms: number): string {
   if (min < 60) return `${min}m ago`;
   const hrs = Math.floor(min / 60);
   return `${hrs}h ago`;
+}
+function formatTokens(count: number): string {
+  if (count >= 1_000_000) return `${(count / 1_000_000).toFixed(1)}M`;
+  if (count >= 1_000) return `${Math.round(count / 1_000)}k`;
+  return String(count);
 }
 
 function renderDotMarker(dot: ActiveSessionOverview["turnCompletedDot"]): React.ReactNode {
@@ -337,7 +344,7 @@ export function MultiSessionOverview({
 
                     {/* Metadata Badges: Model, Thinking, Archetype */}
                     <Group gap={4} wrap="wrap">
-                      <Badge size="xs" color="cyan" variant="light" leftSection={<IconCpu size={10} />}>
+                      <Badge size="xs" color="cyan" variant="light" leftSection={<IconBrain size={10} />}>
                         {session.modelName} ({session.thinkingLevel})
                       </Badge>
                       <Badge size="xs" color="plum" variant="light" leftSection={<IconRobot size={10} />}>
@@ -346,7 +353,58 @@ export function MultiSessionOverview({
                     </Group>
 
                     {/* Metrics Group */}
-                    <Stack gap={4} pt={4} style={{ borderTop: "1px solid var(--omega-line)" }}>
+                    <Stack gap={6} pt={4} style={{ borderTop: "1px solid var(--omega-line)" }}>
+                      {/* Context Usage Progress Bar */}
+                      <Box>
+                        <Group justify="space-between" align="center" mb={3}>
+                          <Group gap={4}>
+                            <IconGauge size={13} color="var(--mantine-color-dimmed)" />
+                            <Text size="xs" c="dimmed">
+                              Context
+                            </Text>
+                          </Group>
+                          {session.contextUsage && session.contextUsage.contextWindow > 0 ? (
+                            <Text
+                              size="xs"
+                              fw={500}
+                              c={
+                                session.contextUsage.percent >= 90
+                                  ? "red.4"
+                                  : session.contextUsage.percent >= 75
+                                    ? "yellow.4"
+                                    : "dimmed"
+                              }
+                            >
+                              {Math.round(session.contextUsage.percent)}% (
+                              {formatTokens(session.contextUsage.tokens)} /{" "}
+                              {formatTokens(session.contextUsage.contextWindow)})
+                            </Text>
+                          ) : (
+                            <Text size="xs" c="dimmed">
+                              0%
+                            </Text>
+                          )}
+                        </Group>
+                        <Progress
+                          value={
+                            session.contextUsage
+                              ? Math.min(100, Math.max(0, session.contextUsage.percent))
+                              : 0
+                          }
+                          size="xs"
+                          radius="xl"
+                          color={
+                            !session.contextUsage || session.contextUsage.percent === 0
+                              ? "gray"
+                              : session.contextUsage.percent >= 90
+                                ? "red"
+                                : session.contextUsage.percent >= 75
+                                  ? "yellow"
+                                  : "cyan"
+                          }
+                        />
+                      </Box>
+
                       <Group justify="space-between" align="center">
                         <Group gap={4}>
                           <IconMessage size={13} color="var(--mantine-color-dimmed)" />
@@ -385,7 +443,6 @@ export function MultiSessionOverview({
                         </Text>
                       </Group>
                     </Stack>
-
                     {/* Error message if present */}
                     {session.lastError ? (
                       <Text size="xs" c="red.4" lineClamp={2} style={{ wordBreak: "break-word" }}>

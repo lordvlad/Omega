@@ -710,7 +710,7 @@ export function CommandPalette({
         label: PALETTE_COMMAND.model,
         description: sessionKey ? "Change the model for this session" : "Open a session first",
         keywords: "model provider switch",
-        leftSection: <IconCpu size={16} />,
+        leftSection: <IconBrain size={16} />,
         closeSpotlightOnTrigger: false,
         onClick: () => onQueryChange(`${PALETTE_COMMAND.model} `),
       },

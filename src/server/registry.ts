@@ -536,6 +536,7 @@ export class Registry {
         totalCost,
         totalTodos: allTodos.length,
         completedTodos,
+        contextUsage: state.contextUsage,
         lastError: state.lastError,
         lastActivityAt: live.idleFor(now),
         idleSeconds: Math.round(live.idleFor(now) / 1000),

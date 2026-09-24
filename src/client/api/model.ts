@@ -57,6 +57,11 @@ export interface ActiveSessionOverview {
   totalCost: number;
   totalTodos: number;
   completedTodos: number;
+  contextUsage?: {
+    tokens: number;
+    contextWindow: number;
+    percent: number;
+  };
   lastError?: string;
   lastActivityAt: number;
   idleSeconds: number;
