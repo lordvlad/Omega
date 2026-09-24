@@ -608,6 +608,7 @@ export function Transcript({
     // Echoes sit after the persisted history and before the reply they
     // provoked, which is where the server will place them once it catches up.
     for (const [index, text] of pendingUser.entries()) {
+      if (text.trim().startsWith("/")) continue;
       result.push({
         kind: "message",
         id: `pending-${index}`,

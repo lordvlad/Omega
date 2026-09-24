@@ -1584,7 +1584,10 @@ export function App() {
       void Notification.requestPermission();
     }
     if (live.status !== "open") live.reconnect();
-    setPendingUser(current => [...current, message]);
+    const isSlash = message.trim().startsWith("/");
+    if (!isSlash) {
+      setPendingUser(current => [...current, message]);
+    }
     // Identifies this send across every retry the outbox makes, so a message
     // parked with no network is delivered exactly once however many times it
     // is replayed.
@@ -1596,11 +1599,13 @@ export function App() {
         // turn to settle.
         onSuccess: refresh,
         onError: error => {
-          setPendingUser(current => {
-            const at = current.indexOf(message);
-            if (at < 0) return current;
-            return [...current.slice(0, at), ...current.slice(at + 1)];
-          });
+          if (!isSlash) {
+            setPendingUser(current => {
+              const at = current.indexOf(message);
+              if (at < 0) return current;
+              return [...current.slice(0, at), ...current.slice(at + 1)];
+            });
+          }
           onFailure?.();
           fail(error);
         },
