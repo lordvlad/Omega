@@ -543,13 +543,15 @@ export class Registry {
       const completedTodos = allTodos.filter(t => t.status === "completed").length;
 
       let gitBranch: string | undefined;
+      let gitChangedFiles: number | undefined;
       try {
         const gitStatus = await getGitStatus(cwd);
         gitBranch = gitStatus.branch;
+        gitChangedFiles = Object.keys(gitStatus.files ?? {}).length;
       } catch {
         gitBranch = undefined;
+        gitChangedFiles = undefined;
       }
-
       let sessionState: "streaming" | "idle" | "awaiting_plan" | "error" | "rate_limited" = "idle";
       let turnCompletedDot: "completed" | "error" | "streaming" | "idle" | "rate_limited" = "idle";
 
@@ -579,6 +581,7 @@ export class Registry {
         workdir,
         title,
         gitBranch,
+        gitChangedFiles,
         model: model ? `${model.provider}/${model.id}` : "",
         modelName,
         thinkingLevel,

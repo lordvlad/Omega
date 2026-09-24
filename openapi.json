@@ -2804,6 +2804,9 @@
           "gitBranch": {
             "type": "string"
           },
+          "gitChangedFiles": {
+            "type": "number"
+          },
           "model": {
             "type": "string"
           },

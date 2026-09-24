@@ -131,6 +131,7 @@ export interface ActiveSessionOverview {
   workdir: string;
   title: string;
   gitBranch?: string;
+  gitChangedFiles?: number;
   model: string;
   modelName: string;
   thinkingLevel: ThinkingLevel;

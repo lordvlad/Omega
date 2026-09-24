@@ -31,6 +31,7 @@ import {
   IconCheck,
   IconChecklist,
   IconClockPause,
+  IconFileDiff,
   IconClock,
   IconFolder,
   IconGauge,
@@ -336,6 +337,17 @@ export function MultiSessionOverview({
                             {session.gitBranch}
                           </Badge>
                         ) : null}
+                        {typeof session.gitChangedFiles === "number" && session.gitChangedFiles > 0 ? (
+                          <Badge
+                            size="xs"
+                            variant="light"
+                            color="yellow"
+                            leftSection={<IconFileDiff size={11} />}
+                            style={{ flexShrink: 0 }}
+                          >
+                            {session.gitChangedFiles} modified
+                          </Badge>
+                        ) : null}
                       </Group>
 
                       {renderDotMarker(session.turnCompletedDot)}
@@ -426,6 +438,29 @@ export function MultiSessionOverview({
                         </Text>
                       </Group>
 
+                      <Group justify="space-between" align="center">
+                        <Group gap={4}>
+                          <IconFileDiff size={13} color="var(--mantine-color-dimmed)" />
+                          <Text size="xs" c="dimmed">
+                            Git Changes
+                          </Text>
+                        </Group>
+                        <Text
+                          size="xs"
+                          fw={500}
+                          c={
+                            typeof session.gitChangedFiles === "number" && session.gitChangedFiles > 0
+                              ? "yellow.4"
+                              : "dimmed"
+                          }
+                        >
+                          {typeof session.gitChangedFiles === "number"
+                            ? session.gitChangedFiles > 0
+                              ? `${session.gitChangedFiles} ${session.gitChangedFiles === 1 ? "file" : "files"}`
+                              : "Clean"
+                            : "—"}
+                        </Text>
+                      </Group>
                       <Group justify="space-between" align="center">
                         <Group gap={4}>
                           <IconChecklist size={13} color="var(--mantine-color-dimmed)" />
