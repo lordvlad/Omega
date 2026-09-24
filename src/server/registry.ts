@@ -428,7 +428,7 @@ export class LiveSession {
  * thing that reclaims an abandoned agent and the child processes, MCP
  * connections and eval kernels it owns.
  */
-const IDLE_MINUTES = Number(process.env.OMEGA_IDLE_MINUTES ?? 60);
+const IDLE_MINUTES = Number(process.env.OMEGA_IDLE_MINUTES ?? 480);
 
 /**
  * Longest gap between idle sweeps. A short idle window sweeps proportionally

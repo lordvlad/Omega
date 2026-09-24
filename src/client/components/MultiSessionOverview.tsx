@@ -261,7 +261,7 @@ export function MultiSessionOverview({
                 No Active Sessions in Memory
               </Text>
               <Text size="sm" c="dimmed" ta="center">
-                Sessions are held live while in use or within their 1-hour sleep window. Pick a workspace from
+                Sessions are held live while in use or within their 8-hour sleep window. Pick a workspace from
                 the header or start a new session to begin.
               </Text>
               {onNewSession ? (

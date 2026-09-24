@@ -480,8 +480,12 @@ if (HOST === "0.0.0.0" || HOST === "::" || HOST === "") {
 } else if (HOST !== "127.0.0.1" && HOST !== "localhost") {
   console.log(`  Network:   http://${HOST}:${PORT}`);
 }
+const idleDesc =
+  registry.idleMinutes >= 60 && registry.idleMinutes % 60 === 0
+    ? `${registry.idleMinutes / 60}h (${registry.idleMinutes}m)`
+    : `${registry.idleMinutes}m`;
 console.log(
   registry.idleMinutes > 0
-    ? `  Sessions survive disconnects; released after ${registry.idleMinutes}m idle (OMEGA_IDLE_MINUTES)`
+    ? `  Sessions survive disconnects; released after ${idleDesc} idle (OMEGA_IDLE_MINUTES)`
     : "  Sessions survive disconnects and are never released (OMEGA_IDLE_MINUTES=0)",
 );
