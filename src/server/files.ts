@@ -8,13 +8,7 @@
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-
-import type {
-  BrowseDirectoryQuery,
-  DirectoryBrowseResult,
-  DirectoryEntry,
-  ReadFileResult,
-} from "../shared/model.ts";
+import type { BrowseDirectoryQuery, DirectoryBrowseResult, DirectoryEntry, ReadFileResult } from "../shared/model.ts";
 import { getGitStatus } from "./git.ts";
 
 const IGNORED_DIRS: Record<string, true> = {
@@ -41,14 +35,18 @@ export async function listFiles(cwd?: string, maxFiles = 10000): Promise<string[
   const root = path.resolve(cwd || process.cwd());
   try {
     const stat = await fs.stat(root);
-    if (!stat.isDirectory()) return [];
+    if (!stat.isDirectory()) {
+      return [];
+    }
   } catch {
     return [];
   }
 
   const result: string[] = [];
   async function walk(dir: string, rel: string) {
-    if (result.length >= maxFiles) return;
+    if (result.length >= maxFiles) {
+      return;
+    }
     let entries;
     try {
       entries = await fs.readdir(dir, { withFileTypes: true });
@@ -56,11 +54,15 @@ export async function listFiles(cwd?: string, maxFiles = 10000): Promise<string[
       return;
     }
     for (const entry of entries) {
-      if (result.length >= maxFiles) break;
+      if (result.length >= maxFiles) {
+        break;
+      }
       const name = entry.name;
       const relPath = rel ? `${rel}/${name}` : name;
       if (entry.isDirectory()) {
-        if (IGNORED_DIRS[name]) continue;
+        if (IGNORED_DIRS[name]) {
+          continue;
+        }
         await walk(path.join(dir, name), relPath);
       } else if (entry.isFile() || entry.isSymbolicLink()) {
         result.push(relPath);
@@ -253,10 +255,16 @@ export async function browseDirectory(query?: BrowseDirectoryQuery): Promise<Dir
   try {
     const rawEntries = await fs.readdir(target, { withFileTypes: true });
     for (const entry of rawEntries) {
-      if (!entry.isDirectory() && !entry.isSymbolicLink()) continue;
+      if (!entry.isDirectory() && !entry.isSymbolicLink()) {
+        continue;
+      }
       const name = entry.name;
-      if (!query?.showHidden && name.startsWith(".")) continue;
-      if (name === ".git" || name === "node_modules" || name === ".venv" || name === "venv") continue;
+      if (!query?.showHidden && name.startsWith(".")) {
+        continue;
+      }
+      if (name === ".git" || name === "node_modules" || name === ".venv" || name === "venv") {
+        continue;
+      }
 
       const fullPath = path.join(target, name);
       let isEntryGit = false;
@@ -264,8 +272,8 @@ export async function browseDirectory(query?: BrowseDirectoryQuery): Promise<Dir
 
       try {
         const sub = await fs.readdir(fullPath, { withFileTypes: true });
-        isEntryGit = sub.some(s => s.name === ".git");
-        hasChildren = sub.some(s => s.isDirectory());
+        isEntryGit = sub.some((s) => s.name === ".git");
+        hasChildren = sub.some((s) => s.isDirectory());
       } catch {
         // Permission denied or unreadable subdirectory
       }

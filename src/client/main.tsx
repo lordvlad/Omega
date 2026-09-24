@@ -5,26 +5,26 @@
  * has no light variant worth offering.
  */
 import "@mantine/core/styles.css";
-import "@mantine/notifications/styles.css";
-import "@mantine/code-highlight/styles.css";
-import "@mantine/spotlight/styles.css";
 import "@mantine/charts/styles.css";
-import "./styles.css";
-import { CodeHighlightAdapterProvider, createShikiAdapter } from "@mantine/code-highlight";
-import { MantineProvider } from "@mantine/core";
-import { Notifications } from "@mantine/notifications";
+import "@mantine/code-highlight/styles.css";
+import "@mantine/notifications/styles.css";
+import "@mantine/spotlight/styles.css";
+
+import { StrictMode } from "react";
 import { createSyncStoragePersister } from "@tanstack/query-sync-storage-persister";
 import { onlineManager, QueryClient } from "@tanstack/react-query";
 import { PersistQueryClientProvider } from "@tanstack/react-query-persist-client";
 import { RouterProvider } from "@tanstack/react-router";
-import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import { createHighlighter } from "shiki";
-
+import { CodeHighlightAdapterProvider, createShikiAdapter } from "@mantine/code-highlight";
+import { MantineProvider } from "@mantine/core";
+import { Notifications } from "@mantine/notifications";
 import { configure } from "./api/api.ts";
 import { getPromptMutationOptions } from "./api/mutations.ts";
 import { router } from "./router.tsx";
 import { theme } from "./theme.ts";
+import "./styles.css";
 
 // The generated client defaults to same-origin, which is what we serve from.
 configure({ baseUrl: "" });
@@ -78,7 +78,7 @@ const queryClient = new QueryClient({
       // restarted while the link itself is up.
       networkMode: "online",
       retry: 3,
-      retryDelay: attempt => Math.min(1_000 * 2 ** attempt, 15_000),
+      retryDelay: (attempt) => Math.min(1_000 * 2 ** attempt, 15_000),
     },
   },
 });
@@ -121,11 +121,14 @@ const storage = createSyncStoragePersister({
  */
 let heldQueue = false;
 const persister: typeof storage = {
-  persistClient: async client => {
-    if (client.clientState.mutations.length > 0) heldQueue = true;
-    else if (!heldQueue) {
+  persistClient: async (client) => {
+    if (client.clientState.mutations.length > 0) {
+      heldQueue = true;
+    } else if (!heldQueue) {
       const stored = await storage.restoreClient();
-      if (stored && stored.clientState.mutations.length > 0) return;
+      if (stored && stored.clientState.mutations.length > 0) {
+        return;
+      }
     }
     await storage.persistClient(client);
   },
@@ -134,7 +137,9 @@ const persister: typeof storage = {
 };
 
 const container = document.getElementById("root");
-if (!container) throw new Error("#root is missing from index.html");
+if (!container) {
+  throw new Error("#root is missing from index.html");
+}
 
 createRoot(container).render(
   <StrictMode>
@@ -152,7 +157,7 @@ createRoot(container).render(
               // a snapshot in that window is how a queued message disappears
               // when the tab is closed. With no network there is nothing for
               // a re-send to duplicate.
-              shouldDehydrateMutation: mutation =>
+              shouldDehydrateMutation: (mutation) =>
                 mutation.state.isPaused || (mutation.state.status === "pending" && !onlineManager.isOnline()),
             },
           }}
@@ -161,7 +166,9 @@ createRoot(container).render(
             // offline un-parks the send for nothing and loses the state that
             // says it is still waiting; React Query resumes parked mutations
             // by itself the moment the network is back.
-            if (onlineManager.isOnline()) void queryClient.resumePausedMutations();
+            if (onlineManager.isOnline()) {
+              void queryClient.resumePausedMutations();
+            }
           }}
         >
           <Notifications position="top-right" limit={3} />
@@ -197,7 +204,9 @@ for (const [rel, href, type] of [
   const link = document.createElement("link");
   link.rel = rel;
   link.href = href;
-  if (type) link.type = type;
+  if (type) {
+    link.type = type;
+  }
   document.head.appendChild(link);
 }
 

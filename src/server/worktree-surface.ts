@@ -5,10 +5,8 @@
  * and agent-managed task isolation directories under `~/.omp/wt/`.
  */
 import * as path from "node:path";
-
 import { addWorktree, listWorktrees } from "@oh-my-pi/pi-coding-agent/cli/worktree-cli";
 import * as vcs from "@oh-my-pi/pi-natives/vcs";
-
 import { WT_SURFACE_ID, type A2uiComponent } from "../shared/a2ui.ts";
 import type { LiveSession } from "./registry.ts";
 
@@ -36,11 +34,7 @@ export async function discoverWorktrees(projectCwd: string): Promise<WorktreeInf
       for (const wt of rawList) {
         const wtPath = path.resolve(wt.path);
         const isCurrent = wtPath === normalizedProject;
-        const branch = wt.branch
-          ? wt.branch.replace(/^refs\/heads\//, "")
-          : wt.head
-            ? wt.head.slice(0, 8)
-            : "detached";
+        const branch = wt.branch ? wt.branch.replace(/^refs\/heads\//, "") : wt.head ? wt.head.slice(0, 8) : "detached";
         result.push({
           path: wtPath,
           branch,
@@ -67,16 +61,12 @@ export async function discoverWorktrees(projectCwd: string): Promise<WorktreeInf
     if (Array.isArray(agentWts)) {
       for (const wt of agentWts) {
         const wtPath = path.resolve(wt.path);
-        if (!result.some(r => r.path === wtPath)) {
+        if (!result.some((r) => r.path === wtPath)) {
           result.push({
             path: wtPath,
             branch: wt.branch ?? "isolated",
             head: "HEAD",
-            kind: wt.orphanReason
-              ? "orphan"
-              : wt.kind === "task-isolation"
-                ? "task-isolation"
-                : "pr-checkout",
+            kind: wt.orphanReason ? "orphan" : wt.kind === "task-isolation" ? "task-isolation" : "pr-checkout",
             isCurrent: wtPath === normalizedProject,
           });
         }
@@ -140,8 +130,8 @@ export async function drawWorktreeSurface(live: LiveSession): Promise<void> {
   const worktrees = await discoverWorktrees(cwd);
 
   const total = worktrees.length;
-  const linked = worktrees.filter(w => w.kind === "linked" || w.kind === "task-isolation").length;
-  const main = worktrees.find(w => w.kind === "main");
+  const linked = worktrees.filter((w) => w.kind === "linked" || w.kind === "task-isolation").length;
+  const main = worktrees.find((w) => w.kind === "main");
 
   const components: A2uiComponent[] = [
     { id: "root", component: "Card", child: "wt-col", shadow: "xs", p: "md", withBorder: true },
@@ -262,8 +252,8 @@ export async function drawWorktreeSurface(live: LiveSession): Promise<void> {
       id: "wt-table",
       component: "Table",
       headers: ["Location", "Branch", "Commit", "Type", "Status"],
-      rows: worktrees.map(wt => [
-        wt.path.length > 45 ? "…" + wt.path.slice(-42) : wt.path,
+      rows: worktrees.map((wt) => [
+        wt.path.length > 45 ? `…${wt.path.slice(-42)}` : wt.path,
         wt.branch,
         wt.head,
         wt.kind.toUpperCase(),

@@ -1,3 +1,4 @@
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 /**
  * The live turn: an AG-UI socket reduced into renderable parts.
  *
@@ -8,8 +9,6 @@
  * bug where a reconnect duplicates a finished message.
  */
 import { EventType } from "@tanstack/ai/client";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-
 import type { A2uiMessage } from "../../shared/a2ui.ts";
 import type { MessagePart, SubagentTask } from "../api/model.ts";
 import { type ClientSurface, reduceA2uiMessage, setPointer } from "./a2ui.ts";
@@ -152,7 +151,7 @@ export function useLiveTurn(
     tools.current = [];
     order.current = [];
     setRunning(false);
-    setTick(value => value + 1);
+    setTick((value) => value + 1);
   }, []);
 
   // Bumped to force a fresh socket after an unexpected close.
@@ -165,7 +164,7 @@ export function useLiveTurn(
     // When switching sessions, clear active surfaces and subagents.
     surfaces.current = new Map();
     setSubagents([]);
-    setTick(value => value + 1);
+    setTick((value) => value + 1);
   }, [key]);
 
   useEffect(() => {
@@ -194,7 +193,9 @@ export function useLiveTurn(
     let awaitingPong = false;
 
     const keepalive = window.setInterval(() => {
-      if (socket.readyState !== WebSocket.OPEN) return;
+      if (socket.readyState !== WebSocket.OPEN) {
+        return;
+      }
       if (awaitingPong && Date.now() - lastFrame > KEEPALIVE_MS * 2) {
         // Half-open: force the close the transport never reported, which puts
         // this through the ordinary reconnect path.
@@ -224,11 +225,15 @@ export function useLiveTurn(
     const reconnect = (): void => {
       setStatus("closed");
       setRunning(false);
-      if (releasing) return;
-      if (retry !== undefined) return;
+      if (releasing) {
+        return;
+      }
+      if (retry !== undefined) {
+        return;
+      }
       failureCount.current += 1;
       setFailures(failureCount.current);
-      retry = window.setTimeout(() => setAttempt(value => value + 1), backoffMs(failureCount.current));
+      retry = window.setTimeout(() => setAttempt((value) => value + 1), backoffMs(failureCount.current));
     };
     socket.addEventListener("close", reconnect);
     socket.addEventListener("error", reconnect);
@@ -237,23 +242,29 @@ export function useLiveTurn(
     // When the user returns, reconnect immediately without waiting for a retry timer.
     const onWake = (): void => {
       stale.current();
-      if (socket.readyState === WebSocket.OPEN) return;
+      if (socket.readyState === WebSocket.OPEN) {
+        return;
+      }
       releasing = true;
-      if (retry !== undefined) window.clearTimeout(retry);
+      if (retry !== undefined) {
+        window.clearTimeout(retry);
+      }
       socket.close();
       setRunning(false);
       reset();
       // Returning to the tab is a deliberate act, so it skips the backoff
       // rather than inheriting however long the last one had grown to.
-      setAttempt(value => value + 1);
+      setAttempt((value) => value + 1);
     };
     window.addEventListener("focus", onWake);
     window.addEventListener("online", onWake);
     const onVisibility = (): void => {
-      if (document.visibilityState === "visible") onWake();
+      if (document.visibilityState === "visible") {
+        onWake();
+      }
     };
     document.addEventListener("visibilitychange", onVisibility);
-    socket.addEventListener("message", event => {
+    socket.addEventListener("message", (event) => {
       lastFrame = Date.now();
       awaitingPong = false;
       let frame: Frame;
@@ -267,8 +278,10 @@ export function useLiveTurn(
 
     /** Find or append a streaming block. */
     const block = (id: string, kind: Block["kind"]): Block => {
-      const found = blocks.current.find(candidate => candidate.id === id);
-      if (found) return found;
+      const found = blocks.current.find((candidate) => candidate.id === id);
+      if (found) {
+        return found;
+      }
       const created: Block = { id, kind, text: "" };
       blocks.current.push(created);
       order.current.push({ kind: "block", id });
@@ -285,8 +298,8 @@ export function useLiveTurn(
           break;
         case EventType.RUN_FINISHED: {
           const summary = blocks.current
-            .filter(b => b.kind === "text")
-            .map(b => b.text)
+            .filter((b) => b.kind === "text")
+            .map((b) => b.text)
             .join("\n")
             .trim();
           setRunning(false);
@@ -323,24 +336,24 @@ export function useLiveTurn(
 
         case EventType.TEXT_MESSAGE_START:
           block(String(frame.messageId), "text");
-          setTick(value => value + 1);
+          setTick((value) => value + 1);
           break;
         case EventType.TEXT_MESSAGE_CONTENT:
           block(String(frame.messageId), "text").text += String(frame.delta ?? "");
-          setTick(value => value + 1);
+          setTick((value) => value + 1);
           break;
         case EventType.THINKING_TEXT_MESSAGE_START:
           block(String(frame.messageId), "thinking");
-          setTick(value => value + 1);
+          setTick((value) => value + 1);
           break;
         case EventType.THINKING_TEXT_MESSAGE_CONTENT:
           block(String(frame.messageId), "thinking").text += String(frame.delta ?? "");
-          setTick(value => value + 1);
+          setTick((value) => value + 1);
           break;
 
         case EventType.TOOL_CALL_START: {
           const id = String(frame.toolCallId);
-          if (!tools.current.some(tool => tool.id === id)) {
+          if (!tools.current.some((tool) => tool.id === id)) {
             tools.current.push({
               id,
               toolName: String(frame.toolCallName ?? frame.toolName ?? "tool"),
@@ -349,36 +362,38 @@ export function useLiveTurn(
             });
             order.current.push({ kind: "tool", id });
           }
-          setTick(value => value + 1);
+          setTick((value) => value + 1);
           break;
         }
         case EventType.TOOL_CALL_ARGS: {
-          const tool = tools.current.find(candidate => candidate.id === String(frame.toolCallId));
-          if (tool) tool.args += String(frame.delta ?? "");
-          setTick(value => value + 1);
+          const tool = tools.current.find((candidate) => candidate.id === String(frame.toolCallId));
+          if (tool) {
+            tool.args += String(frame.delta ?? "");
+          }
+          setTick((value) => value + 1);
           break;
         }
         case EventType.TOOL_CALL_RESULT: {
-          const tool = tools.current.find(candidate => candidate.id === String(frame.toolCallId));
+          const tool = tools.current.find((candidate) => candidate.id === String(frame.toolCallId));
           if (tool) {
             tool.result = String(frame.content ?? "");
             tool.isError = frame.isError === true;
             tool.done = true;
           }
-          setTick(value => value + 1);
+          setTick((value) => value + 1);
           break;
         }
 
         case EventType.CUSTOM: {
           const name = String(frame.name ?? "");
           if (name === "omp.state") {
-            setRevision(value => value + 1);
+            setRevision((value) => value + 1);
             stale.current();
           } else if (name === "omp.plan") {
             const value = frame.value as { awaitingApproval?: boolean } | null;
             const awaiting = value?.awaitingApproval === true;
             setPlanAwaiting(awaiting);
-            setRevision(current => current + 1);
+            setRevision((current) => current + 1);
             stale.current();
             if (awaiting && key) {
               yieldCallback.current?.({
@@ -389,16 +404,20 @@ export function useLiveTurn(
             }
           } else if (name === "omp.notice") {
             const value = frame.value as { message?: string } | null;
-            if (value?.message) setNotices(current => [...current.slice(-4), value.message as string]);
+            if (value?.message) {
+              setNotices((current) => [...current.slice(-4), value.message as string]);
+            }
           } else if (name === "omp.tool_update") {
             const value = frame.value as { toolCallId?: string; text?: string } | null;
-            const tool = tools.current.find(candidate => candidate.id === String(value?.toolCallId));
-            if (tool && value?.text) tool.result = value.text;
+            const tool = tools.current.find((candidate) => candidate.id === String(value?.toolCallId));
+            if (tool && value?.text) {
+              tool.result = value.text;
+            }
           } else if (name === "omp.a2ui") {
             const msg = frame.value as A2uiMessage;
             if (msg) {
               surfaces.current = reduceA2uiMessage(surfaces.current, msg);
-              setTick(current => current + 1);
+              setTick((current) => current + 1);
             }
           } else if (name === "omp.subagents") {
             const val = frame.value as { subagents?: SubagentTask[] } | null;
@@ -420,7 +439,9 @@ export function useLiveTurn(
 
     return () => {
       releasing = true;
-      if (retry !== undefined) window.clearTimeout(retry);
+      if (retry !== undefined) {
+        window.clearTimeout(retry);
+      }
       window.clearInterval(keepalive);
       window.removeEventListener("focus", onWake);
       window.removeEventListener("online", onWake);
@@ -432,14 +453,18 @@ export function useLiveTurn(
   const parts = useMemo<MessagePart[]>(() => {
     // `tick` is the publication signal for the mutable refs above.
     void tick;
-    return order.current.flatMap<MessagePart>(entry => {
+    return order.current.flatMap<MessagePart>((entry) => {
       if (entry.kind === "block") {
-        const found = blocks.current.find(candidate => candidate.id === entry.id);
-        if (!found || !found.text) return [];
+        const found = blocks.current.find((candidate) => candidate.id === entry.id);
+        if (!found || !found.text) {
+          return [];
+        }
         return [{ kind: found.kind, text: found.text }];
       }
-      const tool = tools.current.find(candidate => candidate.id === entry.id);
-      if (!tool) return [];
+      const tool = tools.current.find((candidate) => candidate.id === entry.id);
+      if (!tool) {
+        return [];
+      }
       return [
         {
           kind: "toolCall",
@@ -458,14 +483,16 @@ export function useLiveTurn(
     // the user never asked to be on.
     failureCount.current = 0;
     setFailures(0);
-    setAttempt(value => value + 1);
+    setAttempt((value) => value + 1);
   }, []);
   const updateSurfaceData = useCallback((surfaceId: string, path: string | undefined, value: unknown) => {
     const surface = surfaces.current.get(surfaceId);
-    if (!surface) return;
+    if (!surface) {
+      return;
+    }
     setPointer(surface.dataModel, path, value);
     surface.revision += 1;
-    setTick(v => v + 1);
+    setTick((v) => v + 1);
   }, []);
 
   const surfaceList = useMemo<ClientSurface[]>(() => {

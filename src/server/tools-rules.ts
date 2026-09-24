@@ -3,7 +3,6 @@
  */
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
-
 import type {
   Ack,
   DeleteRuleRequest,
@@ -32,10 +31,18 @@ const BUILTIN_TOOL_NAMES = new Set([
 ]);
 
 function classifyToolSource(name: string): ToolSource {
-  if (name.startsWith("xd://") || name.startsWith("xd_")) return "xdev";
-  if (name.startsWith("a2ui_")) return "custom";
-  if (BUILTIN_TOOL_NAMES.has(name)) return "builtin";
-  if (name.includes(":") || name.includes("__")) return "mcp";
+  if (name.startsWith("xd://") || name.startsWith("xd_")) {
+    return "xdev";
+  }
+  if (name.startsWith("a2ui_")) {
+    return "custom";
+  }
+  if (BUILTIN_TOOL_NAMES.has(name)) {
+    return "builtin";
+  }
+  if (name.includes(":") || name.includes("__")) {
+    return "mcp";
+  }
   return "other";
 }
 
@@ -46,7 +53,7 @@ export function listSessionTools(live: LiveSession): ListToolsResult {
   const activeNames = new Set(live.session.getActiveToolNames());
   const allNames = live.session.getAllToolNames();
   const allInfos = typeof live.session.getAllToolInfos === "function" ? live.session.getAllToolInfos() : [];
-  const infoByName = new Map(allInfos.map(info => [info.name, info]));
+  const infoByName = new Map(allInfos.map((info) => [info.name, info]));
 
   let forcedTool: string | undefined;
   try {
@@ -59,8 +66,7 @@ export function listSessionTools(live: LiveSession): ListToolsResult {
 
   for (const name of allNames) {
     const info = infoByName.get(name);
-    const desc =
-      info?.description || (name.startsWith("a2ui_") ? "A2UI protocol surface tool" : "Registered tool");
+    const desc = info?.description || (name.startsWith("a2ui_") ? "A2UI protocol surface tool" : "Registered tool");
     const source = classifyToolSource(name);
     const active = activeNames.has(name);
     const forced = forcedTool === name;
@@ -99,16 +105,16 @@ export function forceSessionTool(live: LiveSession, request: ForceToolRequest): 
   return { ok: true, detail: `Next turn forced to use "${name}".` };
 }
 
-function parseRuleFrontmatter(
-  filePath: string,
-  content: string,
-  scopeType: RuleScopeType,
-): SessionRuleInfo | null {
+function parseRuleFrontmatter(filePath: string, content: string, scopeType: RuleScopeType): SessionRuleInfo | null {
   const trimmed = content.trim();
-  if (!trimmed.startsWith("---")) return null;
+  if (!trimmed.startsWith("---")) {
+    return null;
+  }
 
   const endMarker = trimmed.indexOf("---", 3);
-  if (endMarker === -1) return null;
+  if (endMarker === -1) {
+    return null;
+  }
 
   const header = trimmed.slice(3, endMarker);
   const body = trimmed.slice(endMarker + 3).trim();
@@ -129,19 +135,25 @@ function parseRuleFrontmatter(
         .slice("condition:".length)
         .trim()
         .replace(/^["']|["']$/g, "");
-      if (rest) condition.push(rest);
+      if (rest) {
+        condition.push(rest);
+      }
     } else if (l.startsWith("- ") || l.startsWith("  - ")) {
       const val = l
         .replace(/^[\s-]+/, "")
         .trim()
         .replace(/^["']|["']$/g, "");
-      if (val) condition.push(val);
+      if (val) {
+        condition.push(val);
+      }
     } else if (l.startsWith("scope:")) {
       const rest = l
         .slice("scope:".length)
         .trim()
         .replace(/^["']|["']$/g, "");
-      if (rest) scope.push(rest);
+      if (rest) {
+        scope.push(rest);
+      }
     }
   }
 
@@ -179,7 +191,9 @@ export async function listSessionRules(live: LiveSession): Promise<ListRulesResu
           const filePath = path.join(dir, file);
           const content = await fs.readFile(filePath, "utf8");
           const parsed = parseRuleFrontmatter(filePath, content, scopeType);
-          if (parsed) rules.push(parsed);
+          if (parsed) {
+            rules.push(parsed);
+          }
         }
       }
     } catch {
@@ -198,15 +212,15 @@ export async function listSessionRules(live: LiveSession): Promise<ListRulesResu
  */
 export async function deleteSessionRule(live: LiveSession, request: DeleteRuleRequest): Promise<Ack> {
   const name = request.name.trim();
-  if (!name) throw new Error("Rule name is required.");
+  if (!name) {
+    throw new Error("Rule name is required.");
+  }
 
   const cwd = live.manager.getCwd();
   const home = process.env.HOME || "/home/waldemar";
 
   const targetDir =
-    request.scopeType === "global"
-      ? path.join(home, ".omp", "agent", "rules")
-      : path.join(cwd, ".omp", "rules");
+    request.scopeType === "global" ? path.join(home, ".omp", "agent", "rules") : path.join(cwd, ".omp", "rules");
 
   const filePath = path.join(targetDir, `${name}.md`);
 

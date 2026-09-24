@@ -6,7 +6,6 @@ import { runGcCommand, type GcResult } from "@oh-my-pi/pi-coding-agent/cli/gc-cl
  * checkpointing WAL databases, and archiving cold sessions.
  */
 import { formatBytes } from "@oh-my-pi/pi-utils";
-
 import { GC_SURFACE_ID, type A2uiComponent } from "../shared/a2ui.ts";
 import type { LiveSession } from "./registry.ts";
 

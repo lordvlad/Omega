@@ -10,14 +10,13 @@
  * rather than tracked a second time alongside it.
  */
 import { useMutationState } from "@tanstack/react-query";
-
 import { getPromptMutationOptions } from "../api/mutations.ts";
 
 /** How many messages are parked, waiting for the network. */
 export function useQueuedSends(): number {
   const paused = useMutationState({
     filters: { mutationKey: getPromptMutationOptions().mutationKey, status: "pending" },
-    select: mutation => mutation.state.isPaused,
+    select: (mutation) => mutation.state.isPaused,
   });
   return paused.filter(Boolean).length;
 }
@@ -37,9 +36,13 @@ export function newSendId(): string {
   if (typeof crypto !== "undefined" && typeof crypto.getRandomValues === "function") {
     crypto.getRandomValues(bytes);
   } else {
-    for (let i = 0; i < bytes.length; i++) bytes[i] = Math.floor(Math.random() * 256);
+    for (let i = 0; i < bytes.length; i++) {
+      bytes[i] = Math.floor(Math.random() * 256);
+    }
   }
   let hex = "";
-  for (const byte of bytes) hex += byte.toString(16).padStart(2, "0");
+  for (const byte of bytes) {
+    hex += byte.toString(16).padStart(2, "0");
+  }
   return hex;
 }

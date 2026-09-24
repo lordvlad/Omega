@@ -1,6 +1,5 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
-
 /**
  * The live-session registry.
  *
@@ -25,8 +24,6 @@ import {
   SessionManager,
   Settings,
 } from "@oh-my-pi/pi-coding-agent";
-
-import type { A2uiMessage } from "../shared/a2ui.ts";
 import type {
   ActiveSessionOverview,
   LiveState,
@@ -86,13 +83,7 @@ export class LiveSession {
   #rateLimit: RateLimitInfo | undefined;
   readonly #subagents = new Map<string, SubagentTask>();
 
-  constructor(
-    key: string,
-    session: AgentSession,
-    manager: SessionManager,
-    a2ui: A2uiChannel,
-    registry?: Registry,
-  ) {
+  constructor(key: string, session: AgentSession, manager: SessionManager, a2ui: A2uiChannel, registry?: Registry) {
     this.#key = key;
     this.session = session;
     this.manager = manager;
@@ -141,7 +132,7 @@ export class LiveSession {
 
   /** Begin forwarding omp events as AG-UI frames. */
   start(): void {
-    this.#unsubscribe = this.session.subscribe(event => {
+    this.#unsubscribe = this.session.subscribe((event) => {
       // Every session event is the agent doing something — a message delta, a
       // tool call, a turn boundary — so any of them resets the idle clock and
       // a long tool-heavy turn is never evicted mid-flight.
@@ -162,7 +153,9 @@ export class LiveSession {
         const errorText = (event as any).message?.errorMessage || "The model returned an error.";
         this.recordError(errorText);
       }
-      for (const frame of this.#translator.translate(event)) this.#emit(frame);
+      for (const frame of this.#translator.translate(event)) {
+        this.#emit(frame);
+      }
       // A settled turn changes model/queue/context/plan state that the REST
       // snapshot owns; tell the client to refetch rather than duplicating
       // every field in the stream.
@@ -197,12 +190,18 @@ export class LiveSession {
 
   #emit(frame: AguiFrame): void {
     this.#replay.push(frame);
-    if (this.#replay.length > REPLAY_LIMIT) this.#replay.splice(0, this.#replay.length - REPLAY_LIMIT);
-    for (const sink of this.#sinks) sink(frame);
+    if (this.#replay.length > REPLAY_LIMIT) {
+      this.#replay.splice(0, this.#replay.length - REPLAY_LIMIT);
+    }
+    for (const sink of this.#sinks) {
+      sink(frame);
+    }
   }
   /** Send an ephemeral frame to currently attached live sinks without storing in #replay. */
   broadcastLive(frame: AguiFrame): void {
-    for (const sink of this.#sinks) sink(frame);
+    for (const sink of this.#sinks) {
+      sink(frame);
+    }
   }
 
   /** Record an error and check if it represents a rate limit. */
@@ -245,7 +244,9 @@ export class LiveSession {
 
   /** Attach a sink and replay what it missed. Returns the detach function. */
   subscribe(sink: FrameSink): () => void {
-    for (const frame of this.#replay) sink(frame);
+    for (const frame of this.#replay) {
+      sink(frame);
+    }
     this.#sinks.add(sink);
     return () => {
       this.#sinks.delete(sink);
@@ -296,9 +297,7 @@ export class LiveSession {
    */
   get busy(): boolean {
     const session = this.session;
-    return (
-      session.isStreaming || session.isBashRunning || session.isEvalRunning || this.#pendingPlan !== undefined
-    );
+    return session.isStreaming || session.isBashRunning || session.isEvalRunning || this.#pendingPlan !== undefined;
   }
 
   /**
@@ -314,7 +313,9 @@ export class LiveSession {
    */
   sampleBusy(): boolean {
     const busy = this.busy;
-    if (busy || this.#wasBusy) this.touch();
+    if (busy || this.#wasBusy) {
+      this.touch();
+    }
     this.#wasBusy = busy;
     return busy;
   }
@@ -328,7 +329,7 @@ export class LiveSession {
    * approval popup.
    */
   armPlanProposals(): void {
-    this.session.setPlanProposalHandler(async title => {
+    this.session.setPlanProposalHandler(async (title) => {
       const prepared = await this.session.preparePlanForReview(title);
       const details = prepared.details;
       const planFilePath = details?.planFilePath ?? this.session.getPlanReferencePath();
@@ -343,7 +344,7 @@ export class LiveSession {
         this.manager.appendModeChange("plan", { planFilePath });
       }
 
-      await new Promise<void>(resolve => {
+      await new Promise<void>((resolve) => {
         this.#pendingPlan = { planFilePath, title: resolvedTitle, resolve };
         this.emitCustom(custom("omp.plan", { awaitingApproval: true, planFilePath, title: resolvedTitle }));
       });
@@ -361,7 +362,9 @@ export class LiveSession {
   /** Current plan-mode state for the REST snapshot. */
   planState(): PlanState | undefined {
     const state = this.session.getPlanModeState();
-    if (!state?.enabled) return undefined;
+    if (!state?.enabled) {
+      return undefined;
+    }
     return {
       enabled: true,
       planFilePath: this.#pendingPlan?.planFilePath ?? state.planFilePath,
@@ -395,7 +398,9 @@ export class LiveSession {
     this.#delivered.add(idempotencyKey);
     if (this.#delivered.size > 256) {
       const oldest = this.#delivered.values().next();
-      if (!oldest.done) this.#delivered.delete(oldest.value);
+      if (!oldest.done) {
+        this.#delivered.delete(oldest.value);
+      }
     }
   }
 
@@ -433,7 +438,9 @@ export class LiveSession {
 
   /** Calculate current live rate limit snapshot with updated relative time. */
   liveRateLimit(): RateLimitInfo | undefined {
-    if (!this.#rateLimit) return undefined;
+    if (!this.#rateLimit) {
+      return undefined;
+    }
     const now = Date.now();
     const remainingMs = Math.max(0, this.#rateLimit.resetsAt - now);
     return {
@@ -447,8 +454,10 @@ export class LiveSession {
   /** Role tiers the approved plan can be executed with. */
   tiers(): Array<{ role: string; ref: string; name: string }> {
     const cycle = this.session.getRoleModelCycle(PLAN_TIER_ORDER);
-    if (!cycle) return [];
-    return cycle.models.map(entry => ({
+    if (!cycle) {
+      return [];
+    }
+    return cycle.models.map((entry) => ({
       role: entry.role,
       ref: `${entry.model.provider}/${entry.model.id}`,
       name: entry.model.name || entry.model.id,
@@ -461,7 +470,9 @@ export class LiveSession {
     this.settlePlan();
     // Tell attached browsers before the agent goes away, so a socket is
     // closed deliberately rather than left streaming from a disposed session.
-    for (const listener of this.#closeListeners) listener();
+    for (const listener of this.#closeListeners) {
+      listener();
+    }
     this.#closeListeners.clear();
     this.#sinks.clear();
     this.session.beginDispose();
@@ -534,13 +545,15 @@ export class Registry {
           assistantTurns++;
           if (msg.usage) {
             totalTokens += msg.usage.totalTokens;
-            if (msg.usage.cost) totalCost += msg.usage.cost.total;
+            if (msg.usage.cost) {
+              totalCost += msg.usage.cost.total;
+            }
           }
         }
       }
 
-      const allTodos = state.todos?.flatMap(p => p.tasks) ?? [];
-      const completedTodos = allTodos.filter(t => t.status === "completed").length;
+      const allTodos = state.todos?.flatMap((p) => p.tasks) ?? [];
+      const completedTodos = allTodos.filter((t) => t.status === "completed").length;
 
       let gitBranch: string | undefined;
       let gitChangedFiles: number | undefined;
@@ -611,19 +624,25 @@ export class Registry {
    */
   startSweeping(onEvict: (key: string, idleMinutes: number) => void): void {
     this.#onEvict = onEvict;
-    if (IDLE_MINUTES <= 0 || this.#sweeper) return;
+    if (IDLE_MINUTES <= 0 || this.#sweeper) {
+      return;
+    }
     const limitMs = IDLE_MINUTES * 60_000;
     this.#sweeper = setInterval(
       () => {
         const now = Date.now();
-        for (const [key, live] of [...this.#sessions]) {
+        for (const [key, live] of this.#sessions) {
           // A working agent is not an idle session, whatever the user is
           // doing. `sampleBusy` both answers that and keeps the idle clock
           // pinned to the work, so a job is neither evicted while it runs nor
           // evicted the instant it finishes.
-          if (live.sampleBusy()) continue;
+          if (live.sampleBusy()) {
+            continue;
+          }
           const idle = live.idleFor(now);
-          if (idle < limitMs) continue;
+          if (idle < limitMs) {
+            continue;
+          }
           this.#sessions.delete(key);
           this.#onEvict?.(key, Math.round(idle / 60_000));
           void live.dispose().catch(() => undefined);
@@ -662,7 +681,7 @@ export class Registry {
 
   async listModels(): Promise<ModelOption[]> {
     const { modelRegistry } = await this.#services();
-    return modelRegistry.getAvailable().map(model => ({
+    return modelRegistry.getAvailable().map((model) => ({
       provider: model.provider,
       id: model.id,
       name: model.name || model.id,
@@ -675,8 +694,10 @@ export class Registry {
   /** Resolve a `provider/id` reference against the authenticated catalogue. */
   async resolveModel(ref: string): Promise<Model> {
     const { modelRegistry } = await this.#services();
-    const match = modelRegistry.getAvailable().find(model => `${model.provider}/${model.id}` === ref);
-    if (!match) throw new Error(`Model not available: ${ref}`);
+    const match = modelRegistry.getAvailable().find((model) => `${model.provider}/${model.id}` === ref);
+    if (!match) {
+      throw new Error(`Model not available: ${ref}`);
+    }
     return match;
   }
 
@@ -690,7 +711,9 @@ export class Registry {
   async open(options: { sessionPath?: string; cwd?: string }): Promise<LiveSession> {
     if (options.sessionPath) {
       for (const live of this.#sessions.values()) {
-        if (live.session.sessionFile === options.sessionPath) return live;
+        if (live.session.sessionFile === options.sessionPath) {
+          return live;
+        }
       }
     }
 
@@ -729,15 +752,17 @@ export class Registry {
     live.start();
     live.armPlanProposals();
     this.#sessions.set(key, live);
-    a2uiChannel.attach(message => {
+    a2uiChannel.attach((message) => {
       live.emitCustom(custom("omp.a2ui", message));
     });
 
     if (subagentEventBus) {
       subagentEventBus.on("task:subagent:lifecycle", (payload: any) => {
-        if (!payload?.id) return;
+        if (!payload?.id) {
+          return;
+        }
         const status = payload.status === "started" ? "running" : payload.status;
-        const existing = live.subagents.find(s => s.id === payload.id);
+        const existing = live.subagents.find((s) => s.id === payload.id);
         const task: SubagentTask = {
           id: payload.id,
           agent: payload.agent || "task",
@@ -750,11 +775,11 @@ export class Registry {
         live.updateSubagent(task);
       });
       subagentEventBus.on("task:subagent:progress", (payload: any) => {
-        if (!payload) return;
+        if (!payload) {
+          return;
+        }
         const id = payload.id || `task-${payload.index}`;
-        const existing = live.subagents.find(
-          s => s.id === id || (payload.task && s.description === payload.task),
-        );
+        const existing = live.subagents.find((s) => s.id === id || (payload.task && s.description === payload.task));
         if (existing && payload.task && !existing.description) {
           live.updateSubagent({ ...existing, description: payload.task });
         }
@@ -769,9 +794,13 @@ export class Registry {
    */
   rekey(oldKey: string): LiveSession {
     const live = this.#sessions.get(oldKey);
-    if (!live) throw new Error(`Session ${oldKey} is not live.`);
+    if (!live) {
+      throw new Error(`Session ${oldKey} is not live.`);
+    }
     const next = live.manager.getSessionId();
-    if (next === oldKey) return live;
+    if (next === oldKey) {
+      return live;
+    }
     this.#sessions.delete(oldKey);
     // A fresh id cannot legitimately collide; if it does, two agents would be
     // writing one file, so the older entry is disposed rather than orphaned.
@@ -788,7 +817,9 @@ export class Registry {
   /** Stop a live session, disposing its agent and removing it from memory. */
   async stop(key: string): Promise<boolean> {
     const live = this.#sessions.get(key);
-    if (!live) return false;
+    if (!live) {
+      return false;
+    }
     this.#sessions.delete(key);
     await live.dispose();
     return true;
@@ -807,11 +838,13 @@ export class Registry {
 
     if (!filePath) {
       const all = await SessionManager.listAll();
-      const match = all.find(s => s.id === key);
+      const match = all.find((s) => s.id === key);
       filePath = match?.path;
     }
 
-    if (!filePath) throw new Error(`Session ${key} not found on disk.`);
+    if (!filePath) {
+      throw new Error(`Session ${key} not found on disk.`);
+    }
 
     // Delete session file
     await fs.promises.unlink(filePath).catch(() => undefined);
@@ -824,7 +857,7 @@ export class Registry {
   async disposeAll(): Promise<void> {
     const all = [...this.#sessions.values()];
     this.#sessions.clear();
-    await Promise.allSettled(all.map(live => live.dispose()));
+    await Promise.allSettled(all.map((live) => live.dispose()));
   }
 }
 

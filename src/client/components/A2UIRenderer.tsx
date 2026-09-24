@@ -1,3 +1,56 @@
+import React, { useCallback } from "react";
+import {
+  IconAlertCircle,
+  IconArrowBack,
+  IconArrowForward,
+  IconBell,
+  IconBellOff,
+  IconCalendar,
+  IconCamera,
+  IconCheck,
+  IconDots,
+  IconDotsVertical,
+  IconDownload,
+  IconEdit,
+  IconEye,
+  IconEyeOff,
+  IconFolder,
+  IconHeart,
+  IconHeartOff,
+  IconHelp,
+  IconHome,
+  IconInfoCircle,
+  IconLock,
+  IconLockOpen,
+  IconMail,
+  IconMapPin,
+  IconPaperclip,
+  IconPlayerPause,
+  IconPhone,
+  IconPhoto,
+  IconPlayerPlay,
+  IconPlayerTrackNext,
+  IconPlayerTrackPrev,
+  IconPlayerStop,
+  IconPlus,
+  IconPrinter,
+  IconRefresh,
+  IconSearch,
+  IconSend,
+  IconSettings,
+  IconShare,
+  IconShoppingCart,
+  IconStar,
+  IconStarHalf,
+  IconStarOff,
+  IconTrash,
+  IconUpload,
+  IconUser,
+  IconVolume,
+  IconVolume2,
+  IconVolumeOff,
+  IconX,
+} from "@tabler/icons-react";
 import {
   AreaChart,
   BarChart,
@@ -51,61 +104,6 @@ import {
   Timeline,
   Tooltip,
 } from "@mantine/core";
-import {
-  IconAlertCircle,
-  IconArrowBack,
-  IconArrowForward,
-  IconBell,
-  IconBellOff,
-  IconCalendar,
-  IconCamera,
-  IconCheck,
-  IconDots,
-  IconDotsVertical,
-  IconDownload,
-  IconEdit,
-  IconEye,
-  IconEyeOff,
-  IconFolder,
-  IconHeart,
-  IconHeartOff,
-  IconHelp,
-  IconHome,
-  IconInfoCircle,
-  IconLock,
-  IconLockOpen,
-  IconMail,
-  IconMapPin,
-  IconMenu2,
-  IconPaperclip,
-  IconPlayerPause,
-  IconPhone,
-  IconPhoto,
-  IconPlayerPlay,
-  IconPlayerTrackNext,
-  IconPlayerTrackPrev,
-  IconPlayerStop,
-  IconPlus,
-  IconPrinter,
-  IconRefresh,
-  IconSearch,
-  IconSend,
-  IconSettings,
-  IconShare,
-  IconShoppingCart,
-  IconStar,
-  IconStarHalf,
-  IconStarOff,
-  IconTrash,
-  IconUpload,
-  IconUser,
-  IconVolume,
-  IconVolume2,
-  IconVolumeOff,
-  IconX,
-} from "@tabler/icons-react";
-import React, { useCallback } from "react";
-
 import type { A2uiAction, A2uiActionEvent, A2uiChildList, A2uiDataBinding } from "../../shared/a2ui.ts";
 import { type ClientSurface, resolveActionContext, resolveDynamic, resolvePointer } from "../lib/a2ui.ts";
 import { MermaidChart } from "./MermaidChart.tsx";
@@ -295,7 +293,9 @@ export function A2UIRenderer({ surface, onAction, onUpdateData }: A2UIRendererPr
 
   const handleAction = useCallback(
     (action: A2uiAction | undefined, scope?: unknown, index?: number) => {
-      if (!action?.event || !onAction) return;
+      if (!action?.event || !onAction) {
+        return;
+      }
       const ctx = resolveActionContext(action.event.context, dataModel, scope, index);
       onAction(surfaceId, action.event, ctx, sendDataModel ? dataModel : undefined);
     },
@@ -304,18 +304,15 @@ export function A2UIRenderer({ surface, onAction, onUpdateData }: A2UIRendererPr
 
   const handleUpdate = useCallback(
     (path: string | undefined, value: unknown) => {
-      if (!path || !onUpdateData) return;
+      if (!path || !onUpdateData) {
+        return;
+      }
       onUpdateData(surfaceId, path, value);
     },
     [surfaceId, onUpdateData],
   );
 
-  const renderComponent = (
-    id: string,
-    scope?: unknown,
-    index?: number,
-    keyOverride?: string,
-  ): React.ReactNode => {
+  const renderComponent = (id: string, scope?: unknown, index?: number, keyOverride?: string): React.ReactNode => {
     const comp = components.get(id);
     if (!comp) {
       return (
@@ -372,16 +369,7 @@ export function A2UIRenderer({ surface, onAction, onUpdateData }: A2UIRendererPr
         const w = variant === "avatar" ? 40 : variant === "icon" ? 24 : "100%";
         const h = variant === "avatar" ? 40 : variant === "icon" ? 24 : "auto";
         return (
-          <Image
-            key={key}
-            src={url}
-            alt={description ?? ""}
-            fit={fit}
-            radius={radius}
-            w={w}
-            h={h}
-            style={style}
-          />
+          <Image key={key} src={url} alt={description ?? ""} fit={fit} radius={radius} w={w} h={h} style={style} />
         );
       }
 
@@ -489,8 +477,7 @@ export function A2UIRenderer({ surface, onAction, onUpdateData }: A2UIRendererPr
       case "Button": {
         const childId = comp.child as string;
         const variant = comp.variant;
-        const buttonVariant =
-          variant === "primary" ? "filled" : variant === "borderless" ? "subtle" : "light";
+        const buttonVariant = variant === "primary" ? "filled" : variant === "borderless" ? "subtle" : "light";
         const action = comp.action as A2uiAction | undefined;
 
         return (
@@ -521,7 +508,7 @@ export function A2UIRenderer({ surface, onAction, onUpdateData }: A2UIRendererPr
               label={label}
               placeholder={placeholder}
               value={currentVal}
-              onChange={e => handleUpdate(path, e.currentTarget.value)}
+              onChange={(e) => handleUpdate(path, e.currentTarget.value)}
               minRows={3}
               style={style}
             />
@@ -535,7 +522,7 @@ export function A2UIRenderer({ surface, onAction, onUpdateData }: A2UIRendererPr
               label={label}
               placeholder={placeholder}
               value={currentVal}
-              onChange={e => handleUpdate(path, e.currentTarget.value)}
+              onChange={(e) => handleUpdate(path, e.currentTarget.value)}
               style={style}
             />
           );
@@ -548,7 +535,7 @@ export function A2UIRenderer({ surface, onAction, onUpdateData }: A2UIRendererPr
               label={label}
               placeholder={placeholder}
               value={currentVal === "" ? "" : Number(currentVal)}
-              onChange={v => handleUpdate(path, v)}
+              onChange={(v) => handleUpdate(path, v)}
               style={style}
             />
           );
@@ -560,7 +547,7 @@ export function A2UIRenderer({ surface, onAction, onUpdateData }: A2UIRendererPr
             label={label}
             placeholder={placeholder}
             value={currentVal}
-            onChange={e => handleUpdate(path, e.currentTarget.value)}
+            onChange={(e) => handleUpdate(path, e.currentTarget.value)}
             style={style}
           />
         );
@@ -577,7 +564,7 @@ export function A2UIRenderer({ surface, onAction, onUpdateData }: A2UIRendererPr
             label={label}
             checked={currentVal}
             color="cyan"
-            onChange={e => handleUpdate(path, e.currentTarget.checked)}
+            onChange={(e) => handleUpdate(path, e.currentTarget.checked)}
             style={style}
           />
         );
@@ -587,7 +574,7 @@ export function A2UIRenderer({ surface, onAction, onUpdateData }: A2UIRendererPr
         const label = resolveDynamic<string>(comp.label as any, dataModel, scope, index);
         const path = bindingPath(comp.value);
         const rawOptions = (comp.options as Array<{ label: any; value: string }>) ?? [];
-        const options = rawOptions.map(opt => ({
+        const options = rawOptions.map((opt) => ({
           value: opt.value,
           label: resolveDynamic<string>(opt.label, dataModel, scope, index) ?? opt.value,
         }));
@@ -608,10 +595,10 @@ export function A2UIRenderer({ surface, onAction, onUpdateData }: A2UIRendererPr
                 ) : null}
                 <Chip.Group
                   value={currentVal}
-                  onChange={val => handleUpdate(path, Array.isArray(rawVal) ? [val] : val)}
+                  onChange={(val) => handleUpdate(path, Array.isArray(rawVal) ? [val] : val)}
                 >
                   <Group gap="xs">
-                    {options.map(opt => (
+                    {options.map((opt) => (
                       <Chip key={opt.value} value={opt.value} size="sm" color="cyan">
                         {opt.label}
                       </Chip>
@@ -627,11 +614,11 @@ export function A2UIRenderer({ surface, onAction, onUpdateData }: A2UIRendererPr
               key={key}
               label={label}
               value={currentVal}
-              onChange={val => handleUpdate(path, Array.isArray(rawVal) ? [val] : val)}
+              onChange={(val) => handleUpdate(path, Array.isArray(rawVal) ? [val] : val)}
               style={style}
             >
               <Group mt="xs" gap="sm">
-                {options.map(opt => (
+                {options.map((opt) => (
                   <Radio key={opt.value} value={opt.value} label={opt.label} color="cyan" />
                 ))}
               </Group>
@@ -647,11 +634,11 @@ export function A2UIRenderer({ surface, onAction, onUpdateData }: A2UIRendererPr
             key={key}
             label={label}
             value={currentVals}
-            onChange={vals => handleUpdate(path, vals)}
+            onChange={(vals) => handleUpdate(path, vals)}
             style={style}
           >
             <Group mt="xs" gap="sm">
-              {options.map(opt => (
+              {options.map((opt) => (
                 <Checkbox key={opt.value} value={opt.value} label={opt.label} color="cyan" />
               ))}
             </Group>
@@ -681,7 +668,7 @@ export function A2UIRenderer({ surface, onAction, onUpdateData }: A2UIRendererPr
               step={step}
               value={currentVal}
               color="cyan"
-              onChange={val => handleUpdate(path, val)}
+              onChange={(val) => handleUpdate(path, val)}
             />
           </Box>
         );
@@ -700,7 +687,7 @@ export function A2UIRenderer({ surface, onAction, onUpdateData }: A2UIRendererPr
             type={inputType}
             label={label}
             value={currentVal}
-            onChange={e => handleUpdate(path, e.currentTarget.value)}
+            onChange={(e) => handleUpdate(path, e.currentTarget.value)}
             style={style}
           />
         );
@@ -801,7 +788,7 @@ export function A2UIRenderer({ surface, onAction, onUpdateData }: A2UIRendererPr
             description={description}
             checked={checked}
             color={color}
-            onChange={e => handleUpdate(path, e.currentTarget.checked)}
+            onChange={(e) => handleUpdate(path, e.currentTarget.checked)}
             style={style}
           />
         );
@@ -811,7 +798,7 @@ export function A2UIRenderer({ surface, onAction, onUpdateData }: A2UIRendererPr
         const path = bindingPath(comp.value);
         const currentVal = String(resolveDynamic<string>(comp.value as any, dataModel, scope, index) ?? "");
         const rawOptions = (comp.options as Array<{ label: any; value: string }>) ?? [];
-        const data = rawOptions.map(opt => ({
+        const data = rawOptions.map((opt) => ({
           value: opt.value,
           label: resolveDynamic<string>(opt.label, dataModel, scope, index) ?? opt.value,
         }));
@@ -824,7 +811,7 @@ export function A2UIRenderer({ surface, onAction, onUpdateData }: A2UIRendererPr
             value={currentVal}
             color={color}
             size={size}
-            onChange={val => handleUpdate(path, val)}
+            onChange={(val) => handleUpdate(path, val)}
             style={style}
           />
         );
@@ -845,7 +832,7 @@ export function A2UIRenderer({ surface, onAction, onUpdateData }: A2UIRendererPr
             color={color}
             size={size}
             readOnly={readOnly}
-            onChange={val => handleUpdate(path, val)}
+            onChange={(val) => handleUpdate(path, val)}
             style={style}
           />
         );
@@ -863,9 +850,7 @@ export function A2UIRenderer({ surface, onAction, onUpdateData }: A2UIRendererPr
               return (
                 <Accordion.Item key={val} value={val}>
                   <Accordion.Control>{title ?? `Section ${i + 1}`}</Accordion.Control>
-                  <Accordion.Panel>
-                    {item.child ? renderComponent(item.child, scope, index) : null}
-                  </Accordion.Panel>
+                  <Accordion.Panel>{item.child ? renderComponent(item.child, scope, index) : null}</Accordion.Panel>
                 </Accordion.Item>
               );
             })}
@@ -885,9 +870,7 @@ export function A2UIRenderer({ surface, onAction, onUpdateData }: A2UIRendererPr
                 <Table.Thead>
                   <Table.Tr>
                     {headers.map((h, i) => (
-                      <Table.Th key={String(i)}>
-                        {resolveDynamic<string>(h, dataModel, scope, index) ?? ""}
-                      </Table.Th>
+                      <Table.Th key={String(i)}>{resolveDynamic<string>(h, dataModel, scope, index) ?? ""}</Table.Th>
                     ))}
                   </Table.Tr>
                 </Table.Thead>
@@ -919,8 +902,7 @@ export function A2UIRenderer({ surface, onAction, onUpdateData }: A2UIRendererPr
       }
 
       case "Timeline": {
-        const rawItems =
-          (comp.items as Array<{ title: any; description: any; time: any; bullet?: string }>) ?? [];
+        const rawItems = (comp.items as Array<{ title: any; description: any; time: any; bullet?: string }>) ?? [];
         const active = Number(resolveDynamic<number>(comp.active as any, dataModel, scope, index) ?? 0);
         const color = (comp.color as string) ?? "cyan";
         return (
@@ -982,9 +964,7 @@ export function A2UIRenderer({ surface, onAction, onUpdateData }: A2UIRendererPr
         const width = typeof comp.width === "number" || typeof comp.width === "string" ? comp.width : "100%";
         const circle = comp.circle === true;
         const animate = comp.animate !== false;
-        return (
-          <Skeleton key={key} height={height} width={width} circle={circle} animate={animate} style={style} />
-        );
+        return <Skeleton key={key} height={height} width={width} circle={circle} animate={animate} style={style} />;
       }
 
       case "Tooltip": {
@@ -1198,13 +1178,7 @@ export function A2UIRenderer({ surface, onAction, onUpdateData }: A2UIRendererPr
         const fillOpacity = typeof comp.fillOpacity === "number" ? comp.fillOpacity : 0.2;
         return (
           <Box key={key} style={{ width: "100%", ...style }}>
-            <Sparkline
-              h={height}
-              data={chartData}
-              color={color}
-              curveType={curveType}
-              fillOpacity={fillOpacity}
-            />
+            <Sparkline h={height} data={chartData} color={color} curveType={curveType} fillOpacity={fillOpacity} />
           </Box>
         );
       }
@@ -1231,7 +1205,7 @@ export function A2UIRenderer({ surface, onAction, onUpdateData }: A2UIRendererPr
               width={widthVal}
               height={heightVal}
               title={titleVal}
-              onNodeClick={node => {
+              onNodeClick={(node) => {
                 if (action) {
                   handleAction(action, node, index);
                 }
@@ -1248,8 +1222,7 @@ export function A2UIRenderer({ surface, onAction, onUpdateData }: A2UIRendererPr
           scope,
           index,
         );
-        const widthVal =
-          resolveDynamic<number | string>(comp.width as any, dataModel, scope, index) ?? "100%";
+        const widthVal = resolveDynamic<number | string>(comp.width as any, dataModel, scope, index) ?? "100%";
         const heightVal = resolveDynamic<number | string>(comp.height as any, dataModel, scope, index) ?? 400;
         const titleVal = resolveDynamic<string>(comp.title as any, dataModel, scope, index);
         const themeVal = (comp.theme as any) ?? "dark";
@@ -1263,7 +1236,7 @@ export function A2UIRenderer({ surface, onAction, onUpdateData }: A2UIRendererPr
               height={heightVal}
               title={titleVal}
               theme={themeVal}
-              onNodeClick={nodeId => {
+              onNodeClick={(nodeId) => {
                 if (action) {
                   handleAction(action, { nodeId }, index);
                 }
@@ -1282,15 +1255,13 @@ export function A2UIRenderer({ surface, onAction, onUpdateData }: A2UIRendererPr
     }
   };
 
-  const renderChildren = (
-    children: A2uiChildList | undefined,
-    scope?: unknown,
-    index?: number,
-  ): React.ReactNode => {
-    if (!children) return null;
+  const renderChildren = (children: A2uiChildList | undefined, scope?: unknown, index?: number): React.ReactNode => {
+    if (!children) {
+      return null;
+    }
 
     if (Array.isArray(children)) {
-      return children.map(childId => renderComponent(childId, scope, index));
+      return children.map((childId) => renderComponent(childId, scope, index));
     }
 
     if (typeof children === "object" && "componentId" in children && "path" in children) {

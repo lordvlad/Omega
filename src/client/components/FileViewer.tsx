@@ -1,3 +1,23 @@
+import { useEffect, useMemo, useRef, useState } from "react";
+import {
+  IconAlertCircle,
+  IconBrandCss3,
+  IconBrandHtml5,
+  IconBrandJavascript,
+  IconBrandPython,
+  IconBrandTypescript,
+  IconBraces,
+  IconCheck,
+  IconCopy,
+  IconDownload,
+  IconFile,
+  IconFileText,
+  IconGitCommit,
+  IconHighlight,
+  IconPhoto,
+  IconPlus,
+  IconX,
+} from "@tabler/icons-react";
 /**
  * File Viewer Panel.
  *
@@ -24,27 +44,6 @@ import {
   Tooltip,
 } from "@mantine/core";
 import { useTimeout } from "@mantine/hooks";
-import {
-  IconAlertCircle,
-  IconBrandCss3,
-  IconBrandHtml5,
-  IconBrandJavascript,
-  IconBrandPython,
-  IconBrandTypescript,
-  IconBraces,
-  IconCheck,
-  IconCopy,
-  IconDownload,
-  IconFile,
-  IconFileText,
-  IconGitCommit,
-  IconHighlight,
-  IconPhoto,
-  IconPlus,
-  IconX,
-} from "@tabler/icons-react";
-import { useEffect, useMemo, useRef, useState } from "react";
-
 import type { GitFileStatus } from "../api/model.ts";
 import { useGetFileContent, useGetGitDiff } from "../api/queries.ts";
 import { copyText } from "../lib/clipboard.ts";
@@ -114,8 +113,12 @@ const GIT_STATUS_STYLE: Record<string, { color: string; label: string }> = {
 };
 
 function formatBytes(bytes: number): string {
-  if (bytes < 1024) return `${bytes} B`;
-  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  if (bytes < 1024) {
+    return `${bytes} B`;
+  }
+  if (bytes < 1024 * 1024) {
+    return `${(bytes / 1024).toFixed(1)} KB`;
+  }
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
@@ -168,10 +171,7 @@ const HUNK_HEADER = /^@@ -(\d+)(?:,\d+)? \+(\d+)(?:,\d+)? @@/u;
  * the old file, everything else against the new one, and anything outside a
  * hunk is header noise with no line of its own.
  */
-function diffPosition(
-  diffText: string,
-  diffLine: number,
-): { side: "new" | "old" | "meta"; fileLine?: number } {
+function diffPosition(diffText: string, diffLine: number): { side: "new" | "old" | "meta"; fileLine?: number } {
   const lines = diffText.split("\n");
   let oldNo = 0;
   let newNo = 0;
@@ -180,22 +180,34 @@ function diffPosition(
     const line = lines[i] ?? "";
     const header = HUNK_HEADER.exec(line);
     if (header) {
-      if (i + 1 === diffLine) return { side: "meta" };
+      if (i + 1 === diffLine) {
+        return { side: "meta" };
+      }
       oldNo = Number(header[1]);
       newNo = Number(header[2]);
       inHunk = true;
       continue;
     }
     if (i + 1 === diffLine) {
-      if (!inHunk) return { side: "meta" };
-      if (line.startsWith("-")) return { side: "old", fileLine: oldNo };
-      if (line.startsWith("+") || line.startsWith(" ")) return { side: "new", fileLine: newNo };
+      if (!inHunk) {
+        return { side: "meta" };
+      }
+      if (line.startsWith("-")) {
+        return { side: "old", fileLine: oldNo };
+      }
+      if (line.startsWith("+") || line.startsWith(" ")) {
+        return { side: "new", fileLine: newNo };
+      }
       return { side: "meta" };
     }
-    if (!inHunk) continue;
-    if (line.startsWith("+")) newNo++;
-    else if (line.startsWith("-")) oldNo++;
-    else if (line.startsWith(" ")) {
+    if (!inHunk) {
+      continue;
+    }
+    if (line.startsWith("+")) {
+      newNo++;
+    } else if (line.startsWith("-")) {
+      oldNo++;
+    } else if (line.startsWith(" ")) {
       newNo++;
       oldNo++;
     }
@@ -242,7 +254,9 @@ export function FileViewer({ filePath, cwd, gitStatus, onInsertRef, onAnnotate, 
   const activeContent = viewMode === "diff" ? diffData?.diff : fileData?.content;
 
   const lineCount = useMemo(() => {
-    if (!activeContent) return 0;
+    if (!activeContent) {
+      return 0;
+    }
     return activeContent.split("\n").length;
   }, [activeContent]);
 
@@ -280,9 +294,13 @@ export function FileViewer({ filePath, cwd, gitStatus, onInsertRef, onAnnotate, 
    */
   const captureSelection = (): void => {
     // Mid-write, a stray selection change must not yank the editor away.
-    if (noteDraft !== null) return;
+    if (noteDraft !== null) {
+      return;
+    }
     const host = contentRef.current;
-    if (!host || !onAnnotate) return;
+    if (!host || !onAnnotate) {
+      return;
+    }
     const selection = window.getSelection();
     if (!selection || selection.isCollapsed || selection.rangeCount === 0) {
       setPending(null);
@@ -358,7 +376,9 @@ export function FileViewer({ filePath, cwd, gitStatus, onInsertRef, onAnnotate, 
 
   const saveAnnotation = (): void => {
     const note = (noteDraft ?? "").trim();
-    if (!pending || !note || !onAnnotate) return;
+    if (!pending || !note || !onAnnotate) {
+      return;
+    }
     const { top: _top, left: _left, ...annotation } = pending;
     onAnnotate({ ...annotation, note });
     setNoteDraft(null);
@@ -429,7 +449,7 @@ export function FileViewer({ filePath, cwd, gitStatus, onInsertRef, onAnnotate, 
                 <SegmentedControl
                   size="xs"
                   value={viewMode}
-                  onChange={v => setViewMode(v as "rendered" | "raw" | "diff")}
+                  onChange={(v) => setViewMode(v as "rendered" | "raw" | "diff")}
                   data={[
                     { label: "Preview", value: "rendered" },
                     { label: "Raw", value: "raw" },
@@ -440,7 +460,7 @@ export function FileViewer({ filePath, cwd, gitStatus, onInsertRef, onAnnotate, 
                 <SegmentedControl
                   size="xs"
                   value={viewMode === "diff" ? "diff" : "file"}
-                  onChange={v => setViewMode(v === "diff" ? "diff" : "raw")}
+                  onChange={(v) => setViewMode(v === "diff" ? "diff" : "raw")}
                   data={[
                     { label: "File", value: "file" },
                     { label: "Diff", value: "diff" },
@@ -451,7 +471,7 @@ export function FileViewer({ filePath, cwd, gitStatus, onInsertRef, onAnnotate, 
               <SegmentedControl
                 size="xs"
                 value={viewMode === "raw" ? "raw" : "rendered"}
-                onChange={v => setViewMode(v as "rendered" | "raw")}
+                onChange={(v) => setViewMode(v as "rendered" | "raw")}
                 data={[
                   { label: "Preview", value: "rendered" },
                   { label: "Raw", value: "raw" },
@@ -530,12 +550,7 @@ export function FileViewer({ filePath, cwd, gitStatus, onInsertRef, onAnnotate, 
             </Center>
           ) : diffQuery.isError ? (
             <Center h="100%" p="md">
-              <Alert
-                icon={<IconAlertCircle size={16} />}
-                title="Error loading diff"
-                color="red"
-                variant="light"
-              >
+              <Alert icon={<IconAlertCircle size={16} />} title="Error loading diff" color="red" variant="light">
                 {diffQuery.error instanceof Error ? diffQuery.error.message : "Unable to read git diff"}
               </Alert>
             </Center>
@@ -577,12 +592,7 @@ export function FileViewer({ filePath, cwd, gitStatus, onInsertRef, onAnnotate, 
           </Center>
         ) : query.isError ? (
           <Center h="100%" p="md">
-            <Alert
-              icon={<IconAlertCircle size={16} />}
-              title="Error loading file"
-              color="red"
-              variant="light"
-            >
+            <Alert icon={<IconAlertCircle size={16} />} title="Error loading file" color="red" variant="light">
               {query.error instanceof Error ? query.error.message : "Unable to read file content"}
             </Alert>
           </Center>
@@ -610,8 +620,8 @@ export function FileViewer({ filePath, cwd, gitStatus, onInsertRef, onAnnotate, 
                 File is too large to preview inline ({formatBytes(fileData.size)})
               </Text>
               <Text size="xs" c="dimmed" ta="center">
-                Inline preview is capped at 500 KB to keep the browser responsive. You can download the full
-                file to view or edit locally{isModified ? ", or view its git diff" : ""}.
+                Inline preview is capped at 500 KB to keep the browser responsive. You can download the full file to
+                view or edit locally{isModified ? ", or view its git diff" : ""}.
               </Text>
               <Group gap="xs">
                 <Button
@@ -699,7 +709,7 @@ export function FileViewer({ filePath, cwd, gitStatus, onInsertRef, onAnnotate, 
             }}
             // The popup sits inside the box that listens for selections, so
             // clicking it would otherwise re-run the capture and close it.
-            onMouseUp={event => event.stopPropagation()}
+            onMouseUp={(event) => event.stopPropagation()}
           >
             {noteDraft === null ? (
               <Button
@@ -727,16 +737,20 @@ export function FileViewer({ filePath, cwd, gitStatus, onInsertRef, onAnnotate, 
                   autoFocus
                   value={noteDraft}
                   placeholder="What should the agent know about this?"
-                  onChange={event => setNoteDraft(event.currentTarget.value)}
-                  onKeyDown={event => {
+                  onChange={(event) => setNoteDraft(event.currentTarget.value)}
+                  onKeyDown={(event) => {
                     // Same contract as the composer and the queue editor.
                     if (event.key === "Escape") {
                       event.preventDefault();
                       cancelAnnotation();
                       return;
                     }
-                    if (event.key !== "Enter" || event.nativeEvent.isComposing) return;
-                    if (!event.ctrlKey && !event.metaKey) return;
+                    if (event.key !== "Enter" || event.nativeEvent.isComposing) {
+                      return;
+                    }
+                    if (!event.ctrlKey && !event.metaKey) {
+                      return;
+                    }
                     event.preventDefault();
                     saveAnnotation();
                   }}
@@ -746,13 +760,7 @@ export function FileViewer({ filePath, cwd, gitStatus, onInsertRef, onAnnotate, 
                   <Button size="xs" variant="subtle" color="gray" onClick={cancelAnnotation}>
                     Cancel
                   </Button>
-                  <Button
-                    size="xs"
-                    variant="filled"
-                    color="plum"
-                    disabled={!noteDraft.trim()}
-                    onClick={saveAnnotation}
-                  >
+                  <Button size="xs" variant="filled" color="plum" disabled={!noteDraft.trim()} onClick={saveAnnotation}>
                     Save
                   </Button>
                 </Group>

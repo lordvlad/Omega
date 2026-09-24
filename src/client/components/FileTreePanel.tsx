@@ -1,25 +1,4 @@
-/**
- * The FileTree Panel.
- *
- * Displays a hierarchical directory tree for the active workspace with real-time
- * git status markers and colors (VSCode style). Supports folder expand/collapse
- * with persistence in localStorage per project, search filtering, and file selection.
- */
-import {
-  ActionIcon,
-  Badge,
-  Box,
-  Group,
-  Paper,
-  ScrollArea,
-  Stack,
-  Text,
-  TextInput,
-  ThemeIcon,
-  Tooltip,
-  UnstyledButton,
-} from "@mantine/core";
-import { useLocalStorage } from "@mantine/hooks";
+import { useCallback, useMemo, useState } from "react";
 import {
   IconBraces,
   IconBrandCss3,
@@ -44,8 +23,28 @@ import {
   IconSearch,
   IconX,
 } from "@tabler/icons-react";
-import { useCallback, useEffect, useMemo, useState } from "react";
-
+/**
+ * The FileTree Panel.
+ *
+ * Displays a hierarchical directory tree for the active workspace with real-time
+ * git status markers and colors (VSCode style). Supports folder expand/collapse
+ * with persistence in localStorage per project, search filtering, and file selection.
+ */
+import {
+  ActionIcon,
+  Badge,
+  Box,
+  Group,
+  Paper,
+  ScrollArea,
+  Stack,
+  Text,
+  TextInput,
+  ThemeIcon,
+  Tooltip,
+  UnstyledButton,
+} from "@mantine/core";
+import { useLocalStorage } from "@mantine/hooks";
 import type { GitFileStatus, GitStatusResult } from "../api/model.ts";
 
 export interface FileTreePanelProps {
@@ -148,17 +147,23 @@ function buildTree(files: string[], gitStatus?: GitStatusResult): TreeNode[] {
   // Collect all unique file paths from file list and git status
   const allPaths = new Set<string>();
   for (const f of files) {
-    if (f) allPaths.add(f.replace(/\\/g, "/"));
+    if (f) {
+      allPaths.add(f.replace(/\\/g, "/"));
+    }
   }
   if (gitStatus?.files) {
     for (const filePath of Object.keys(gitStatus.files)) {
-      if (filePath) allPaths.add(filePath.replace(/\\/g, "/"));
+      if (filePath) {
+        allPaths.add(filePath.replace(/\\/g, "/"));
+      }
     }
   }
 
   function getOrCreateDir(dirPath: string): TreeNode {
     const existing = dirMap.get(dirPath);
-    if (existing) return existing;
+    if (existing) {
+      return existing;
+    }
 
     const parts = dirPath.replace(/\\/g, "/").split("/");
     const name = parts[parts.length - 1] ?? dirPath;
@@ -207,7 +212,9 @@ function buildTree(files: string[], gitStatus?: GitStatusResult): TreeNode[] {
 
   // Sort and aggregate summary statistics recursively
   function processNode(node: TreeNode): void {
-    if (!node.isDirectory) return;
+    if (!node.isDirectory) {
+      return;
+    }
 
     let modifiedCount = 0;
     let untrackedCount = 0;
@@ -227,11 +234,17 @@ function buildTree(files: string[], gitStatus?: GitStatusResult): TreeNode[] {
         }
       } else if (child.gitStatus) {
         const s = child.gitStatus.status;
-        if (s === "modified") modifiedCount++;
-        else if (s === "untracked") untrackedCount++;
-        else if (s === "added") addedCount++;
-        else if (s === "deleted") deletedCount++;
-        else if (s === "conflict") conflictCount++;
+        if (s === "modified") {
+          modifiedCount++;
+        } else if (s === "untracked") {
+          untrackedCount++;
+        } else if (s === "added") {
+          addedCount++;
+        } else if (s === "deleted") {
+          deletedCount++;
+        } else if (s === "conflict") {
+          conflictCount++;
+        }
       }
     }
 
@@ -319,10 +332,12 @@ export function FileTreePanel({
   // first time a project is seen (or after its storage entry is cleared).
   const [expandedPaths, setExpandedPaths] = useLocalStorage<Set<string>>({
     key: storageKey,
-    defaultValue: new Set(tree.filter(n => n.isDirectory).map(n => n.path)),
-    serialize: value => JSON.stringify(Array.from(value)),
-    deserialize: raw => {
-      if (raw === undefined) return new Set();
+    defaultValue: new Set(tree.filter((n) => n.isDirectory).map((n) => n.path)),
+    serialize: (value) => JSON.stringify(Array.from(value)),
+    deserialize: (raw) => {
+      if (raw === undefined) {
+        return new Set();
+      }
       try {
         const parsed: unknown = JSON.parse(raw);
         return Array.isArray(parsed) ? new Set(parsed) : new Set();
@@ -360,15 +375,20 @@ export function FileTreePanel({
   const filterActive = searchActive || filterModifiedOnly;
 
   const visibleNodes = useMemo(() => {
-    if (!filterActive) return tree;
+    if (!filterActive) {
+      return tree;
+    }
 
     function filterNode(node: TreeNode): TreeNode | null {
       if (!node.isDirectory) {
-        if (filterModifiedOnly && !node.gitStatus) return null;
+        if (filterModifiedOnly && !node.gitStatus) {
+          return null;
+        }
         if (searchActive) {
-          const matchesQuery =
-            node.name.toLowerCase().includes(query) || node.path.toLowerCase().includes(query);
-          if (!matchesQuery) return null;
+          const matchesQuery = node.name.toLowerCase().includes(query) || node.path.toLowerCase().includes(query);
+          if (!matchesQuery) {
+            return null;
+          }
         }
         return node;
       }
@@ -377,7 +397,9 @@ export function FileTreePanel({
       const filteredChildren: TreeNode[] = [];
       for (const child of node.children) {
         const filtered = filterNode(child);
-        if (filtered) filteredChildren.push(filtered);
+        if (filtered) {
+          filteredChildren.push(filtered);
+        }
       }
 
       if (filteredChildren.length > 0) {
@@ -389,9 +411,10 @@ export function FileTreePanel({
 
       // If search query matches directory name itself and not in modified-only mode
       if (!filterModifiedOnly && searchActive) {
-        const matchesSelf =
-          node.name.toLowerCase().includes(query) || node.path.toLowerCase().includes(query);
-        if (matchesSelf) return node;
+        const matchesSelf = node.name.toLowerCase().includes(query) || node.path.toLowerCase().includes(query);
+        if (matchesSelf) {
+          return node;
+        }
       }
 
       return null;
@@ -515,7 +538,7 @@ export function FileTreePanel({
                       variant="subtle"
                       color="plum"
                       className="omega-filetree-action-btn"
-                      onClick={e => {
+                      onClick={(e) => {
                         e.stopPropagation();
                         onInsertRef(node.path);
                       }}
@@ -532,7 +555,7 @@ export function FileTreePanel({
                       variant="subtle"
                       color="cyan"
                       className="omega-filetree-action-btn"
-                      onClick={e => {
+                      onClick={(e) => {
                         e.stopPropagation();
                         onOpenFile(node.path);
                       }}
@@ -551,7 +574,7 @@ export function FileTreePanel({
                     component="a"
                     href={`/api/files/download?path=${encodeURIComponent(node.path)}${projectKey && projectKey !== "root" ? `&cwd=${encodeURIComponent(projectKey)}` : ""}`}
                     download={node.name}
-                    onClick={e => e.stopPropagation()}
+                    onClick={(e) => e.stopPropagation()}
                     aria-label={`Download ${node.path}`}
                   >
                     <IconDownload size={13} />
@@ -563,9 +586,7 @@ export function FileTreePanel({
         </UnstyledButton>
 
         {node.isDirectory && isExpanded && node.children.length > 0 ? (
-          <Box className="omega-filetree-children">
-            {node.children.map(child => renderNode(child, depth + 1))}
-          </Box>
+          <Box className="omega-filetree-children">{node.children.map((child) => renderNode(child, depth + 1))}</Box>
         ) : null}
       </Box>
     );
@@ -619,7 +640,7 @@ export function FileTreePanel({
                   variant={filterModifiedOnly ? "filled" : "light"}
                   color="yellow"
                   style={{ flexShrink: 0, cursor: "pointer" }}
-                  onClick={() => setFilterModifiedOnly(prev => !prev)}
+                  onClick={() => setFilterModifiedOnly((prev) => !prev)}
                 >
                   {totalChanges} changed
                 </Badge>
@@ -629,22 +650,12 @@ export function FileTreePanel({
 
           <Group gap={4} wrap="nowrap">
             <Tooltip label="Collapse all folders">
-              <ActionIcon
-                size="sm"
-                variant="subtle"
-                onClick={handleCollapseAll}
-                aria-label="Collapse all folders"
-              >
+              <ActionIcon size="sm" variant="subtle" onClick={handleCollapseAll} aria-label="Collapse all folders">
                 <IconFolderMinus size={15} />
               </ActionIcon>
             </Tooltip>
             <Tooltip label="Expand all folders">
-              <ActionIcon
-                size="sm"
-                variant="subtle"
-                onClick={handleExpandAll}
-                aria-label="Expand all folders"
-              >
+              <ActionIcon size="sm" variant="subtle" onClick={handleExpandAll} aria-label="Expand all folders">
                 <IconFolderPlus size={15} />
               </ActionIcon>
             </Tooltip>
@@ -699,18 +710,13 @@ export function FileTreePanel({
           leftSection={<IconSearch size={14} />}
           rightSection={
             filterQuery ? (
-              <ActionIcon
-                size="xs"
-                variant="subtle"
-                onClick={() => setFilterQuery("")}
-                aria-label="Clear filter"
-              >
+              <ActionIcon size="xs" variant="subtle" onClick={() => setFilterQuery("")} aria-label="Clear filter">
                 <IconX size={12} />
               </ActionIcon>
             ) : null
           }
           value={filterQuery}
-          onChange={e => setFilterQuery(e.currentTarget.value)}
+          onChange={(e) => setFilterQuery(e.currentTarget.value)}
         />
       </Box>
 
@@ -726,7 +732,7 @@ export function FileTreePanel({
             </Text>
           </Stack>
         ) : (
-          <Box py={2}>{visibleNodes.map(node => renderNode(node, 0))}</Box>
+          <Box py={2}>{visibleNodes.map((node) => renderNode(node, 0))}</Box>
         )}
       </ScrollArea>
     </Stack>

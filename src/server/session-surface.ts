@@ -6,14 +6,13 @@
  * turn counts, context utilization, and active tools.
  */
 import * as path from "node:path";
-
-import { formatBytes } from "@oh-my-pi/pi-utils";
-
 import { SESSION_SURFACE_ID, type A2uiComponent } from "../shared/a2ui.ts";
 import type { LiveSession } from "./registry.ts";
 
 function formatDurationMs(ms: number): string {
-  if (ms < 1000) return `${ms}ms`;
+  if (ms < 1000) {
+    return `${ms}ms`;
+  }
   return `${(ms / 1000).toFixed(1)}s`;
 }
 
@@ -49,8 +48,8 @@ export async function drawSessionInfoSurface(live: LiveSession): Promise<void> {
 
   const activeTools = live.session.getActiveToolNames();
   const todoPhases = (live.session.getTodoPhases() as any[]) ?? [];
-  const allTasks = todoPhases.flatMap(p => p.tasks);
-  const doneTasks = allTasks.filter(t => t.status === "completed").length;
+  const allTasks = todoPhases.flatMap((p) => p.tasks);
+  const doneTasks = allTasks.filter((t) => t.status === "completed").length;
 
   const usedPct = usage?.percent ? Math.round(usage.percent) : 0;
   const contextTokens = usage?.tokens ?? 0;

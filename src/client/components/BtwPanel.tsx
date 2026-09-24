@@ -1,3 +1,5 @@
+import React, { useState } from "react";
+import { IconCopy, IconHelp, IconMessageQuestion, IconSend, IconX } from "@tabler/icons-react";
 /**
  * BTW panel: transient side-questions answered without polluting the conversation transcript.
  */
@@ -17,9 +19,6 @@ import {
   Tooltip,
 } from "@mantine/core";
 import { notifications } from "@mantine/notifications";
-import { IconCopy, IconHelp, IconMessageQuestion, IconSend, IconX } from "@tabler/icons-react";
-import React, { useState } from "react";
-
 import { copyText } from "../lib/clipboard.ts";
 import { Markdown } from "../lib/markdown.tsx";
 
@@ -42,7 +41,9 @@ export function BtwPanel({ turns, onAsk, onClose }: BtwPanelProps): React.ReactN
   const handleSubmit = (e?: React.SyntheticEvent): void => {
     e?.preventDefault();
     const q = input.trim();
-    if (!q) return;
+    if (!q) {
+      return;
+    }
     onAsk(q);
     setInput("");
   };
@@ -148,7 +149,7 @@ export function BtwPanel({ turns, onAsk, onClose }: BtwPanelProps): React.ReactN
               size="xs"
               placeholder="Ask another side question…"
               value={input}
-              onChange={e => setInput(e.currentTarget.value)}
+              onChange={(e) => setInput(e.currentTarget.value)}
               aria-label="Ask side question"
             />
             <Button

@@ -1,3 +1,15 @@
+import React, { useState } from "react";
+import {
+  IconAlertTriangle,
+  IconCheck,
+  IconPlugConnected,
+  IconPlus,
+  IconRefresh,
+  IconSearch,
+  IconTools,
+  IconTrash,
+  IconX,
+} from "@tabler/icons-react";
 /**
  * MCP panel: manage and test Model Context Protocol (MCP) servers.
  */
@@ -21,19 +33,6 @@ import {
   Tooltip,
 } from "@mantine/core";
 import { notifications } from "@mantine/notifications";
-import {
-  IconAlertTriangle,
-  IconCheck,
-  IconPlugConnected,
-  IconPlus,
-  IconRefresh,
-  IconSearch,
-  IconTools,
-  IconTrash,
-  IconX,
-} from "@tabler/icons-react";
-import React, { useState } from "react";
-
 import type {
   AddMcpServerRequest,
   McpServerInfo,
@@ -83,7 +82,7 @@ export function McpPanel({
     setTestingName(server.name);
     try {
       const res = await onTestServer({ name: server.name, scope: server.scope });
-      setTestResults(prev => ({ ...prev, [server.name]: res }));
+      setTestResults((prev) => ({ ...prev, [server.name]: res }));
       if (res.ok) {
         notifications.show({
           color: "cyan",
@@ -103,7 +102,9 @@ export function McpPanel({
   };
 
   const handleToggle = async (server: McpServerInfo, targetDisabled: boolean): Promise<void> => {
-    if (!onToggleServer) return;
+    if (!onToggleServer) {
+      return;
+    }
     setTogglingName(server.name);
     try {
       await onToggleServer({
@@ -129,11 +130,13 @@ export function McpPanel({
   };
 
   const handleTestAll = async (): Promise<void> => {
-    if (servers.length === 0) return;
+    if (servers.length === 0) {
+      return;
+    }
     setTestingAll(true);
     try {
       const results = await Promise.all(
-        servers.map(async s => {
+        servers.map(async (s) => {
           try {
             const res = await onTestServer({ name: s.name, scope: s.scope });
             return { name: s.name, res };
@@ -151,14 +154,14 @@ export function McpPanel({
           }
         }),
       );
-      setTestResults(prev => {
+      setTestResults((prev) => {
         const next = { ...prev };
         for (const item of results) {
           next[item.name] = item.res;
         }
         return next;
       });
-      const healthy = results.filter(r => r.res.ok).length;
+      const healthy = results.filter((r) => r.res.ok).length;
       notifications.show({
         color: healthy === servers.length ? "teal" : "yellow",
         title: `Tested ${servers.length} MCP servers`,
@@ -172,7 +175,9 @@ export function McpPanel({
   const handleAddSubmit = async (e?: React.SyntheticEvent): Promise<void> => {
     e?.preventDefault();
     const name = addName.trim();
-    if (!name) return;
+    if (!name) {
+      return;
+    }
     setAdding(true);
     try {
       const args = addArgs.trim() ? addArgs.trim().split(/\s+/) : undefined;
@@ -263,7 +268,7 @@ export function McpPanel({
                 variant={showAdd ? "subtle" : "light"}
                 color="cyan"
                 leftSection={<IconPlus size={14} />}
-                onClick={() => setShowAdd(prev => !prev)}
+                onClick={() => setShowAdd((prev) => !prev)}
               >
                 {showAdd ? "Cancel" : "Add Server"}
               </Button>
@@ -282,7 +287,7 @@ export function McpPanel({
                     label="Server Identifier"
                     placeholder="e.g. github, filesystem, fetch"
                     value={addName}
-                    onChange={e => setAddName(e.currentTarget.value)}
+                    onChange={(e) => setAddName(e.currentTarget.value)}
                     required
                   />
 
@@ -294,7 +299,7 @@ export function McpPanel({
                       size="xs"
                       fullWidth
                       value={addScope}
-                      onChange={v => setAddScope(v as McpServerScope)}
+                      onChange={(v) => setAddScope(v as McpServerScope)}
                       data={[
                         { label: "This Project (.omp/mcp.json)", value: "project" },
                         { label: "Global (~/.omp/mcp.json)", value: "global" },
@@ -307,7 +312,7 @@ export function McpPanel({
                     label="Command (stdio)"
                     placeholder="e.g. npx, bunx, uvx, docker"
                     value={addCommand}
-                    onChange={e => setAddCommand(e.currentTarget.value)}
+                    onChange={(e) => setAddCommand(e.currentTarget.value)}
                   />
 
                   <TextInput
@@ -315,7 +320,7 @@ export function McpPanel({
                     label="Arguments (stdio)"
                     placeholder="e.g. -y @modelcontextprotocol/server-filesystem /path"
                     value={addArgs}
-                    onChange={e => setAddArgs(e.currentTarget.value)}
+                    onChange={(e) => setAddArgs(e.currentTarget.value)}
                   />
 
                   <TextInput
@@ -323,7 +328,7 @@ export function McpPanel({
                     label="OR Remote Endpoint URL (HTTP/SSE)"
                     placeholder="e.g. https://mcp.example.com/sse"
                     value={addUrl}
-                    onChange={e => setAddUrl(e.currentTarget.value)}
+                    onChange={(e) => setAddUrl(e.currentTarget.value)}
                   />
 
                   <Group justify="flex-end" pt="xs">
@@ -348,15 +353,10 @@ export function McpPanel({
               placeholder="Filter servers by name, command, or url..."
               leftSection={<IconSearch size={14} />}
               value={filterQuery}
-              onChange={e => setFilterQuery(e.currentTarget.value)}
+              onChange={(e) => setFilterQuery(e.currentTarget.value)}
               rightSection={
                 filterQuery ? (
-                  <ActionIcon
-                    size="xs"
-                    variant="subtle"
-                    onClick={() => setFilterQuery("")}
-                    aria-label="Clear filter"
-                  >
+                  <ActionIcon size="xs" variant="subtle" onClick={() => setFilterQuery("")} aria-label="Clear filter">
                     <IconX size={12} />
                   </ActionIcon>
                 ) : null
@@ -381,8 +381,10 @@ export function McpPanel({
           ) : (
             <Stack gap="sm">
               {servers
-                .filter(s => {
-                  if (!filterQuery.trim()) return true;
+                .filter((s) => {
+                  if (!filterQuery.trim()) {
+                    return true;
+                  }
                   const q = filterQuery.toLowerCase();
                   return (
                     s.name.toLowerCase().includes(q) ||
@@ -391,7 +393,7 @@ export function McpPanel({
                     (s.url && s.url.toLowerCase().includes(q))
                   );
                 })
-                .map(server => {
+                .map((server) => {
                   const isTesting = testingName === server.name || testingAll;
                   const isToggling = togglingName === server.name;
                   const testResult = testResults[server.name];
@@ -404,11 +406,7 @@ export function McpPanel({
                             <Text size="xs" fw={700}>
                               {server.name}
                             </Text>
-                            <Badge
-                              size="xs"
-                              variant="light"
-                              color={server.scope === "project" ? "cyan" : "plum"}
-                            >
+                            <Badge size="xs" variant="light" color={server.scope === "project" ? "cyan" : "plum"}>
                               {server.scope}
                             </Badge>
                             <Badge size="xs" variant="outline" color={server.disabled ? "gray" : "teal"}>
@@ -424,7 +422,7 @@ export function McpPanel({
                                   color="teal"
                                   checked={!server.disabled}
                                   disabled={isToggling}
-                                  onChange={e => handleToggle(server, !e.currentTarget.checked)}
+                                  onChange={(e) => handleToggle(server, !e.currentTarget.checked)}
                                   aria-label={`Toggle ${server.name}`}
                                 />
                               </Tooltip>
@@ -478,12 +476,7 @@ export function McpPanel({
                             <Group justify="space-between" align="center">
                               <Group gap={6}>
                                 {testResult.ok ? (
-                                  <Badge
-                                    size="xs"
-                                    color="teal"
-                                    variant="filled"
-                                    leftSection={<IconCheck size={10} />}
-                                  >
+                                  <Badge size="xs" color="teal" variant="filled" leftSection={<IconCheck size={10} />}>
                                     Connected ({testResult.latencyMs}ms)
                                   </Badge>
                                 ) : (
@@ -510,7 +503,7 @@ export function McpPanel({
                                   Exposed Tools ({testResult.tools.length}):
                                 </Text>
                                 <Group gap={4} wrap="wrap">
-                                  {testResult.tools.map(tool => (
+                                  {testResult.tools.map((tool) => (
                                     <Badge
                                       key={tool}
                                       size="xs"

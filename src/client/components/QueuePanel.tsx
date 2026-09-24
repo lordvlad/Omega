@@ -1,3 +1,5 @@
+import { useState } from "react";
+import { IconDeviceFloppy, IconPencil, IconTrash, IconX } from "@tabler/icons-react";
 /**
  * The queue panel.
  *
@@ -11,21 +13,7 @@
  * refuses the write if that slot changed underneath, and the fresh queue it
  * returns replaces what is on screen.
  */
-import {
-  ActionIcon,
-  Badge,
-  Button,
-  Group,
-  Paper,
-  ScrollArea,
-  Stack,
-  Text,
-  Textarea,
-  Tooltip,
-} from "@mantine/core";
-import { IconDeviceFloppy, IconPencil, IconTrash, IconX } from "@tabler/icons-react";
-import { useState } from "react";
-
+import { ActionIcon, Badge, Group, Paper, ScrollArea, Stack, Text, Textarea, Tooltip } from "@mantine/core";
 import type { QueuedMessage } from "../api/model.ts";
 
 export interface QueuePanelProps {
@@ -146,8 +134,8 @@ function QueueRow({
             size="xs"
             value={draft}
             disabled={busy}
-            onChange={event => setDraft(event.currentTarget.value)}
-            onKeyDown={event => {
+            onChange={(event) => setDraft(event.currentTarget.value)}
+            onKeyDown={(event) => {
               // Same contract as the composer: Ctrl/⌘+Enter commits, Enter is
               // a newline, Escape abandons the edit.
               if (event.key === "Escape") {
@@ -155,8 +143,12 @@ function QueueRow({
                 setDraft(undefined);
                 return;
               }
-              if (event.key !== "Enter" || event.nativeEvent.isComposing) return;
-              if (!event.ctrlKey && !event.metaKey) return;
+              if (event.key !== "Enter" || event.nativeEvent.isComposing) {
+                return;
+              }
+              if (!event.ctrlKey && !event.metaKey) {
+                return;
+              }
               event.preventDefault();
               save();
             }}
@@ -184,8 +176,7 @@ export function QueuePanel({ messages, busy, onEdit, onDrop }: QueuePanelProps) 
           Nothing is queued.
         </Text>
         <Text size="xs" c="dimmed" ta="center">
-          Messages sent while the agent is working wait here, and can be edited or dropped until it takes
-          them.
+          Messages sent while the agent is working wait here, and can be edited or dropped until it takes them.
         </Text>
       </Stack>
     );
@@ -194,7 +185,7 @@ export function QueuePanel({ messages, busy, onEdit, onDrop }: QueuePanelProps) 
   return (
     <ScrollArea h="100%" type="auto">
       <Stack gap="xs" p="md">
-        {messages.map(message => (
+        {messages.map((message) => (
           <QueueRow
             key={`${message.lane}:${message.index}`}
             message={message}
@@ -210,9 +201,13 @@ export function QueuePanel({ messages, busy, onEdit, onDrop }: QueuePanelProps) 
 
 /** Re-exported so the drawer host and the composer agree on the empty case. */
 export function queueSummary(messages: QueuedMessage[]): string {
-  const steer = messages.filter(message => message.lane === "steer").length;
+  const steer = messages.filter((message) => message.lane === "steer").length;
   const followUp = messages.length - steer;
-  if (steer && followUp) return `${steer} steering, ${followUp} queued`;
-  if (steer) return `${steer} steering`;
+  if (steer && followUp) {
+    return `${steer} steering, ${followUp} queued`;
+  }
+  if (steer) {
+    return `${steer} steering`;
+  }
   return `${followUp} queued`;
 }

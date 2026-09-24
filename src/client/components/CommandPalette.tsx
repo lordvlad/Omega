@@ -1,43 +1,4 @@
-/**
- * The command palette: one Spotlight over every navigation and session
- * command the shell offers.
- *
- * Modelled on omp's slash actions. With an empty query the palette lists the
- * commands themselves; picking one (or clicking a header hyperlink that
- * prefills it) narrows the palette to that command's items, and anything typed
- * after the command filters them:
- *
- *   /switch <term>   models the local install is authenticated for
- *   /cd <term>       every workspace and session, the way the nav tree listed them
- *   /resume <term>   sessions inside the workspace currently open
- *   /compact <focus> compact the context now, optionally with a summary focus
- *   /shake           drop tool results, large blocks, or images from context
- *   /think <term>    thinking level for this session
- *   /rename <title>  a new session title
- *   /branch <term>   restart the conversation from an earlier user message
- *   /stop <term>     live sessions, released from the server's memory
- *   /delete <term>   sessions, erased from disk with their artifacts
- *
- * `/retry`, `/abort`, `/plan`, `/new` and `/fork` take no argument, so they run
- * straight from the command list (and from typing the command and pressing
- * Enter, which is what their single-action lists are for).
- *
- * The command stays in the input, so the list on screen always explains itself.
- * A session row carries its own stop and delete controls. A Spotlight action is
- * a `<button>`, so those controls are `role="button"` spans rather than nested
- * buttons, and they stop propagation so hitting one does not also open the
- * session. Spotlight's keyboard navigation only reaches whole rows, so
- * `/stop` and `/delete` remain the keyboard path to the same two operations.
- */
-import { ActionIcon, Badge, Group, Tooltip } from "@mantine/core";
-import { useLocalStorage } from "@mantine/hooks";
-import {
-  isActionsGroup,
-  Spotlight,
-  spotlight,
-  type SpotlightActionData,
-  type SpotlightActionGroupData,
-} from "@mantine/spotlight";
+import React, { useCallback, useEffect, useMemo, useRef } from "react";
 import {
   IconAlertOctagon,
   IconArchive,
@@ -81,8 +42,46 @@ import {
   IconTools,
   IconTrash,
 } from "@tabler/icons-react";
-import React, { useCallback, useEffect, useMemo, useRef } from "react";
-
+/**
+ * The command palette: one Spotlight over every navigation and session
+ * command the shell offers.
+ *
+ * Modelled on omp's slash actions. With an empty query the palette lists the
+ * commands themselves; picking one (or clicking a header hyperlink that
+ * prefills it) narrows the palette to that command's items, and anything typed
+ * after the command filters them:
+ *
+ *   /switch <term>   models the local install is authenticated for
+ *   /cd <term>       every workspace and session, the way the nav tree listed them
+ *   /resume <term>   sessions inside the workspace currently open
+ *   /compact <focus> compact the context now, optionally with a summary focus
+ *   /shake           drop tool results, large blocks, or images from context
+ *   /think <term>    thinking level for this session
+ *   /rename <title>  a new session title
+ *   /branch <term>   restart the conversation from an earlier user message
+ *   /stop <term>     live sessions, released from the server's memory
+ *   /delete <term>   sessions, erased from disk with their artifacts
+ *
+ * `/retry`, `/abort`, `/plan`, `/new` and `/fork` take no argument, so they run
+ * straight from the command list (and from typing the command and pressing
+ * Enter, which is what their single-action lists are for).
+ *
+ * The command stays in the input, so the list on screen always explains itself.
+ * A session row carries its own stop and delete controls. A Spotlight action is
+ * a `<button>`, so those controls are `role="button"` spans rather than nested
+ * buttons, and they stop propagation so hitting one does not also open the
+ * session. Spotlight's keyboard navigation only reaches whole rows, so
+ * `/stop` and `/delete` remain the keyboard path to the same two operations.
+ */
+import { ActionIcon, Badge, Group, Tooltip } from "@mantine/core";
+import { useLocalStorage } from "@mantine/hooks";
+import {
+  isActionsGroup,
+  Spotlight,
+  spotlight,
+  type SpotlightActionData,
+  type SpotlightActionGroupData,
+} from "@mantine/spotlight";
 import type {
   BranchPoint,
   CompactRequest,
@@ -163,10 +162,7 @@ type PaletteAction = SpotlightActionData | SpotlightActionGroupData;
  * whose term is content rather than a filter — filtering by it would empty the
  * very list the user is typing into.
  */
-const COMMAND_SPEC: Record<
-  PaletteCommand,
-  { kind: "scope" | "run"; placeholder: string; termIsInput?: true }
-> = {
+const COMMAND_SPEC: Record<PaletteCommand, { kind: "scope" | "run"; placeholder: string; termIsInput?: true }> = {
   "/switch": { kind: "scope", placeholder: "Filter models by name, provider, or capability…" },
   "/cd": { kind: "scope", placeholder: "Filter workspaces and sessions…" },
   "/resume": { kind: "scope", placeholder: "Filter sessions in this workspace…" },
@@ -295,7 +291,9 @@ function parseQuery(query: string): ParsedQuery {
   }
   const match = /^(\/[a-zA-Z-]+)(?:\s+([\s\S]*))?$/.exec(trimmed);
   const word = match?.[1];
-  if (!word || !Object.hasOwn(COMMAND_SPEC, word)) return { term: query };
+  if (!word || !Object.hasOwn(COMMAND_SPEC, word)) {
+    return { term: query };
+  }
   return { command: word as PaletteCommand, term: match?.[2] ?? "" };
 }
 
@@ -308,10 +306,14 @@ function parseQuery(query: string): ParsedQuery {
  * 1-2 character queries from matching thousands of irrelevant files.
  */
 function scoreFileMatch(filePath: string, query: string): number {
-  if (!query) return 1;
+  if (!query) {
+    return 1;
+  }
   const lowerPath = filePath.toLowerCase();
   const lowerQuery = query.toLowerCase().trim();
-  if (!lowerQuery) return 1;
+  if (!lowerQuery) {
+    return 1;
+  }
 
   const parts = filePath.replace(/\\/g, "/").split("/");
   const fileName = parts[parts.length - 1] ?? filePath;
@@ -336,7 +338,7 @@ function scoreFileMatch(filePath: string, query: string): number {
   const wordStarts = fileName
     .split(/[-_./\s]+|(?=[A-Z])/)
     .filter(Boolean)
-    .map(w => w[0]?.toLowerCase())
+    .map((w) => w[0]?.toLowerCase())
     .join("");
   if (wordStarts.includes(lowerQuery) || wordStarts.startsWith(lowerQuery)) {
     return 1200 + (wordStarts.startsWith(lowerQuery) ? 200 : 0);
@@ -371,7 +373,9 @@ function scoreFileMatch(filePath: string, query: string): number {
 
   for (let i = 0; i < lowerName.length && namePIdx < lowerQuery.length; i++) {
     if (lowerName[i] === lowerQuery[namePIdx]) {
-      if (firstMatch === -1) firstMatch = i;
+      if (firstMatch === -1) {
+        firstMatch = i;
+      }
       lastMatch = i;
       namePIdx++;
       consecutive++;
@@ -395,7 +399,9 @@ function scoreFileMatch(filePath: string, query: string): number {
 
   for (let i = 0; i < lowerPath.length && pathPIdx < lowerQuery.length; i++) {
     if (lowerPath[i] === lowerQuery[pathPIdx]) {
-      if (pFirst === -1) pFirst = i;
+      if (pFirst === -1) {
+        pFirst = i;
+      }
       pLast = i;
       pathPIdx++;
       pathConsecutive++;
@@ -416,17 +422,25 @@ function scoreFileMatch(filePath: string, query: string): number {
 function matches(action: SpotlightActionData, tokens: string[]): boolean {
   const keywords = Array.isArray(action.keywords) ? action.keywords.join(" ") : (action.keywords ?? "");
   const haystack = `${action.label ?? ""} ${action.description ?? ""} ${keywords}`.toLowerCase();
-  return tokens.every(token => haystack.includes(token));
+  return tokens.every((token) => haystack.includes(token));
 }
 
 /** Coarse "how long ago", matching the wording the session tree used. */
 function relative(iso: string): string {
   const minutes = Math.round((Date.now() - new Date(iso).getTime()) / 60_000);
-  if (!Number.isFinite(minutes)) return "";
-  if (minutes < 1) return "now";
-  if (minutes < 60) return `${minutes}m ago`;
+  if (!Number.isFinite(minutes)) {
+    return "";
+  }
+  if (minutes < 1) {
+    return "now";
+  }
+  if (minutes < 60) {
+    return `${minutes}m ago`;
+  }
   const hours = Math.round(minutes / 60);
-  if (hours < 24) return `${hours}h ago`;
+  if (hours < 24) {
+    return `${hours}h ago`;
+  }
   return `${Math.round(hours / 24)}d ago`;
 }
 
@@ -550,7 +564,7 @@ export function CommandPalette({
   onOpenRules,
   onForceTool,
   toolsList,
-  forcedTool,
+  forcedTool: _forcedTool,
   onShowCost,
   onShowUsage,
   onShowStats,
@@ -581,8 +595,8 @@ export function CommandPalette({
   /** Sessions currently held open by the server, newest workspace first. */
   const liveSessions = useMemo(
     () =>
-      workspaces.flatMap(workspace =>
-        workspace.sessions.filter(session => session.live).map(session => ({ workspace, session })),
+      workspaces.flatMap((workspace) =>
+        workspace.sessions.filter((session) => session.live).map((session) => ({ workspace, session })),
       ),
     [workspaces],
   );
@@ -595,7 +609,7 @@ export function CommandPalette({
 
   const recordCommandUsage = useCallback(
     (id: string) => {
-      setRecentCommandIds(prev => [id, ...(prev ?? []).filter(item => item !== id)].slice(0, 40));
+      setRecentCommandIds((prev) => [id, ...(prev ?? []).filter((item) => item !== id)].slice(0, 40));
     },
     [setRecentCommandIds],
   );
@@ -625,11 +639,7 @@ export function CommandPalette({
       leftSection: <IconMessage size={16} />,
       rightSection: (
         <Group gap={4} wrap="nowrap">
-          <Badge
-            size="xs"
-            variant={session.live ? "filled" : "light"}
-            color={session.live ? "cyan" : "slate"}
-          >
+          <Badge size="xs" variant={session.live ? "filled" : "light"} color={session.live ? "cyan" : "slate"}>
             {session.live ? "active" : "dormant"}
           </Badge>
           {session.live ? (
@@ -641,7 +651,7 @@ export function CommandPalette({
                 size="sm"
                 variant="subtle"
                 color="orange"
-                onClick={event => {
+                onClick={(event) => {
                   event.stopPropagation();
                   onStopSession(session);
                 }}
@@ -658,7 +668,7 @@ export function CommandPalette({
               size="sm"
               variant="subtle"
               color="red"
-              onClick={event => {
+              onClick={(event) => {
                 event.stopPropagation();
                 onDeleteSession(session);
               }}
@@ -683,11 +693,13 @@ export function CommandPalette({
   /** The command list: what the palette shows before a command is chosen. */
   /** `@`: every file in the active workspace. */
   const fileActions = useMemo<PaletteAction[]>(() => {
-    if (!files || files.length === 0) return [];
+    if (!files || files.length === 0) {
+      return [];
+    }
     return [
       {
         group: `Files in workspace (${files.length})`,
-        actions: files.map(file => {
+        actions: files.map((file) => {
           const parts = file.replace(/\\/g, "/").split("/");
           const fileName = parts.pop() ?? file;
           const dir = parts.join("/");
@@ -799,7 +811,7 @@ export function CommandPalette({
         label: PALETTE_COMMAND.todo,
         description:
           state?.todos && state.todos.length > 0
-            ? `Manage tasks and checklists (${state.todos.flatMap(p => p.tasks).length} tasks across ${state.todos.length} phases)`
+            ? `Manage tasks and checklists (${state.todos.flatMap((p) => p.tasks).length} tasks across ${state.todos.length} phases)`
             : "Inspect and manage multi-step todos and phase checklists",
         keywords: "todo tasks phases checklist done append start rm clear",
         leftSection: <IconChecklist size={16} color="var(--mantine-color-cyan-4)" />,
@@ -930,7 +942,9 @@ export function CommandPalette({
         leftSection: <IconPlus size={16} />,
         disabled: !activeProject,
         onClick: () => {
-          if (activeProject) onNewSession(activeProject);
+          if (activeProject) {
+            onNewSession(activeProject);
+          }
         },
       },
       {
@@ -997,9 +1011,7 @@ export function CommandPalette({
         id: "command-stop",
         label: PALETTE_COMMAND.stop,
         description:
-          liveSessions.length > 0
-            ? `Release a live session (${liveSessions.length} running)`
-            : "No sessions are live",
+          liveSessions.length > 0 ? `Release a live session (${liveSessions.length} running)` : "No sessions are live",
         keywords: "stop halt release live",
         leftSection: <IconPlayerStopFilled size={16} />,
         closeSpotlightOnTrigger: false,
@@ -1035,7 +1047,7 @@ export function CommandPalette({
     ];
 
     const lruIndex = new Map((recentCommandIds ?? []).map((id, index) => [id, index]));
-    const trackedActions = rawActions.map(cmd => ({
+    const trackedActions = rawActions.map((cmd) => ({
       ...cmd,
       onClick: (action: any) => {
         recordCommandUsage(cmd.id);
@@ -1060,7 +1072,7 @@ export function CommandPalette({
         ? [
             {
               group: "MCP",
-              actions: mcpCommands.map(command => ({
+              actions: mcpCommands.map((command) => ({
                 id: `mcp-${command.name}`,
                 label: `/${command.name}`,
                 description: command.description,
@@ -1110,7 +1122,7 @@ export function CommandPalette({
 
   /** `/switch`: recently used models first, then every model by provider. */
   const modelActions = useMemo<PaletteAction[]>(() => {
-    const modelMap = new Map(models.map(model => [model.ref, model]));
+    const modelMap = new Map(models.map((model) => [model.ref, model]));
     const groups: PaletteAction[] = [];
 
     const entry = (model: ModelOption, idPrefix: string): SpotlightActionData => ({
@@ -1123,21 +1135,24 @@ export function CommandPalette({
     });
 
     const recent = recentModels
-      .map(ref => modelMap.get(ref))
+      .map((ref) => modelMap.get(ref))
       .filter((model): model is ModelOption => Boolean(model))
       .slice(0, 5);
     if (recent.length > 0) {
-      groups.push({ group: "Recently used", actions: recent.map(model => entry(model, "recent-")) });
+      groups.push({ group: "Recently used", actions: recent.map((model) => entry(model, "recent-")) });
     }
 
     const byProvider = new Map<string, ModelOption[]>();
     for (const model of models) {
       const list = byProvider.get(model.provider);
-      if (list) list.push(model);
-      else byProvider.set(model.provider, [model]);
+      if (list) {
+        list.push(model);
+      } else {
+        byProvider.set(model.provider, [model]);
+      }
     }
     for (const [provider, list] of [...byProvider].sort((a, b) => a[0].localeCompare(b[0]))) {
-      groups.push({ group: provider, actions: list.map(model => entry(model, "")) });
+      groups.push({ group: provider, actions: list.map((model) => entry(model, "")) });
     }
 
     return groups;
@@ -1145,8 +1160,8 @@ export function CommandPalette({
 
   /** `/cd`: top 5 most recently used sessions first, then every workspace with its sessions under it. */
   const projectActions = useMemo<PaletteAction[]>(() => {
-    const allSessions = workspaces.flatMap(workspace =>
-      workspace.sessions.map(session => ({ session, workspace })),
+    const allSessions = workspaces.flatMap((workspace) =>
+      workspace.sessions.map((session) => ({ session, workspace })),
     );
     const recentSessions = allSessions
       .sort((a, b) => (Date.parse(b.session.modified) || 0) - (Date.parse(a.session.modified) || 0))
@@ -1185,9 +1200,7 @@ export function CommandPalette({
             disabled: !workspace.exists,
             onClick: () => onNewSession(workspace.cwd),
           },
-          ...workspace.sessions.map(session =>
-            sessionRow(session, "session-", [workspace.cwd, workspace.name]),
-          ),
+          ...workspace.sessions.map((session) => sessionRow(session, "session-", [workspace.cwd, workspace.name])),
         ],
       });
     }
@@ -1210,8 +1223,10 @@ export function CommandPalette({
   }, [workspaces, onSelectProject, onNewSession, onAddWorkspace, sessionRow]);
   /** `/resume`: only the sessions of the workspace currently open. */
   const sessionActions = useMemo<PaletteAction[]>(() => {
-    const workspace = workspaces.find(candidate => candidate.cwd === activeProject);
-    if (!workspace) return [];
+    const workspace = workspaces.find((candidate) => candidate.cwd === activeProject);
+    if (!workspace) {
+      return [];
+    }
     return [
       {
         group: workspace.cwd,
@@ -1225,7 +1240,7 @@ export function CommandPalette({
             disabled: !workspace.exists,
             onClick: () => onNewSession(workspace.cwd),
           },
-          ...workspace.sessions.map(session => sessionRow(session, "resume-", [])),
+          ...workspace.sessions.map((session) => sessionRow(session, "resume-", [])),
         ],
       },
     ];
@@ -1275,9 +1290,7 @@ export function CommandPalette({
         actions: [
           {
             id: "wt-create-action",
-            label: branchName
-              ? `Create worktree: “${branchName}”`
-              : "Create worktree with auto-generated branch",
+            label: branchName ? `Create worktree: “${branchName}”` : "Create worktree with auto-generated branch",
             description: branchName
               ? `Creates new worktree and checkouts branch '${branchName}'`
               : "Creates worktree under project parent directory with timestamped branch",
@@ -1316,7 +1329,7 @@ export function CommandPalette({
     () => [
       {
         group: "Thinking level",
-        actions: THINKING_LEVELS.map(level => ({
+        actions: THINKING_LEVELS.map((level) => ({
           id: `think-${level}`,
           label: level,
           description: level === state?.thinkingLevel ? "Current level" : "Set for this session",
@@ -1413,13 +1426,7 @@ export function CommandPalette({
         ],
       },
     ],
-    [
-      settings.showThinking,
-      settings.showToolCalls,
-      settings.notifyOnYield,
-      settings.enterSubmits,
-      onToggleSetting,
-    ],
+    [settings.showThinking, settings.showToolCalls, settings.notifyOnYield, settings.enterSubmits, onToggleSetting],
   );
 
   /** `/btw`: ask a transient side question. */
@@ -1475,8 +1482,8 @@ export function CommandPalette({
   /** `/todo`: view and mutate todos list. */
   const todoActions = useMemo<PaletteAction[]>(() => {
     const rawPhases = state?.todos ?? [];
-    const allTasks = rawPhases.flatMap(p => p.tasks);
-    const completedCount = allTasks.filter(t => t.status === "completed").length;
+    const allTasks = rawPhases.flatMap((p) => p.tasks);
+    const completedCount = allTasks.filter((t) => t.status === "completed").length;
 
     const quickActions: SpotlightActionData[] = [
       {
@@ -1533,7 +1540,7 @@ export function CommandPalette({
     ];
 
     const openTasks = allTasks.filter(
-      t => t.status === "pending" || t.status === "in_progress" || t.status === "blocked",
+      (t) => t.status === "pending" || t.status === "in_progress" || t.status === "blocked",
     );
     if (openTasks.length > 0) {
       groups.push({
@@ -1872,7 +1879,7 @@ export function CommandPalette({
         ? [
             {
               group: "Available Tools (click to force next turn)",
-              actions: list.map(tool => ({
+              actions: list.map((tool) => ({
                 id: `tool-${tool.name}`,
                 label: tool.name,
                 description: tool.description,
@@ -1906,7 +1913,7 @@ export function CommandPalette({
                 },
               ]
             : []),
-          ...list.map(tool => ({
+          ...list.map((tool) => ({
             id: `force-tool-${tool.name}`,
             label: `Force: ${tool.name}`,
             description: tool.description,
@@ -2024,8 +2031,7 @@ export function CommandPalette({
           {
             id: "abort-confirm",
             label: "Interrupt the current turn",
-            description:
-              state?.streaming === true ? "The agent stops where it is" : "Nothing is running to interrupt",
+            description: state?.streaming === true ? "The agent stops where it is" : "Nothing is running to interrupt",
             keywords: "abort interrupt cancel",
             leftSection: <IconPlayerStopFilled size={16} />,
             onClick: onAbort,
@@ -2070,7 +2076,9 @@ export function CommandPalette({
             leftSection: <IconPlus size={16} />,
             disabled: !activeProject,
             onClick: () => {
-              if (activeProject) onNewSession(activeProject);
+              if (activeProject) {
+                onNewSession(activeProject);
+              }
             },
           },
         ],
@@ -2105,7 +2113,9 @@ export function CommandPalette({
    * chronological so it matches the transcript.
    */
   const branchActions = useMemo<PaletteAction[]>(() => {
-    if (branchPoints.length === 0) return [];
+    if (branchPoints.length === 0) {
+      return [];
+    }
     return [
       {
         group: "Branch from a message",
@@ -2128,7 +2138,9 @@ export function CommandPalette({
    * the server has nothing in memory to release.
    */
   const stopActions = useMemo<PaletteAction[]>(() => {
-    if (liveSessions.length === 0) return [];
+    if (liveSessions.length === 0) {
+      return [];
+    }
     return [
       {
         group: `Live sessions (${liveSessions.length})`,
@@ -2148,10 +2160,10 @@ export function CommandPalette({
   const deleteActions = useMemo<PaletteAction[]>(
     () =>
       workspaces
-        .filter(workspace => workspace.sessions.length > 0)
-        .map(workspace => ({
+        .filter((workspace) => workspace.sessions.length > 0)
+        .map((workspace) => ({
           group: `${workspace.name} — ${workspace.cwd}`,
-          actions: workspace.sessions.map(session => ({
+          actions: workspace.sessions.map((session) => ({
             id: `delete-${session.path}`,
             label: session.title || session.firstMessage || "Untitled session",
             description: `${session.live ? "live · " : ""}${session.status} · ${session.messageCount} msg · ${relative(session.modified)}`,
@@ -2208,39 +2220,49 @@ export function CommandPalette({
     const parsed = parseQuery(raw);
     // `/compact` and `/rename` read their term as content, not as a filter:
     // typing a focus phrase or a new title must not empty their list.
-    if (parsed.command && COMMAND_SPEC[parsed.command].termIsInput) return items;
+    if (parsed.command && COMMAND_SPEC[parsed.command].termIsInput) {
+      return items;
+    }
     const tokens = parsed.term
       .trim()
       .toLowerCase()
       .split(/\s+/)
-      .filter(token => token.length > 0);
-    if (tokens.length === 0) return items;
+      .filter((token) => token.length > 0);
+    if (tokens.length === 0) {
+      return items;
+    }
     if (parsed.command === "@") {
       const term = parsed.term.trim();
-      if (!term) return items;
+      if (!term) {
+        return items;
+      }
 
       const scoredActions: Array<{ action: SpotlightActionData; score: number }> = [];
 
       for (const item of items) {
         if (!isActionsGroup(item)) {
           const s = scoreFileMatch(item.label as string, term);
-          if (s > 0) scoredActions.push({ action: item, score: s });
+          if (s > 0) {
+            scoredActions.push({ action: item, score: s });
+          }
         } else {
           for (const action of item.actions) {
             const s = scoreFileMatch(action.label as string, term);
-            if (s > 0) scoredActions.push({ action, score: s });
+            if (s > 0) {
+              scoredActions.push({ action, score: s });
+            }
           }
         }
       }
 
       // Sort by score descending (highest score / most relevant matches first!)
-      scoredActions.sort(
-        (a, b) => b.score - a.score || (a.action.label ?? "").localeCompare(b.action.label ?? ""),
-      );
+      scoredActions.sort((a, b) => b.score - a.score || (a.action.label ?? "").localeCompare(b.action.label ?? ""));
 
       // Take top matches (up to 60)
-      const topActions = scoredActions.slice(0, 60).map(sa => sa.action);
-      if (topActions.length === 0) return [];
+      const topActions = scoredActions.slice(0, 60).map((sa) => sa.action);
+      if (topActions.length === 0) {
+        return [];
+      }
 
       return [
         {
@@ -2250,9 +2272,11 @@ export function CommandPalette({
       ];
     }
     return items
-      .map(item => {
-        if (!isActionsGroup(item)) return matches(item, tokens) ? item : undefined;
-        const kept = item.actions.filter(action => matches(action, tokens));
+      .map((item) => {
+        if (!isActionsGroup(item)) {
+          return matches(item, tokens) ? item : undefined;
+        }
+        const kept = item.actions.filter((action) => matches(action, tokens));
         return kept.length > 0 ? { ...item, actions: kept } : undefined;
       })
       .filter((item): item is PaletteAction => item !== undefined);
@@ -2272,7 +2296,9 @@ export function CommandPalette({
   const handleSearchKeyDown = useCallback(
     (event: React.KeyboardEvent<HTMLInputElement>) => {
       if (event.key === "Backspace") {
-        if (event.repeat) return;
+        if (event.repeat) {
+          return;
+        }
         const target = event.target as HTMLInputElement | null;
         const val = target?.value ?? query;
         if (val === "" && Date.now() - lastNonEmptyAt.current > 120) {

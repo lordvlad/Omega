@@ -1,3 +1,13 @@
+import React, { useMemo, useState } from "react";
+import {
+  IconBolt,
+  IconChevronDown,
+  IconChevronRight,
+  IconClearAll,
+  IconSearch,
+  IconTools,
+  IconX,
+} from "@tabler/icons-react";
 /**
  * Tools panel: inspect available tools across built-in, custom, MCP, and xdev sources,
  * with parameter schemas and forced tool choice controls.
@@ -20,17 +30,6 @@ import {
   ThemeIcon,
   Tooltip,
 } from "@mantine/core";
-import {
-  IconBolt,
-  IconChevronDown,
-  IconChevronRight,
-  IconClearAll,
-  IconSearch,
-  IconTools,
-  IconX,
-} from "@tabler/icons-react";
-import React, { useMemo, useState } from "react";
-
 import type { SessionToolInfo, ToolSource } from "../api/model.ts";
 
 export interface ToolsPanelProps {
@@ -70,16 +69,20 @@ export function ToolsPanel({
   const [expandedParams, setExpandedParams] = useState<Record<string, boolean>>({});
 
   const toggleParams = (name: string): void => {
-    setExpandedParams(prev => ({ ...prev, [name]: !prev[name] }));
+    setExpandedParams((prev) => ({ ...prev, [name]: !prev[name] }));
   };
 
-  const activeCount = tools.filter(t => t.active).length;
+  const activeCount = tools.filter((t) => t.active).length;
 
   const filteredTools = useMemo(() => {
     const q = query.trim().toLowerCase();
-    return tools.filter(tool => {
-      if (filterSource !== "all" && tool.source !== filterSource) return false;
-      if (!q) return true;
+    return tools.filter((tool) => {
+      if (filterSource !== "all" && tool.source !== filterSource) {
+        return false;
+      }
+      if (!q) {
+        return true;
+      }
       return (
         tool.name.toLowerCase().includes(q) ||
         tool.description.toLowerCase().includes(q) ||
@@ -140,7 +143,7 @@ export function ToolsPanel({
             placeholder="Search tools by name, description, or source…"
             leftSection={<IconSearch size={14} />}
             value={query}
-            onChange={e => setQuery(e.currentTarget.value)}
+            onChange={(e) => setQuery(e.currentTarget.value)}
           />
           <SegmentedControl
             size="xs"
@@ -171,7 +174,7 @@ export function ToolsPanel({
           </Stack>
         ) : (
           <Stack gap="sm">
-            {filteredTools.map(tool => {
+            {filteredTools.map((tool) => {
               const isForced = forcedTool === tool.name;
               const hasParams = Boolean(tool.parameters && Object.keys(tool.parameters).length > 0);
               const isExpanded = expandedParams[tool.name] === true;

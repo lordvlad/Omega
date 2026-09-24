@@ -1,3 +1,27 @@
+import React, { useState } from "react";
+import {
+  IconAlertTriangle,
+  IconArrowRight,
+  IconBrain,
+  IconCheck,
+  IconChecklist,
+  IconClockPause,
+  IconFileDiff,
+  IconClock,
+  IconFolder,
+  IconGauge,
+  IconGitBranch,
+  IconHourglass,
+  IconMessage,
+  IconPlayerPlayFilled,
+  IconPlayerStopFilled,
+  IconPlus,
+  IconRefresh,
+  IconRobot,
+  IconSearch,
+  IconStack2,
+  IconX,
+} from "@tabler/icons-react";
 /**
  * Multi-Session Overview modal.
  *
@@ -24,31 +48,6 @@ import {
   ThemeIcon,
   Tooltip,
 } from "@mantine/core";
-import {
-  IconAlertTriangle,
-  IconArrowRight,
-  IconBrain,
-  IconCheck,
-  IconChecklist,
-  IconClockPause,
-  IconFileDiff,
-  IconClock,
-  IconFolder,
-  IconGauge,
-  IconGitBranch,
-  IconHourglass,
-  IconMessage,
-  IconPlayerPlayFilled,
-  IconPlayerStopFilled,
-  IconPlus,
-  IconRefresh,
-  IconRobot,
-  IconSearch,
-  IconStack2,
-  IconX,
-} from "@tabler/icons-react";
-import React, { useState } from "react";
-
 import type { ActiveSessionOverview } from "../api/model.ts";
 import { useSpinning } from "../lib/useSpinning.ts";
 
@@ -64,17 +63,27 @@ export interface MultiSessionOverviewProps {
 }
 
 function formatRelative(ms: number): string {
-  if (ms < 5_000) return "just now";
+  if (ms < 5_000) {
+    return "just now";
+  }
   const sec = Math.floor(ms / 1000);
-  if (sec < 60) return `${sec}s ago`;
+  if (sec < 60) {
+    return `${sec}s ago`;
+  }
   const min = Math.floor(sec / 60);
-  if (min < 60) return `${min}m ago`;
+  if (min < 60) {
+    return `${min}m ago`;
+  }
   const hrs = Math.floor(min / 60);
   return `${hrs}h ago`;
 }
 function formatTokens(count: number): string {
-  if (count >= 1_000_000) return `${(count / 1_000_000).toFixed(1)}M`;
-  if (count >= 1_000) return `${Math.round(count / 1_000)}k`;
+  if (count >= 1_000_000) {
+    return `${(count / 1_000_000).toFixed(1)}M`;
+  }
+  if (count >= 1_000) {
+    return `${Math.round(count / 1_000)}k`;
+  }
   return String(count);
 }
 
@@ -133,8 +142,10 @@ export function MultiSessionOverview({
   const isSpinning = useSpinning(loading);
   const [filterQuery, setFilterQuery] = useState("");
 
-  const filteredSessions = activeSessions.filter(s => {
-    if (!filterQuery.trim()) return true;
+  const filteredSessions = activeSessions.filter((s) => {
+    if (!filterQuery.trim()) {
+      return true;
+    }
     const q = filterQuery.toLowerCase();
     return (
       s.title.toLowerCase().includes(q) ||
@@ -147,7 +158,7 @@ export function MultiSessionOverview({
     );
   });
 
-  const streamingCount = activeSessions.filter(s => s.state === "streaming").length;
+  const streamingCount = activeSessions.filter((s) => s.state === "streaming").length;
 
   return (
     <Modal
@@ -216,13 +227,7 @@ export function MultiSessionOverview({
             ) : null}
 
             <Tooltip label="Close overview (Esc)">
-              <ActionIcon
-                size="md"
-                variant="subtle"
-                color="gray"
-                onClick={onClose}
-                aria-label="Close overview"
-              >
+              <ActionIcon size="md" variant="subtle" color="gray" onClick={onClose} aria-label="Close overview">
                 <IconX size={20} />
               </ActionIcon>
             </Tooltip>
@@ -237,15 +242,10 @@ export function MultiSessionOverview({
               placeholder="Filter by workspace, title, branch, model, or archetype..."
               leftSection={<IconSearch size={14} />}
               value={filterQuery}
-              onChange={e => setFilterQuery(e.currentTarget.value)}
+              onChange={(e) => setFilterQuery(e.currentTarget.value)}
               rightSection={
                 filterQuery ? (
-                  <ActionIcon
-                    size="xs"
-                    variant="subtle"
-                    onClick={() => setFilterQuery("")}
-                    aria-label="Clear filter"
-                  >
+                  <ActionIcon size="xs" variant="subtle" onClick={() => setFilterQuery("")} aria-label="Clear filter">
                     <IconX size={12} />
                   </ActionIcon>
                 ) : null
@@ -267,8 +267,8 @@ export function MultiSessionOverview({
                 No Active Sessions in Memory
               </Text>
               <Text size="sm" c="dimmed" ta="center">
-                Sessions are held live while in use or within their 8-hour sleep window. Pick a workspace from
-                the header or start a new session to begin.
+                Sessions are held live while in use or within their 8-hour sleep window. Pick a workspace from the
+                header or start a new session to begin.
               </Text>
               {onNewSession ? (
                 <Button
@@ -287,7 +287,7 @@ export function MultiSessionOverview({
           </Center>
         ) : (
           <SimpleGrid cols={{ base: 1, sm: 2, lg: 3, xl: 4 }} spacing="md">
-            {filteredSessions.map(session => {
+            {filteredSessions.map((session) => {
               const isStreaming = session.state === "streaming";
               const isRateLimited = session.state === "rate_limited" || Boolean(session.rateLimit);
               const isError = session.state === "error";
@@ -405,8 +405,7 @@ export function MultiSessionOverview({
                                     : "dimmed"
                               }
                             >
-                              {Math.round(session.contextUsage.percent)}% (
-                              {formatTokens(session.contextUsage.tokens)} /{" "}
+                              {Math.round(session.contextUsage.percent)}% ({formatTokens(session.contextUsage.tokens)} /{" "}
                               {formatTokens(session.contextUsage.contextWindow)})
                             </Text>
                           ) : (
@@ -416,11 +415,7 @@ export function MultiSessionOverview({
                           )}
                         </Group>
                         <Progress
-                          value={
-                            session.contextUsage
-                              ? Math.min(100, Math.max(0, session.contextUsage.percent))
-                              : 0
-                          }
+                          value={session.contextUsage ? Math.min(100, Math.max(0, session.contextUsage.percent)) : 0}
                           size="xs"
                           radius="xl"
                           color={
@@ -447,12 +442,7 @@ export function MultiSessionOverview({
                             {session.messageCount} ({session.assistantTurns} turns)
                           </Text>
                           {typeof session.queuedMessages === "number" && session.queuedMessages > 0 ? (
-                            <Badge
-                              size="xs"
-                              variant="filled"
-                              color="indigo"
-                              leftSection={<IconHourglass size={9} />}
-                            >
+                            <Badge size="xs" variant="filled" color="indigo" leftSection={<IconHourglass size={9} />}>
                               {session.queuedMessages} queued
                             </Badge>
                           ) : null}
@@ -490,9 +480,7 @@ export function MultiSessionOverview({
                           </Text>
                         </Group>
                         <Text size="xs" fw={500}>
-                          {session.totalTodos > 0
-                            ? `${session.completedTodos}/${session.totalTodos} done`
-                            : "No tasks"}
+                          {session.totalTodos > 0 ? `${session.completedTodos}/${session.totalTodos} done` : "No tasks"}
                         </Text>
                       </Group>
 
@@ -525,8 +513,7 @@ export function MultiSessionOverview({
                           </Text>
                         </Group>
                         <Text size="xs" c="orange.3" fw={500}>
-                          Resets {session.rateLimit?.relative ?? "soon"} (at{" "}
-                          {session.rateLimit?.absolute ?? "--:--"})
+                          Resets {session.rateLimit?.relative ?? "soon"} (at {session.rateLimit?.absolute ?? "--:--"})
                         </Text>
                       </Box>
                     ) : session.lastError ? (

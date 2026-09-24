@@ -1,6 +1,4 @@
-import type { ThinkingLevel as OmpThinkingLevel } from "@oh-my-pi/pi-agent-core";
 import type { ImageContent } from "@oh-my-pi/pi-ai";
-
 import type {
   A2uiDismissRequest,
   Ack,
@@ -133,8 +131,12 @@ const IMAGE_TYPES = new Set(["image/png", "image/jpeg", "image/gif", "image/webp
 
 /** True for types whose bytes are meaningfully readable as text. */
 function isTextual(mimeType: string, name: string): boolean {
-  if (mimeType.startsWith("text/")) return true;
-  if (/^application\/(json|xml|x-yaml|yaml|javascript|typescript|sql|toml)$/.test(mimeType)) return true;
+  if (mimeType.startsWith("text/")) {
+    return true;
+  }
+  if (/^application\/(json|xml|x-yaml|yaml|javascript|typescript|sql|toml)$/.test(mimeType)) {
+    return true;
+  }
   if (mimeType === "application/octet-stream" || mimeType === "") {
     // Browsers report an empty or generic type for plenty of ordinary source
     // files, so fall back to the extension rather than refusing a .ts file.
@@ -158,7 +160,9 @@ function composeAttachments(
   message: string,
   attachments: Attachment[] | undefined,
 ): { text: string; images: ImageContent[] | undefined } {
-  if (!attachments?.length) return { text: message, images: undefined };
+  if (!attachments?.length) {
+    return { text: message, images: undefined };
+  }
 
   const images: ImageContent[] = [];
   const blocks: string[] = [];
@@ -197,13 +201,15 @@ function composeAttachments(
 /** Length of the longest run of backticks, so a fence can outgrow it. */
 function longestBacktickRun(text: string): number {
   let longest = 0;
-  for (const run of text.match(/`+/g) ?? []) longest = Math.max(longest, run.length);
+  for (const run of text.match(/`+/g) ?? []) {
+    longest = Math.max(longest, run.length);
+  }
   return longest;
 }
 
 export class Handlers implements OmpApi {
   listWorkspaces(): Promise<Workspace[]> {
-    return listWorkspaces(id => registry.isLive(id));
+    return listWorkspaces((id) => registry.isLive(id));
   }
   listActiveSessions(): Promise<ActiveSessionOverview[]> {
     return registry.listActiveSessions();
@@ -221,7 +227,9 @@ export class Handlers implements OmpApi {
   }
 
   async getFileContent(query?: ReadFileQuery): Promise<ReadFileResult> {
-    if (!query?.path) throw new HttpError(400, "File path is required.");
+    if (!query?.path) {
+      throw new HttpError(400, "File path is required.");
+    }
     try {
       return await readFileContent(query.path, query.cwd);
     } catch (error) {
@@ -323,12 +331,7 @@ export class Handlers implements OmpApi {
       await drawSessionInfoSurface(live);
       return { ok: true, detail: "Session information rendered." };
     }
-    if (
-      message === "/agents" ||
-      message.startsWith("/agents ") ||
-      message === "/hub" ||
-      message.startsWith("/hub ")
-    ) {
+    if (message === "/agents" || message.startsWith("/agents ") || message === "/hub" || message.startsWith("/hub ")) {
       await drawAgentsSurface(live);
       return { ok: true, detail: "Agents Hub rendered." };
     }
@@ -336,8 +339,8 @@ export class Handlers implements OmpApi {
       const rest = message.startsWith("/todo ") ? message.slice(6).trim() : "";
       if (!rest) {
         const phases = live.session.getTodoPhases() as any[];
-        const all = phases.flatMap(p => p.tasks);
-        const done = all.filter(t => t.status === "completed").length;
+        const all = phases.flatMap((p) => p.tasks);
+        const done = all.filter((t) => t.status === "completed").length;
         return {
           ok: true,
           detail: `Todos: ${all.length - done} open, ${done} completed (${phases.length} phases).`,
@@ -385,7 +388,9 @@ export class Handlers implements OmpApi {
     if (body.idempotencyKey && live.wasDelivered(body.idempotencyKey)) {
       return { ok: true, detail: "Already delivered." };
     }
-    if (body.idempotencyKey) live.markDelivered(body.idempotencyKey);
+    if (body.idempotencyKey) {
+      live.markDelivered(body.idempotencyKey);
+    }
     // A user message is activity even if the agent never replies, so the idle
     // clock restarts here rather than only on agent events.
     live.touch();
@@ -395,14 +400,17 @@ export class Handlers implements OmpApi {
     // typing into a live chat means.
     if (live.session.isStreaming) {
       const deliverAs = body.deliverAs ?? "steer";
-      if (deliverAs === "followUp") await live.session.followUp(message, images);
-      else await live.session.steer(message, images);
+      if (deliverAs === "followUp") {
+        await live.session.followUp(message, images);
+      } else {
+        await live.session.steer(message, images);
+      }
       return { ok: true, detail: `Queued as ${deliverAs}.` };
     }
 
     // Fire-and-forget: `prompt` resolves only when the whole turn ends, and
     // the turn is streamed over the WebSocket instead.
-    void live.session.prompt(message, images ? { images } : undefined).catch(error => {
+    void live.session.prompt(message, images ? { images } : undefined).catch((error) => {
       live.emitCustom({
         type: "RUN_ERROR",
         message: error instanceof Error ? error.message : String(error),
@@ -425,7 +433,9 @@ export class Handlers implements OmpApi {
 
   async abort(key: string): Promise<Ack> {
     const live = this.#require(key);
-    if (!live.session.isStreaming) return { ok: true, detail: "Nothing to abort." };
+    if (!live.session.isStreaming) {
+      return { ok: true, detail: "Nothing to abort." };
+    }
     await live.session.abort({ reason: "user interrupt" });
     return { ok: true, detail: "Turn aborted." };
   }
@@ -433,7 +443,9 @@ export class Handlers implements OmpApi {
   async askBtw(key: string, body: BtwRequest): Promise<BtwResult> {
     const live = this.#require(key);
     const question = body.question?.trim();
-    if (!question) throw new HttpError(400, "Question is required for /btw.");
+    if (!question) {
+      throw new HttpError(400, "Question is required for /btw.");
+    }
     const promptText = `<btw>\nEphemeral side question for current interactive session.\nAnswer briefly, directly; use conversation context already provided.\nNEVER use tools.\nNEVER ask follow-up questions.\nQuestion:\n${question}\n</btw>`;
     try {
       const { replyText } = await live.session.runEphemeralTurn({ promptText, dedupeReply: false });
@@ -465,7 +477,9 @@ export class Handlers implements OmpApi {
   async dismissSurface(key: string, body: A2uiDismissRequest): Promise<Ack> {
     const live = this.#require(key);
     const surfaceId = body.surfaceId?.trim();
-    if (!surfaceId) throw new HttpError(400, "surfaceId is required.");
+    if (!surfaceId) {
+      throw new HttpError(400, "surfaceId is required.");
+    }
     live.a2ui.dismissSurface(surfaceId);
     return { ok: true, detail: `Surface "${surfaceId}" dismissed.` };
   }
@@ -599,7 +613,9 @@ export class Handlers implements OmpApi {
       const model = await registry.resolveModel(body.ref);
       const level = body.thinkingLevel as any;
       await live.session.setModel(model, "default", { thinkingLevel: level });
-      if (level) live.session.setThinkingLevel(level);
+      if (level) {
+        live.session.setThinkingLevel(level);
+      }
     } catch (error) {
       throw new HttpError(400, error instanceof Error ? error.message : String(error));
     }
@@ -608,7 +624,9 @@ export class Handlers implements OmpApi {
 
   async compactSession(key: string, body: CompactRequest): Promise<Ack> {
     const live = this.#require(key);
-    if (live.session.isStreaming) throw new HttpError(409, "Cannot compact while a turn is running.");
+    if (live.session.isStreaming) {
+      throw new HttpError(409, "Cannot compact while a turn is running.");
+    }
     const focus = body.focus?.trim();
     if (body.mode === "snapcompact" && focus) {
       throw new HttpError(400, "snapcompact writes no summary, so it takes no focus text.");
@@ -632,14 +650,16 @@ export class Handlers implements OmpApi {
 
   async shakeSession(key: string, body: ShakeRequest): Promise<Ack> {
     const live = this.#require(key);
-    if (live.session.isStreaming) throw new HttpError(409, "Cannot shake context while a turn is running.");
+    if (live.session.isStreaming) {
+      throw new HttpError(409, "Cannot shake context while a turn is running.");
+    }
     live.touch();
     const result = await live.session.shake(body.mode);
     const dropped = [
       result.toolResultsDropped ? `${result.toolResultsDropped} tool results` : "",
       result.blocksDropped ? `${result.blocksDropped} blocks` : "",
       result.imagesDropped ? `${result.imagesDropped} images` : "",
-    ].filter(part => part.length > 0);
+    ].filter((part) => part.length > 0);
     return {
       ok: true,
       detail: dropped.length
@@ -657,11 +677,15 @@ export class Handlers implements OmpApi {
   async renameSession(key: string, body: RenameRequest): Promise<LiveState> {
     const live = this.#require(key);
     const title = body.title.trim();
-    if (!title) throw new HttpError(400, "Title is empty.");
+    if (!title) {
+      throw new HttpError(400, "Title is empty.");
+    }
     // `source: "user"` is what omp's own `/rename` passes; an auto title never
     // overwrites a user-set one afterwards.
     const renamed = await live.manager.setSessionName(title, "user");
-    if (!renamed) throw new HttpError(400, "Session name was not changed.");
+    if (!renamed) {
+      throw new HttpError(400, "Session name was not changed.");
+    }
     return live.state();
   }
 
@@ -677,18 +701,22 @@ export class Handlers implements OmpApi {
 
   async forkSession(key: string): Promise<LiveState> {
     const live = this.#require(key);
-    if (live.session.isStreaming) throw new HttpError(409, "Cannot fork while a turn is running.");
+    if (live.session.isStreaming) {
+      throw new HttpError(409, "Cannot fork while a turn is running.");
+    }
     live.touch();
     const forked = await live.session.fork();
     // `fork()` returns false when an extension's `session_before_switch`
     // handler cancels, or when the session does not persist to a file.
-    if (!forked) throw new HttpError(409, "Fork was cancelled.");
+    if (!forked) {
+      throw new HttpError(409, "Fork was cancelled.");
+    }
     return registry.rekey(key).state();
   }
 
   async listBranchPoints(key: string): Promise<BranchPoint[]> {
     const live = this.#require(key);
-    return live.session.getUserMessagesForBranching().map(point => ({
+    return live.session.getUserMessagesForBranching().map((point) => ({
       entryId: point.entryId,
       text: point.text.replace(/\s+/gu, " ").trim().slice(0, 160),
     }));
@@ -700,13 +728,15 @@ export class Handlers implements OmpApi {
     // the TypeScript commands omp loads from disk, which this host does not
     // run and would be listing as available when they are not.
     return live.session.mcpPromptCommands
-      .map(loaded => ({ name: loaded.command.name, description: loaded.command.description }))
+      .map((loaded) => ({ name: loaded.command.name, description: loaded.command.description }))
       .sort((a, b) => a.name.localeCompare(b.name));
   }
 
   async branchSession(key: string, body: BranchRequest): Promise<BranchResult> {
     const live = this.#require(key);
-    if (live.session.isStreaming) throw new HttpError(409, "Cannot branch while a turn is running.");
+    if (live.session.isStreaming) {
+      throw new HttpError(409, "Cannot branch while a turn is running.");
+    }
     live.touch();
     let branched: { selectedText: string; cancelled: boolean };
     try {
@@ -716,7 +746,9 @@ export class Handlers implements OmpApi {
     } catch (error) {
       throw new HttpError(400, error instanceof Error ? error.message : String(error));
     }
-    if (branched.cancelled) throw new HttpError(409, "Branch was cancelled.");
+    if (branched.cancelled) {
+      throw new HttpError(409, "Branch was cancelled.");
+    }
     return { state: registry.rekey(key).state(), draft: branched.selectedText };
   }
 
@@ -764,13 +796,15 @@ export class Handlers implements OmpApi {
     const texts = body.texts ?? [];
     // One pass per text, but a single round trip: the parse is native and the
     // highlighter is shared, so the cost is in the request, not the render.
-    const html = await Promise.all(texts.map(text => renderMarkdownServer(text)));
+    const html = await Promise.all(texts.map((text) => renderMarkdownServer(text)));
     return { html };
   }
 
   #require(key: string): LiveSession {
     const live = registry.get(key);
-    if (!live) throw new HttpError(404, `Session ${key} is not open.`);
+    if (!live) {
+      throw new HttpError(404, `Session ${key} is not open.`);
+    }
     return live;
   }
 }

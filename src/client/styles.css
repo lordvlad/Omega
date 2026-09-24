@@ -29,8 +29,7 @@ body,
 body {
   background:
     radial-gradient(1200px 600px at 15% -10%, rgba(135, 60, 223, 0.16), transparent 60%),
-    radial-gradient(900px 500px at 100% 0%, rgba(0, 211, 246, 0.12), transparent 55%),
-    var(--mantine-color-dark-8);
+    radial-gradient(900px 500px at 100% 0%, rgba(0, 211, 246, 0.12), transparent 55%), var(--mantine-color-dark-8);
   /* Chat is a fixed viewport; the page itself never scrolls. */
   overscroll-behavior-y: none;
 }

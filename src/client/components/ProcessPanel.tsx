@@ -1,3 +1,5 @@
+import React, { useState } from "react";
+import { IconBolt, IconDotsVertical, IconPlayerStop, IconRefresh, IconTerminal2, IconX } from "@tabler/icons-react";
 /**
  * Process panel: manage and supervise project background daemons and services (/ps).
  */
@@ -17,16 +19,6 @@ import {
   ThemeIcon,
 } from "@mantine/core";
 import { notifications } from "@mantine/notifications";
-import {
-  IconBolt,
-  IconDotsVertical,
-  IconPlayerStop,
-  IconRefresh,
-  IconTerminal2,
-  IconX,
-} from "@tabler/icons-react";
-import React, { useState } from "react";
-
 import type {
   ManagedProcessInfo,
   ProcessActionRequest,
@@ -62,20 +54,30 @@ function processStateColor(state: ProcessLifecycleState): string {
 }
 
 function formatBytes(bytes: number): string {
-  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024) {
+    return `${bytes} B`;
+  }
   const kb = bytes / 1024;
-  if (kb < 1024) return `${kb.toFixed(1)} KB`;
+  if (kb < 1024) {
+    return `${kb.toFixed(1)} KB`;
+  }
   return `${(kb / 1024).toFixed(1)} MB`;
 }
 
 function formatUptime(startedAt?: number, exitedAt?: number): string {
-  if (!startedAt) return "";
+  if (!startedAt) {
+    return "";
+  }
   const end = exitedAt ?? Date.now();
   const diffSec = Math.max(0, Math.round((end - startedAt) / 1000));
-  if (diffSec < 60) return `${diffSec}s`;
+  if (diffSec < 60) {
+    return `${diffSec}s`;
+  }
   const min = Math.floor(diffSec / 60);
   const sec = diffSec % 60;
-  if (min < 60) return `${min}m ${sec}s`;
+  if (min < 60) {
+    return `${min}m ${sec}s`;
+  }
   const hrs = Math.floor(min / 60);
   return `${hrs}h ${min % 60}m`;
 }
@@ -136,7 +138,7 @@ export function ProcessPanel({
     }
   };
 
-  const runningCount = processes.filter(p => p.state === "running" || p.state === "ready").length;
+  const runningCount = processes.filter((p) => p.state === "running" || p.state === "ready").length;
 
   return (
     <Stack gap={0} h="100%">
@@ -185,7 +187,7 @@ export function ProcessPanel({
           </Stack>
         ) : (
           <Stack gap="sm">
-            {processes.map(proc => {
+            {processes.map((proc) => {
               const isBusy = busyName === proc.name;
               const isRunning = proc.state === "running" || proc.state === "ready";
               const uptime = formatUptime(proc.startedAt, proc.exitedAt);
@@ -265,10 +267,7 @@ export function ProcessPanel({
                               Send SIGKILL (Force)
                             </Menu.Item>
                             <Menu.Divider />
-                            <Menu.Item
-                              leftSection={<IconRefresh size={14} />}
-                              onClick={() => handleRestart(proc.name)}
-                            >
+                            <Menu.Item leftSection={<IconRefresh size={14} />} onClick={() => handleRestart(proc.name)}>
                               Restart Process
                             </Menu.Item>
                           </Menu.Dropdown>
@@ -281,9 +280,7 @@ export function ProcessPanel({
                         <Text size="xs" c="dimmed">
                           Command:
                         </Text>
-                        <Code style={{ fontSize: "11px" }}>
-                          {[proc.application, ...(proc.args ?? [])].join(" ")}
-                        </Code>
+                        <Code style={{ fontSize: "11px" }}>{[proc.application, ...(proc.args ?? [])].join(" ")}</Code>
                       </Group>
                     ) : null}
 

@@ -42,7 +42,9 @@ function getHighlighter(): Promise<Highlighter> {
  * Render Markdown to HTML string with Shiki code highlighting and Mantine classes.
  */
 export async function renderMarkdownServer(text: string): Promise<string> {
-  if (!text) return "";
+  if (!text) {
+    return "";
+  }
   const highlighter = await getHighlighter();
 
   const element = Bun.markdown.react(

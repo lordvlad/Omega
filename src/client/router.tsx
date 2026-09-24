@@ -21,7 +21,6 @@
  * hides it. Re-test the dev server before widening this range.
  */
 import { createRootRoute, createRoute, createRouter } from "@tanstack/react-router";
-
 import { App } from "./App.tsx";
 
 const rootRoute = createRootRoute({ component: App });

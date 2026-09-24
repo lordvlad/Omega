@@ -15,7 +15,6 @@
  * a textarea. Those are preserved untouched by every operation here.
  */
 import type { AgentMessage } from "@oh-my-pi/pi-agent-core";
-
 import type { QueueDropRequest, QueueEditRequest, QueuedMessage, QueueLane } from "../shared/model.ts";
 import type { LiveSession } from "./registry.ts";
 import { HttpError } from "./router.ts";
@@ -38,11 +37,17 @@ function isHiddenCompanion(message: AgentMessage): boolean {
 
 /** The visible text of a queued user prompt. */
 function promptText(message: AgentMessage | undefined): string {
-  if (!message || message.role !== "user") return "";
+  if (!message || message.role !== "user") {
+    return "";
+  }
   const content = message.content;
-  if (typeof content === "string") return content;
+  if (typeof content === "string") {
+    return content;
+  }
   for (const part of content) {
-    if (part.type === "text") return part.text;
+    if (part.type === "text") {
+      return part.text;
+    }
   }
   // A prompt can be images alone; it has no text to edit but still occupies a
   // slot, so it is listed rather than silently skipped.
@@ -58,14 +63,21 @@ function promptText(message: AgentMessage | undefined): string {
  * drawer expects their words to land.
  */
 function withText(message: AgentMessage, text: string): AgentMessage {
-  if (message.role !== "user") return message;
+  if (message.role !== "user") {
+    return message;
+  }
   const content = message.content;
-  if (typeof content === "string") return { ...message, content: text };
+  if (typeof content === "string") {
+    return { ...message, content: text };
+  }
 
   const next = content.slice();
-  const at = next.findIndex(part => part.type === "text");
-  if (at < 0) next.unshift({ type: "text", text });
-  else next[at] = { type: "text", text };
+  const at = next.findIndex((part) => part.type === "text");
+  if (at < 0) {
+    next.unshift({ type: "text", text });
+  } else {
+    next[at] = { type: "text", text };
+  }
   return { ...message, content: next };
 }
 
@@ -74,7 +86,9 @@ function promptPositions(lane: readonly AgentMessage[]): number[] {
   const positions: number[] = [];
   for (let at = 0; at < lane.length; at++) {
     const message = lane[at];
-    if (message && isUserPrompt(message)) positions.push(at);
+    if (message && isUserPrompt(message)) {
+      positions.push(at);
+    }
   }
   return positions;
 }
@@ -96,11 +110,7 @@ export function listQueue(live: LiveSession): QueuedMessage[] {
  * Resolve a lane position to an index into the raw queue, refusing when the
  * message there is not the one the client was looking at.
  */
-function locate(
-  lane: readonly AgentMessage[],
-  index: number,
-  expected: string,
-): { at: number; message: AgentMessage } {
+function locate(lane: readonly AgentMessage[], index: number, expected: string): { at: number; message: AgentMessage } {
   const at = promptPositions(lane)[index];
   const message = at === undefined ? undefined : lane[at];
   if (at === undefined || !message) {
@@ -126,7 +136,9 @@ function commit(live: LiveSession, which: QueueLane, next: AgentMessage[]): Queu
 /** Rewrite one queued message, keeping its lane and position. */
 export function editQueued(live: LiveSession, body: QueueEditRequest): QueuedMessage[] {
   const text = body.text.trim();
-  if (!text) throw new HttpError(400, "Message is empty. Drop it instead of blanking it.");
+  if (!text) {
+    throw new HttpError(400, "Message is empty. Drop it instead of blanking it.");
+  }
 
   const lane = body.lane === "steer" ? lanes(live).steer : lanes(live).followUp;
   const { at, message } = locate(lane, body.index, body.expected);
@@ -143,7 +155,9 @@ export function dropQueued(live: LiveSession, body: QueueDropRequest): QueuedMes
   let from = at;
   for (let back = at - 1; back >= 0; back--) {
     const companion = lane[back];
-    if (!companion || !isHiddenCompanion(companion)) break;
+    if (!companion || !isHiddenCompanion(companion)) {
+      break;
+    }
     from = back;
   }
   const next = lane.slice();

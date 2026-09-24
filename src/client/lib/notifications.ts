@@ -22,13 +22,17 @@ export function isNotificationSupported(): boolean {
 
 /** Current permission status for Web Notifications. */
 export function getNotificationPermission(): NotificationPermission | "unsupported" {
-  if (!isNotificationSupported()) return "unsupported";
+  if (!isNotificationSupported()) {
+    return "unsupported";
+  }
   return Notification.permission;
 }
 
 /** Request permission for Web Notifications if not already determined. */
 export async function requestNotificationPermission(): Promise<NotificationPermission | "unsupported"> {
-  if (!isNotificationSupported()) return "unsupported";
+  if (!isNotificationSupported()) {
+    return "unsupported";
+  }
   try {
     return await Notification.requestPermission();
   } catch {
@@ -40,9 +44,7 @@ export async function requestNotificationPermission(): Promise<NotificationPermi
  * Dispatch a native browser notification if permission is granted.
  * Focuses the tab/window when clicked.
  */
-export async function showYieldNotification(
-  options: BrowserNotificationOptions,
-): Promise<Notification | null> {
+export async function showYieldNotification(options: BrowserNotificationOptions): Promise<Notification | null> {
   if (!isNotificationSupported() || Notification.permission !== "granted") {
     return null;
   }

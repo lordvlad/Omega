@@ -4,18 +4,26 @@
 
 /** Extract the base file or folder name from a path. */
 export function getBasename(filePath?: string): string {
-  if (!filePath) return "";
+  if (!filePath) {
+    return "";
+  }
   const parts = filePath.replace(/\\/g, "/").split("/").filter(Boolean);
   return parts[parts.length - 1] ?? filePath;
 }
 
 /** Extract the directory path containing a file or folder. */
 export function getDirname(filePath?: string): string {
-  if (!filePath) return "";
+  if (!filePath) {
+    return "";
+  }
   const normalized = filePath.replace(/\\/g, "/");
   const idx = normalized.lastIndexOf("/");
-  if (idx < 0) return "";
-  if (idx === 0) return "/";
+  if (idx < 0) {
+    return "";
+  }
+  if (idx === 0) {
+    return "/";
+  }
   return normalized.slice(0, idx);
 }
 

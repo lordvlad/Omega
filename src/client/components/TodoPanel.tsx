@@ -1,3 +1,18 @@
+import React, { useState } from "react";
+import {
+  IconAlertOctagon,
+  IconCheck,
+  IconChecklist,
+  IconCircle,
+  IconCircleCheckFilled,
+  IconCircleX,
+  IconCopy,
+  IconDotsVertical,
+  IconPlayerPlayFilled,
+  IconPlus,
+  IconTrash,
+  IconX,
+} from "@tabler/icons-react";
 /**
  * The Todo Panel.
  *
@@ -25,22 +40,6 @@ import {
   UnstyledButton,
 } from "@mantine/core";
 import { notifications } from "@mantine/notifications";
-import {
-  IconAlertOctagon,
-  IconCheck,
-  IconChecklist,
-  IconCircle,
-  IconCircleCheckFilled,
-  IconCircleX,
-  IconCopy,
-  IconDotsVertical,
-  IconPlayerPlayFilled,
-  IconPlus,
-  IconTrash,
-  IconX,
-} from "@tabler/icons-react";
-import React, { useState } from "react";
-
 import type { MutateTodosRequest, TodoPhase, TodoTask, TodoTaskStatus } from "../api/model.ts";
 
 export interface TodoPanelProps {
@@ -76,15 +75,21 @@ function nextCycleStatus(status: TodoTaskStatus): TodoTaskStatus {
 function phasesToMarkdown(phases: readonly TodoPhase[]): string {
   const lines: string[] = [];
   for (const phase of phases) {
-    if (lines.length > 0) lines.push("");
+    if (lines.length > 0) {
+      lines.push("");
+    }
     lines.push(`### ${phase.name}`);
     for (const task of phase.tasks) {
       const isDone = task.status === "completed";
       const isAbandoned = task.status === "abandoned";
       const marker = isDone ? "[x]" : isAbandoned ? "[-]" : "[ ]";
       let line = `- ${marker} ${task.content}`;
-      if (task.status === "in_progress") line += " *(in progress)*";
-      if (task.status === "blocked" && task.blocker) line += ` *(blocked: ${task.blocker})*`;
+      if (task.status === "in_progress") {
+        line += " *(in progress)*";
+      }
+      if (task.status === "blocked" && task.blocker) {
+        line += ` *(blocked: ${task.blocker})*`;
+      }
       lines.push(line);
     }
   }
@@ -97,7 +102,7 @@ interface TaskItemProps {
   onMutate?: (req: MutateTodosRequest) => Promise<void>;
 }
 
-function TaskItem({ task, phaseName, onMutate }: TaskItemProps) {
+function TaskItem({ task, phaseName: _phaseName, onMutate }: TaskItemProps) {
   const meta = STATUS_ICONS[task.status] ?? STATUS_ICONS.pending;
   const IconComponent = meta.icon;
   const isDone = task.status === "completed";
@@ -109,7 +114,9 @@ function TaskItem({ task, phaseName, onMutate }: TaskItemProps) {
   const [blockerText, setBlockerText] = useState(task.blocker ?? "");
 
   const handleCycleStatus = async (): Promise<void> => {
-    if (!onMutate) return;
+    if (!onMutate) {
+      return;
+    }
     const next = nextCycleStatus(task.status);
     await onMutate({
       action: "set",
@@ -119,7 +126,9 @@ function TaskItem({ task, phaseName, onMutate }: TaskItemProps) {
   };
 
   const handleSetExactStatus = async (status: TodoTaskStatus): Promise<void> => {
-    if (!onMutate) return;
+    if (!onMutate) {
+      return;
+    }
     if (status === "blocked") {
       setEditingBlocker(true);
       return;
@@ -133,7 +142,9 @@ function TaskItem({ task, phaseName, onMutate }: TaskItemProps) {
   };
 
   const handleSaveBlocker = async (): Promise<void> => {
-    if (!onMutate) return;
+    if (!onMutate) {
+      return;
+    }
     setEditingBlocker(false);
     await onMutate({
       action: "block",
@@ -143,7 +154,9 @@ function TaskItem({ task, phaseName, onMutate }: TaskItemProps) {
   };
 
   const handleDeleteTask = async (): Promise<void> => {
-    if (!onMutate) return;
+    if (!onMutate) {
+      return;
+    }
     await onMutate({
       action: "rm",
       task: task.content,
@@ -156,9 +169,7 @@ function TaskItem({ task, phaseName, onMutate }: TaskItemProps) {
       px={6}
       style={{
         borderRadius: "var(--mantine-radius-sm)",
-        background: isInProgress
-          ? "color-mix(in srgb, var(--mantine-color-plum-9) 30%, transparent)"
-          : undefined,
+        background: isInProgress ? "color-mix(in srgb, var(--mantine-color-plum-9) 30%, transparent)" : undefined,
       }}
     >
       <Group gap={6} align="flex-start" wrap="nowrap" justify="space-between">
@@ -205,8 +216,8 @@ function TaskItem({ task, phaseName, onMutate }: TaskItemProps) {
                   size="xs"
                   placeholder="Reason / blocker..."
                   value={blockerText}
-                  onChange={e => setBlockerText(e.currentTarget.value)}
-                  onKeyDown={e => e.key === "Enter" && handleSaveBlocker()}
+                  onChange={(e) => setBlockerText(e.currentTarget.value)}
+                  onKeyDown={(e) => e.key === "Enter" && handleSaveBlocker()}
                   style={{ flex: 1 }}
                   autoFocus
                 />
@@ -274,10 +285,10 @@ function TaskItem({ task, phaseName, onMutate }: TaskItemProps) {
 }
 
 export function TodoPanel({ phases, onClose, onMutateTodos }: TodoPanelProps) {
-  const allTasks = (phases ?? []).flatMap(p => p.tasks);
+  const allTasks = (phases ?? []).flatMap((p) => p.tasks);
   const total = allTasks.length;
-  const completed = allTasks.filter(t => t.status === "completed").length;
-  const inProgress = allTasks.filter(t => t.status === "in_progress").length;
+  const completed = allTasks.filter((t) => t.status === "completed").length;
+  const inProgress = allTasks.filter((t) => t.status === "in_progress").length;
   const percent = total > 0 ? Math.round((completed / total) * 100) : 0;
 
   const [addingToPhase, setAddingToPhase] = useState<string | null>(null);
@@ -286,7 +297,9 @@ export function TodoPanel({ phases, onClose, onMutateTodos }: TodoPanelProps) {
   const [newPhaseName, setNewPhaseName] = useState("");
 
   const handleCopyMarkdown = async (): Promise<void> => {
-    if (!phases || phases.length === 0) return;
+    if (!phases || phases.length === 0) {
+      return;
+    }
     const md = phasesToMarkdown(phases);
     try {
       await navigator.clipboard.writeText(md);
@@ -306,7 +319,9 @@ export function TodoPanel({ phases, onClose, onMutateTodos }: TodoPanelProps) {
 
   const handleAddSubmit = async (phaseName: string): Promise<void> => {
     const text = newTaskContent.trim();
-    if (!text || !onMutateTodos) return;
+    if (!text || !onMutateTodos) {
+      return;
+    }
     await onMutateTodos({
       action: "append",
       phase: phaseName,
@@ -319,7 +334,9 @@ export function TodoPanel({ phases, onClose, onMutateTodos }: TodoPanelProps) {
   const handleCreatePhaseSubmit = async (): Promise<void> => {
     const pName = newPhaseName.trim();
     const tContent = newTaskContent.trim();
-    if (!pName || !onMutateTodos) return;
+    if (!pName || !onMutateTodos) {
+      return;
+    }
     await onMutateTodos({
       action: "append",
       phase: pName,
@@ -331,7 +348,9 @@ export function TodoPanel({ phases, onClose, onMutateTodos }: TodoPanelProps) {
   };
 
   const handleMarkAllDone = async (): Promise<void> => {
-    if (!onMutateTodos) return;
+    if (!onMutateTodos) {
+      return;
+    }
     await onMutateTodos({ action: "done" });
     notifications.show({
       color: "cyan",
@@ -341,7 +360,9 @@ export function TodoPanel({ phases, onClose, onMutateTodos }: TodoPanelProps) {
   };
 
   const handleClearCompleted = async (): Promise<void> => {
-    if (!onMutateTodos) return;
+    if (!onMutateTodos) {
+      return;
+    }
     await onMutateTodos({ action: "clear", status: "completed" });
     notifications.show({
       color: "plum",
@@ -351,7 +372,9 @@ export function TodoPanel({ phases, onClose, onMutateTodos }: TodoPanelProps) {
   };
 
   const handleClearAll = async (): Promise<void> => {
-    if (!onMutateTodos) return;
+    if (!onMutateTodos) {
+      return;
+    }
     await onMutateTodos({ action: "clear" });
     notifications.show({
       color: "plum",
@@ -361,7 +384,9 @@ export function TodoPanel({ phases, onClose, onMutateTodos }: TodoPanelProps) {
   };
 
   const handleDeletePhase = async (phaseName: string): Promise<void> => {
-    if (!onMutateTodos) return;
+    if (!onMutateTodos) {
+      return;
+    }
     await onMutateTodos({ action: "rm", phase: phaseName });
   };
 
@@ -375,11 +400,7 @@ export function TodoPanel({ phases, onClose, onMutateTodos }: TodoPanelProps) {
               Todos
             </Text>
             {total > 0 ? (
-              <Badge
-                size="sm"
-                variant="light"
-                color={percent === 100 ? "cyan" : inProgress > 0 ? "plum" : "gray"}
-              >
+              <Badge size="sm" variant="light" color={percent === 100 ? "cyan" : inProgress > 0 ? "plum" : "gray"}>
                 {completed}/{total}
               </Badge>
             ) : null}
@@ -462,7 +483,7 @@ export function TodoPanel({ phases, onClose, onMutateTodos }: TodoPanelProps) {
                   label="Phase Name"
                   placeholder="e.g. Foundation, Verification, Cleanup"
                   value={newPhaseName}
-                  onChange={e => setNewPhaseName(e.currentTarget.value)}
+                  onChange={(e) => setNewPhaseName(e.currentTarget.value)}
                   autoFocus
                 />
                 <TextInput
@@ -470,19 +491,14 @@ export function TodoPanel({ phases, onClose, onMutateTodos }: TodoPanelProps) {
                   label="First Task (optional)"
                   placeholder="e.g. Scaffolding, run tests"
                   value={newTaskContent}
-                  onChange={e => setNewTaskContent(e.currentTarget.value)}
-                  onKeyDown={e => e.key === "Enter" && handleCreatePhaseSubmit()}
+                  onChange={(e) => setNewTaskContent(e.currentTarget.value)}
+                  onKeyDown={(e) => e.key === "Enter" && handleCreatePhaseSubmit()}
                 />
                 <Group justify="flex-end" pt="xs">
                   <Button size="xs" variant="subtle" color="gray" onClick={() => setShowAddPhase(false)}>
                     Cancel
                   </Button>
-                  <Button
-                    size="xs"
-                    color="cyan"
-                    disabled={!newPhaseName.trim()}
-                    onClick={handleCreatePhaseSubmit}
-                  >
+                  <Button size="xs" color="cyan" disabled={!newPhaseName.trim()} onClick={handleCreatePhaseSubmit}>
                     Create Phase
                   </Button>
                 </Group>
@@ -511,9 +527,9 @@ export function TodoPanel({ phases, onClose, onMutateTodos }: TodoPanelProps) {
               ) : null}
             </Stack>
           ) : (
-            phases.map(phase => {
+            phases.map((phase) => {
               const phaseTasks = phase.tasks;
-              const phaseDone = phaseTasks.filter(t => t.status === "completed").length;
+              const phaseDone = phaseTasks.filter((t) => t.status === "completed").length;
               const isAddingHere = addingToPhase === phase.name;
 
               return (
@@ -539,9 +555,7 @@ export function TodoPanel({ phases, onClose, onMutateTodos }: TodoPanelProps) {
                             size="xs"
                             variant="subtle"
                             color="cyan"
-                            onClick={() =>
-                              setAddingToPhase(prev => (prev === phase.name ? null : phase.name))
-                            }
+                            onClick={() => setAddingToPhase((prev) => (prev === phase.name ? null : phase.name))}
                             aria-label={`Add task to ${phase.name}`}
                           >
                             <IconPlus size={14} />
@@ -580,8 +594,8 @@ export function TodoPanel({ phases, onClose, onMutateTodos }: TodoPanelProps) {
                             size="xs"
                             placeholder="New task content (Enter to save)..."
                             value={newTaskContent}
-                            onChange={e => setNewTaskContent(e.currentTarget.value)}
-                            onKeyDown={e => e.key === "Enter" && handleAddSubmit(phase.name)}
+                            onChange={(e) => setNewTaskContent(e.currentTarget.value)}
+                            onKeyDown={(e) => e.key === "Enter" && handleAddSubmit(phase.name)}
                             style={{ flex: 1 }}
                             autoFocus
                           />

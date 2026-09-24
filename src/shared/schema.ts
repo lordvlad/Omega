@@ -5,7 +5,6 @@
  * gen:api` does exactly that and feeds the result to `wiz generate`.
  */
 import { openapiSchema } from "wiz";
-
 import type { Problem } from "./model.ts";
 import type { OmpApi } from "./service.ts";
 

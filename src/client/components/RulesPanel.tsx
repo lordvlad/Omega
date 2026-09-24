@@ -1,3 +1,5 @@
+import React, { useMemo, useState } from "react";
+import { IconPlus, IconSearch, IconShield, IconShieldCheck, IconTrash, IconX } from "@tabler/icons-react";
 /**
  * Rules panel: inspect, manage, and delete Time-Traveling Stream Rules (TTSR).
  */
@@ -18,10 +20,7 @@ import {
   Tooltip,
 } from "@mantine/core";
 import { notifications } from "@mantine/notifications";
-import { IconPlus, IconSearch, IconShield, IconShieldCheck, IconTrash, IconX } from "@tabler/icons-react";
-import React, { useMemo, useState } from "react";
-
-import type { DeleteRuleRequest, RuleScopeType, SessionRuleInfo } from "../api/model.ts";
+import type { DeleteRuleRequest, SessionRuleInfo } from "../api/model.ts";
 import { Markdown } from "../lib/markdown.tsx";
 
 export interface RulesPanelProps {
@@ -45,27 +44,39 @@ export function RulesPanel({
   const [filterScope, setFilterScope] = useState<string>("all");
   const [deletingName, setDeletingName] = useState<string | null>(null);
   const getConditions = (rule: SessionRuleInfo): string[] => {
-    if (Array.isArray(rule.condition)) return rule.condition.map(String);
-    if (typeof rule.condition === "string") return [rule.condition];
+    if (Array.isArray(rule.condition)) {
+      return rule.condition.map(String);
+    }
+    if (typeof rule.condition === "string") {
+      return [rule.condition];
+    }
     return [];
   };
 
   const getScopes = (rule: SessionRuleInfo): string[] => {
-    if (Array.isArray(rule.scope)) return rule.scope.map(String);
-    if (typeof rule.scope === "string") return [rule.scope];
+    if (Array.isArray(rule.scope)) {
+      return rule.scope.map(String);
+    }
+    if (typeof rule.scope === "string") {
+      return [rule.scope];
+    }
     return [];
   };
 
   const filteredRules = useMemo(() => {
     const q = query.trim().toLowerCase();
-    return rules.filter(rule => {
-      if (filterScope !== "all" && rule.scopeType !== filterScope) return false;
-      if (!q) return true;
+    return rules.filter((rule) => {
+      if (filterScope !== "all" && rule.scopeType !== filterScope) {
+        return false;
+      }
+      if (!q) {
+        return true;
+      }
       return (
         rule.name.toLowerCase().includes(q) ||
         rule.description.toLowerCase().includes(q) ||
         rule.body.toLowerCase().includes(q) ||
-        getConditions(rule).some(c => c.toLowerCase().includes(q))
+        getConditions(rule).some((c) => c.toLowerCase().includes(q))
       );
     });
   }, [rules, query, filterScope]);
@@ -128,7 +139,7 @@ export function RulesPanel({
             placeholder="Search rules by name, description, or regex pattern…"
             leftSection={<IconSearch size={14} />}
             value={query}
-            onChange={e => setQuery(e.currentTarget.value)}
+            onChange={(e) => setQuery(e.currentTarget.value)}
           />
           <SegmentedControl
             size="xs"
@@ -163,7 +174,7 @@ export function RulesPanel({
           </Stack>
         ) : (
           <Stack gap="sm">
-            {filteredRules.map(rule => {
+            {filteredRules.map((rule) => {
               const isDeleting = deletingName === rule.name;
 
               return (
@@ -174,11 +185,7 @@ export function RulesPanel({
                         <Text size="xs" fw={700} style={{ fontFamily: "monospace" }}>
                           {rule.name}
                         </Text>
-                        <Badge
-                          size="xs"
-                          color={rule.scopeType === "project" ? "cyan" : "plum"}
-                          variant="light"
-                        >
+                        <Badge size="xs" color={rule.scopeType === "project" ? "cyan" : "plum"} variant="light">
                           {rule.scopeType}
                         </Badge>
                       </Group>

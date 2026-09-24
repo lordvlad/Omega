@@ -1,20 +1,4 @@
-/**
- * Jobs panel: inspect and cancel async background jobs (subagents, bash, workers).
- */
-import {
-  ActionIcon,
-  Badge,
-  Box,
-  Button,
-  Card,
-  Group,
-  Loader,
-  ScrollArea,
-  Stack,
-  Text,
-  ThemeIcon,
-} from "@mantine/core";
-import { notifications } from "@mantine/notifications";
+import React, { useState } from "react";
 import {
   IconAlertTriangle,
   IconCheck,
@@ -24,8 +8,11 @@ import {
   IconStack2,
   IconX,
 } from "@tabler/icons-react";
-import React, { useState } from "react";
-
+/**
+ * Jobs panel: inspect and cancel async background jobs (subagents, bash, workers).
+ */
+import { ActionIcon, Badge, Box, Button, Card, Group, ScrollArea, Stack, Text, ThemeIcon } from "@mantine/core";
+import { notifications } from "@mantine/notifications";
 import type { CancelJobRequest, SessionAsyncJob } from "../api/model.ts";
 
 export interface JobsPanelProps {
@@ -38,9 +25,13 @@ export interface JobsPanelProps {
 }
 
 function formatDuration(ms?: number): string {
-  if (ms === undefined) return "";
+  if (ms === undefined) {
+    return "";
+  }
   const sec = Math.max(0, Math.round(ms / 1000));
-  if (sec < 60) return `${sec}s`;
+  if (sec < 60) {
+    return `${sec}s`;
+  }
   const min = Math.floor(sec / 60);
   const rem = sec % 60;
   return `${min}m ${rem}s`;
@@ -64,7 +55,7 @@ function jobTypeColor(type: string): string {
 export function JobsPanel({
   running,
   recent,
-  loading = false,
+  loading: _loading = false,
   onCancelJob,
   onRefresh,
   onClose,
@@ -134,7 +125,7 @@ export function JobsPanel({
               </Card>
             ) : (
               <Stack gap="sm">
-                {running.map(job => (
+                {running.map((job) => (
                   <Card key={job.id} withBorder radius="md" p="sm" shadow="xs">
                     <Stack gap="xs">
                       <Group justify="space-between" align="center" wrap="nowrap">
@@ -188,7 +179,7 @@ export function JobsPanel({
                 Recent Jobs ({recent.length})
               </Text>
               <Stack gap="sm">
-                {recent.map(job => {
+                {recent.map((job) => {
                   const isCompleted = job.status === "completed" || job.status === "done";
                   const isFailed = job.status === "failed" || job.status === "error";
 

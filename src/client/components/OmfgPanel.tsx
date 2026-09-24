@@ -1,3 +1,5 @@
+import React, { useState } from "react";
+import { IconAlertTriangle, IconCheck, IconEdit, IconShield, IconX } from "@tabler/icons-react";
 /**
  * OMFG panel: review and save stream rules (TTSR) generated from agent mistakes.
  */
@@ -17,9 +19,6 @@ import {
   Textarea,
   ThemeIcon,
 } from "@mantine/core";
-import { IconAlertTriangle, IconCheck, IconEdit, IconShield, IconX } from "@tabler/icons-react";
-import React, { useState } from "react";
-
 import type { OmfgRuleCandidate } from "../api/model.ts";
 
 export interface OmfgPanelProps {
@@ -58,7 +57,9 @@ export function OmfgPanel({
   }, [candidate]);
 
   const handleSave = (): void => {
-    if (!candidate) return;
+    if (!candidate) {
+      return;
+    }
 
     const conditions: string[] = Array.isArray(candidate.condition)
       ? candidate.condition.map(String)
@@ -74,12 +75,12 @@ export function OmfgPanel({
     const conditionLines =
       conditions.length === 1
         ? `condition: ${JSON.stringify(conditions[0])}`
-        : `condition:\n${conditions.map(c => `  - ${JSON.stringify(c)}`).join("\n")}`;
+        : `condition:\n${conditions.map((c) => `  - ${JSON.stringify(c)}`).join("\n")}`;
     const scopeLines =
       scopes.length > 0
         ? scopes.length === 1
           ? `scope: ${JSON.stringify(scopes[0])}`
-          : `scope:\n${scopes.map(s => `  - ${JSON.stringify(s)}`).join("\n")}`
+          : `scope:\n${scopes.map((s) => `  - ${JSON.stringify(s)}`).join("\n")}`
         : "";
 
     const fileContent = [
@@ -99,7 +100,9 @@ export function OmfgPanel({
   };
 
   const handleAmendSubmit = (): void => {
-    if (!amendFeedback.trim()) return;
+    if (!amendFeedback.trim()) {
+      return;
+    }
     onAmend(amendFeedback.trim());
     setAmending(false);
     setAmendFeedback("");
@@ -177,7 +180,7 @@ export function OmfgPanel({
                 description="Unique kebab-case name for this rule"
                 size="xs"
                 value={name}
-                onChange={e => setName(e.currentTarget.value)}
+                onChange={(e) => setName(e.currentTarget.value)}
               />
 
               <TextInput label="Summary" size="xs" readOnly value={candidate.description} />
@@ -188,13 +191,7 @@ export function OmfgPanel({
                 </Text>
                 <Group gap={6}>
                   {conditionsList.map((c, i) => (
-                    <Badge
-                      key={i}
-                      size="xs"
-                      variant="outline"
-                      color="orange"
-                      style={{ fontFamily: "monospace" }}
-                    >
+                    <Badge key={i} size="xs" variant="outline" color="orange" style={{ fontFamily: "monospace" }}>
                       {c}
                     </Badge>
                   ))}
@@ -208,13 +205,7 @@ export function OmfgPanel({
                   </Text>
                   <Group gap={6}>
                     {scopesList.map((s, i) => (
-                      <Badge
-                        key={i}
-                        size="xs"
-                        variant="light"
-                        color="cyan"
-                        style={{ fontFamily: "monospace" }}
-                      >
+                      <Badge key={i} size="xs" variant="light" color="cyan" style={{ fontFamily: "monospace" }}>
                         {s}
                       </Badge>
                     ))}
@@ -228,7 +219,7 @@ export function OmfgPanel({
                 size="xs"
                 minRows={3}
                 value={body}
-                onChange={e => setBody(e.currentTarget.value)}
+                onChange={(e) => setBody(e.currentTarget.value)}
               />
 
               <Box>
@@ -239,7 +230,7 @@ export function OmfgPanel({
                   size="xs"
                   fullWidth
                   value={scope}
-                  onChange={v => setScope(v as "project" | "global")}
+                  onChange={(v) => setScope(v as "project" | "global")}
                   data={[
                     { label: "This Project (.omp/rules)", value: "project" },
                     { label: "Global (~/.omp/agent/rules)", value: "global" },
@@ -254,19 +245,14 @@ export function OmfgPanel({
                       size="xs"
                       placeholder="e.g. Scope to *.tsx files only or change condition…"
                       value={amendFeedback}
-                      onChange={e => setAmendFeedback(e.currentTarget.value)}
+                      onChange={(e) => setAmendFeedback(e.currentTarget.value)}
                       label="Amendment Feedback"
                     />
                     <Group justify="flex-end" gap="xs">
                       <Button size="xs" variant="subtle" onClick={() => setAmending(false)}>
                         Cancel
                       </Button>
-                      <Button
-                        size="xs"
-                        color="orange"
-                        onClick={handleAmendSubmit}
-                        disabled={!amendFeedback.trim()}
-                      >
+                      <Button size="xs" color="orange" onClick={handleAmendSubmit} disabled={!amendFeedback.trim()}>
                         Re-generate
                       </Button>
                     </Group>

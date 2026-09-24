@@ -7,33 +7,44 @@
  * - /stats -> "session-stats" (Turn latency, execution duration, tool call frequency)
  */
 import { resolveUsedFraction, type UsageLimit, type UsageReport } from "@oh-my-pi/pi-ai/usage";
-
 import { COST_SURFACE_ID, STATS_SURFACE_ID, USAGE_SURFACE_ID, type A2uiComponent } from "../shared/a2ui.ts";
 import type { LiveSession } from "./registry.ts";
 function formatDurationMs(ms: number): string {
-  if (ms < 1000) return `${ms}ms`;
+  if (ms < 1000) {
+    return `${ms}ms`;
+  }
   return `${(ms / 1000).toFixed(1)}s`;
 }
 
 function formatCost(c: number): string {
-  if (c < 0.01) return `$${c.toFixed(4)}`;
-  if (c < 1) return `$${c.toFixed(3)}`;
+  if (c < 0.01) {
+    return `$${c.toFixed(4)}`;
+  }
+  if (c < 1) {
+    return `$${c.toFixed(3)}`;
+  }
   return `$${c.toFixed(2)}`;
 }
 
 function formatProviderName(provider: string | undefined): string {
-  if (!provider) return "Provider";
+  if (!provider) {
+    return "Provider";
+  }
   return provider
     .split(/[-_]/g)
-    .map(part => (part ? part.charAt(0).toUpperCase() + part.slice(1) : ""))
+    .map((part) => (part ? part.charAt(0).toUpperCase() + part.slice(1) : ""))
     .join(" ");
 }
 
 function formatResetTime(resetsAt: number | undefined, resetLabel = "resets"): string | undefined {
-  if (resetsAt === undefined || Number.isNaN(resetsAt)) return undefined;
+  if (resetsAt === undefined || Number.isNaN(resetsAt)) {
+    return undefined;
+  }
   const now = Date.now();
   const diffMs = resetsAt - now;
-  if (diffMs <= 0) return `${resetLabel} now`;
+  if (diffMs <= 0) {
+    return `${resetLabel} now`;
+  }
 
   const totalSec = Math.floor(diffMs / 1000);
   const totalMin = Math.floor(totalSec / 60);
@@ -109,7 +120,7 @@ export async function drawCostSurface(live: LiveSession): Promise<void> {
     { name: "Output", value: totalOutput, color: "plum" },
     { name: "Cache Read", value: totalCacheRead, color: "teal" },
     { name: "Cache Write", value: totalCacheWrite, color: "yellow" },
-  ].filter(d => d.value > 0);
+  ].filter((d) => d.value > 0);
 
   const components: A2uiComponent[] = [
     { id: "root", component: "Card", child: "cost-col", shadow: "xs", p: "md", withBorder: true },
@@ -440,7 +451,9 @@ export async function drawStatsSurface(live: LiveSession): Promise<void> {
       turnIndex++;
       const dur = msg.duration ?? 0;
       totalLatencyMs += dur;
-      if (dur > maxLatencyMs) maxLatencyMs = dur;
+      if (dur > maxLatencyMs) {
+        maxLatencyMs = dur;
+      }
 
       const occupied = msg.usage?.contextTokens || msg.usage?.totalTokens || 0;
 

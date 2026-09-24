@@ -1,3 +1,4 @@
+import React, { type ReactNode, useCallback, useEffect, useMemo, useState } from "react";
 /**
  * Markdown rendering with server-side React SSR (Bun.markdown.react + Shiki).
  *
@@ -8,8 +9,6 @@
  */
 import { Box, Typography } from "@mantine/core";
 import { notifications } from "@mantine/notifications";
-import React, { type ReactNode, useCallback, useEffect, useMemo, useState } from "react";
-
 import { renderMarkdown } from "../api/api.ts";
 import { MermaidChart } from "../components/MermaidChart.tsx";
 import { copyText } from "./clipboard.ts";
@@ -28,16 +27,25 @@ const MERMAID_REGEX = /<div class="omega-mermaid-block" data-code="([^"]*)"><\/d
  * currently open file; its directory is the resolution root.
  */
 function resolveRepoPath(href: string, basePath: string | undefined): string {
-  let clean = href.replace(/^\.\//, "");
-  if (clean.startsWith("/")) return clean.slice(1);
-  if (!basePath) return clean;
+  const clean = href.replace(/^\.\//, "");
+  if (clean.startsWith("/")) {
+    return clean.slice(1);
+  }
+  if (!basePath) {
+    return clean;
+  }
 
   const baseDir = basePath.includes("/") ? basePath.slice(0, basePath.lastIndexOf("/")) : "";
   const segments = baseDir ? baseDir.split("/") : [];
   for (const part of clean.split("/")) {
-    if (part === "" || part === ".") continue;
-    if (part === "..") segments.pop();
-    else segments.push(part);
+    if (part === "" || part === ".") {
+      continue;
+    }
+    if (part === "..") {
+      segments.pop();
+    } else {
+      segments.push(part);
+    }
   }
   return segments.join("/");
 }
@@ -69,7 +77,9 @@ export function RenderedHtml({
         // Drop a trailing "#heading" fragment; the file viewer has no anchor scroll.
         const [pathPart] = rawHref.split("#");
         const resolved = resolveRepoPath(pathPart ?? rawHref, baseFilePath);
-        if (resolved) openInternalFile(resolved);
+        if (resolved) {
+          openInternalFile(resolved);
+        }
         return;
       }
 
@@ -94,7 +104,9 @@ export function RenderedHtml({
   );
 
   const segments = useMemo(() => {
-    if (!html || !html.includes("omega-mermaid-block")) return null;
+    if (!html || !html.includes("omega-mermaid-block")) {
+      return null;
+    }
     const parts: Array<{ type: "html" | "mermaid"; content: string; key: string }> = [];
     let lastIndex = 0;
     let match: RegExpExecArray | null;
@@ -136,12 +148,14 @@ export function RenderedHtml({
     return parts;
   }, [html]);
 
-  if (!html) return null;
+  if (!html) {
+    return null;
+  }
 
   if (segments) {
     return (
       <div className={className ? `omega-markdown ${className}` : "omega-markdown"}>
-        {segments.map(seg => {
+        {segments.map((seg) => {
           if (seg.type === "mermaid") {
             return (
               <Box key={seg.key} my="md">
@@ -149,13 +163,7 @@ export function RenderedHtml({
               </Box>
             );
           }
-          return (
-            <Typography
-              key={seg.key}
-              dangerouslySetInnerHTML={{ __html: seg.content }}
-              onClick={handleClick}
-            />
-          );
+          return <Typography key={seg.key} dangerouslySetInnerHTML={{ __html: seg.content }} onClick={handleClick} />;
         })}
       </div>
     );
@@ -191,34 +199,44 @@ const BATCH_LIMIT = 250;
 function flush(): void {
   flushHandle = undefined;
   const texts = [...waiting.keys()].slice(0, BATCH_LIMIT);
-  if (texts.length === 0) return;
-  const claimed = texts.map(text => {
+  if (texts.length === 0) {
+    return;
+  }
+  const claimed = texts.map((text) => {
     const resolvers = waiting.get(text) ?? [];
     waiting.delete(text);
     return { text, resolvers };
   });
   // Anything past the limit waits for the next flush rather than being lost.
-  if (waiting.size > 0) schedule();
+  if (waiting.size > 0) {
+    schedule();
+  }
 
   void renderMarkdown({ body: { texts } })
-    .then(result => {
+    .then((result) => {
       for (const [index, entry] of claimed.entries()) {
         const html = result.html[index] ?? "";
         cache.set(entry.text, html);
-        for (const resolve of entry.resolvers) resolve(html);
+        for (const resolve of entry.resolvers) {
+          resolve(html);
+        }
       }
     })
     .catch(() => {
       // A failed batch leaves the raw text on screen; nothing is cached, so
       // the next mount retries.
       for (const entry of claimed) {
-        for (const resolve of entry.resolvers) resolve("");
+        for (const resolve of entry.resolvers) {
+          resolve("");
+        }
       }
     });
 }
 
 function schedule(): void {
-  if (flushHandle !== undefined) return;
+  if (flushHandle !== undefined) {
+    return;
+  }
   // A frame, not a microtask: React commits its effects across several
   // microtasks, and batching across the whole frame is what collapses a
   // transcript's parts into one request.
@@ -228,11 +246,16 @@ function schedule(): void {
 /** Queue one text for the next batch. */
 function renderQueued(text: string): Promise<string> {
   const cached = cache.get(text);
-  if (cached !== undefined) return Promise.resolve(cached);
-  return new Promise<string>(resolve => {
+  if (cached !== undefined) {
+    return Promise.resolve(cached);
+  }
+  return new Promise<string>((resolve) => {
     const resolvers = waiting.get(text);
-    if (resolvers) resolvers.push(resolve);
-    else waiting.set(text, [resolve]);
+    if (resolvers) {
+      resolvers.push(resolve);
+    } else {
+      waiting.set(text, [resolve]);
+    }
     schedule();
   });
 }
@@ -253,8 +276,10 @@ export function Markdown({ text, baseFilePath }: { text: string; baseFilePath?: 
       return;
     }
     let active = true;
-    void renderQueued(text).then(rendered => {
-      if (active) setHtml(rendered);
+    void renderQueued(text).then((rendered) => {
+      if (active) {
+        setHtml(rendered);
+      }
     });
     return () => {
       active = false;

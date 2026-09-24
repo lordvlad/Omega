@@ -11,7 +11,9 @@ import type { LiveSession } from "./registry.ts";
 function formatDuration(startedAt: number, completedAt?: number): string {
   const end = completedAt ?? Date.now();
   const diffSec = Math.max(0, Math.round((end - startedAt) / 1000));
-  if (diffSec < 60) return `${diffSec}s`;
+  if (diffSec < 60) {
+    return `${diffSec}s`;
+  }
   const min = Math.floor(diffSec / 60);
   const sec = diffSec % 60;
   return `${min}m ${sec}s`;
@@ -30,8 +32,7 @@ const BUILTIN_AGENT_ROLES = [
     name: "scout",
     color: "cyan",
     type: "Read-Only",
-    description:
-      "Fast read-only exploratory codebase research, rapid code analysis, and broad pattern mapping.",
+    description: "Fast read-only exploratory codebase research, rapid code analysis, and broad pattern mapping.",
     tools: "read, grep, glob",
   },
   {
@@ -62,9 +63,9 @@ const BUILTIN_AGENT_ROLES = [
  */
 export async function drawAgentsSurface(live: LiveSession): Promise<void> {
   const subagents = live.subagents;
-  const activeCount = subagents.filter(s => s.status === "running").length;
-  const completedCount = subagents.filter(s => s.status === "completed").length;
-  const failedCount = subagents.filter(s => s.status === "failed" || s.status === "aborted").length;
+  const activeCount = subagents.filter((s) => s.status === "running").length;
+  const completedCount = subagents.filter((s) => s.status === "completed").length;
+  const failedCount = subagents.filter((s) => s.status === "failed" || s.status === "aborted").length;
   const model = live.session.model;
 
   const components: A2uiComponent[] = [
@@ -86,10 +87,7 @@ export async function drawAgentsSurface(live: LiveSession): Promise<void> {
     {
       id: "agents-badge",
       component: "Badge",
-      label:
-        activeCount > 0
-          ? `${activeCount} active · ${subagents.length} total`
-          : `${subagents.length} subagents`,
+      label: activeCount > 0 ? `${activeCount} active · ${subagents.length} total` : `${subagents.length} subagents`,
       color: activeCount > 0 ? "plum" : "teal",
       size: "lg",
       variant: "light",
@@ -214,15 +212,11 @@ export async function drawAgentsSurface(live: LiveSession): Promise<void> {
       id: "agents-roster-table",
       component: "Table",
       headers: ["Agent", "ID", "Task / Objective", "Status", "Duration"],
-      rows: subagents.map(s => [
+      rows: subagents.map((s) => [
         s.agent.toUpperCase(),
         s.id,
         s.description || "General delegated workload",
-        s.status === "running"
-          ? "● RUNNING"
-          : s.status === "completed"
-            ? "✓ COMPLETED"
-            : s.status.toUpperCase(),
+        s.status === "running" ? "● RUNNING" : s.status === "completed" ? "✓ COMPLETED" : s.status.toUpperCase(),
         formatDuration(s.startedAt, s.completedAt),
       ]),
       striped: true,
@@ -251,7 +245,7 @@ export async function drawAgentsSurface(live: LiveSession): Promise<void> {
       id: "agents-roles-table",
       component: "Table",
       headers: ["Role", "Permissions", "Description", "Granted Tools"],
-      rows: BUILTIN_AGENT_ROLES.map(r => [r.name.toUpperCase(), r.type, r.description, r.tools]),
+      rows: BUILTIN_AGENT_ROLES.map((r) => [r.name.toUpperCase(), r.type, r.description, r.tools]),
       striped: true,
       highlightOnHover: true,
     },

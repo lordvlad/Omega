@@ -1,3 +1,22 @@
+import { type MouseEvent as ReactMouseEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+  IconAlertTriangle,
+  IconArrowBarToDown,
+  IconArrowDownDashed,
+  IconArrowUpDashed,
+  IconBrain,
+  IconChevronRight,
+  IconClockPause,
+  IconCopy,
+  IconDots,
+  IconGitBranch,
+  IconHistory,
+  IconRefresh,
+  IconRobot,
+  IconTerminal2,
+  IconTools,
+  IconUser,
+} from "@tabler/icons-react";
 import { CodeHighlight } from "@mantine/code-highlight";
 /**
  * The chat transcript.
@@ -24,26 +43,6 @@ import {
   UnstyledButton,
 } from "@mantine/core";
 import { notifications } from "@mantine/notifications";
-import {
-  IconAlertTriangle,
-  IconArrowBarToDown,
-  IconArrowDownDashed,
-  IconArrowUpDashed,
-  IconBrain,
-  IconChevronRight,
-  IconClockPause,
-  IconCopy,
-  IconDots,
-  IconGitBranch,
-  IconHistory,
-  IconRefresh,
-  IconRobot,
-  IconTerminal2,
-  IconTools,
-  IconUser,
-} from "@tabler/icons-react";
-import { type MouseEvent as ReactMouseEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
-
 import { parseRateLimit } from "../../shared/ratelimit.ts";
 import type { MessagePart, SubagentTask, TranscriptMessage } from "../api/model.ts";
 import { copyText } from "../lib/clipboard.ts";
@@ -70,13 +69,15 @@ function Foldable({
   // user who has since collapsed it — so only the transition to `true` acts.
   const previous = useRef(openInitially);
   useEffect(() => {
-    if (openInitially && !previous.current) setOpen(true);
+    if (openInitially && !previous.current) {
+      setOpen(true);
+    }
     previous.current = openInitially;
   }, [openInitially]);
 
   return (
     <Box className="omega-foldable" data-tone={tone}>
-      <UnstyledButton onClick={() => setOpen(value => !value)} className="omega-foldable-head">
+      <UnstyledButton onClick={() => setOpen((value) => !value)} className="omega-foldable-head">
         <Group gap={8} wrap="nowrap">
           <Box className="omega-foldable-chevron" data-open={open || undefined}>
             <IconChevronRight size={14} />
@@ -144,7 +145,7 @@ function ToolGroup({
   messageId: string;
   baseIndex: number;
 }) {
-  const hasError = parts.some(p => p.isError);
+  const hasError = parts.some((p) => p.isError);
   // Count calls per tool name (results share their call's name, so every
   // part contributes). "read ×3, bash ×2" tells more than "5 tool calls".
   const counts = new Map<string, number>();
@@ -163,11 +164,7 @@ function ToolGroup({
     >
       <Stack gap={4}>
         {parts.map((part, i) => (
-          <ToolPart
-            key={`${messageId}-${baseIndex + i}`}
-            part={part}
-            streaming={streaming && i === parts.length - 1}
-          />
+          <ToolPart key={`${messageId}-${baseIndex + i}`} part={part} streaming={streaming && i === parts.length - 1} />
         ))}
       </Stack>
     </Foldable>
@@ -223,9 +220,13 @@ function visibleParts(
   parts: MessagePart[],
   settings: { showThinking: boolean; showToolCalls: boolean },
 ): MessagePart[] {
-  return parts.filter(part => {
-    if (part.kind === "thinking") return settings.showThinking;
-    if (isToolPart(part)) return settings.showToolCalls;
+  return parts.filter((part) => {
+    if (part.kind === "thinking") {
+      return settings.showThinking;
+    }
+    if (isToolPart(part)) {
+      return settings.showToolCalls;
+    }
     return true;
   });
 }
@@ -246,7 +247,9 @@ function groupParts(parts: MessagePart[]): PartSlot[] {
     const current = parts[i]!;
     if (isToolPart(current)) {
       const start = i;
-      while (i < parts.length && isToolPart(parts[i]!)) i++;
+      while (i < parts.length && isToolPart(parts[i]!)) {
+        i++;
+      }
       const run = parts.slice(start, i);
       if (run.length === 1) {
         slots.push({ kind: "single", part: run[0]!, index: start });
@@ -258,7 +261,9 @@ function groupParts(parts: MessagePart[]): PartSlot[] {
       const texts: string[] = [];
       while (i < parts.length && parts[i]!.kind === "thinking") {
         const text = parts[i]!.text.trim();
-        if (text) texts.push(text);
+        if (text) {
+          texts.push(text);
+        }
         i++;
       }
       if (texts.length > 0) {
@@ -369,8 +374,8 @@ function Message({
   // Only the prose is worth copying: tool parts hold rendered output, and a
   // transcript of someone else's shell session is not what "copy" promises.
   const prose = message.parts
-    .filter(part => part.kind === "text")
-    .map(part => part.text)
+    .filter((part) => part.kind === "text")
+    .map((part) => part.text)
     .join("\n\n")
     .trim();
   // omp branches from user entries only, so an assistant message offers copy
@@ -380,17 +385,19 @@ function Message({
   const arm = (event: ReactMouseEvent<HTMLDivElement>): void => {
     // Leave the message's own controls alone: a click on a tool's disclosure
     // or a link is that click, not a request for this menu.
-    if (event.target instanceof Element && event.target.closest("a,button,[role='button']")) return;
+    if (event.target instanceof Element && event.target.closest("a,button,[role='button']")) {
+      return;
+    }
     // Selecting text ends in a click; arming on it would fight the selection.
-    if (window.getSelection()?.isCollapsed === false) return;
+    if (window.getSelection()?.isCollapsed === false) {
+      return;
+    }
     const bounds = event.currentTarget.getBoundingClientRect();
     onArm(event.clientY - bounds.top);
   };
 
   const menu =
-    armedAt === undefined ? null : (
-      <MessageMenu top={armedAt} text={prose} forkFrom={forkFrom} onFork={onFork} />
-    );
+    armedAt === undefined ? null : <MessageMenu top={armedAt} text={prose} forkFrom={forkFrom} onFork={onFork} />;
 
   if (message.role === "user") {
     return (
@@ -419,7 +426,7 @@ function Message({
   return (
     <div className="omega-msg" data-role="assistant" onClick={arm}>
       <Stack gap={12}>
-        {slots.map(slot => {
+        {slots.map((slot) => {
           // The live edge of a streaming message is always the last slot.
           const slotStreaming = streaming && slot === lastSlot;
           if (slot.kind === "group") {
@@ -438,7 +445,7 @@ function Message({
         {streaming && slots.length > 0 ? (
           <Group gap="xs" mt={2}>
             {(() => {
-              const activeCount = (subagents ?? []).filter(s => s.status === "running").length;
+              const activeCount = (subagents ?? []).filter((s) => s.status === "running").length;
               return (
                 <Badge
                   color="plum"
@@ -528,19 +535,23 @@ type TranscriptItem =
  */
 function formatTurnTime(iso: string, now: Date): string {
   const date = new Date(iso);
-  if (!Number.isFinite(date.getTime())) return "";
+  if (!Number.isFinite(date.getTime())) {
+    return "";
+  }
   const diffMs = now.getTime() - date.getTime();
   // Floored, not rounded: 45 s is still "just now", not a minute that has
   // not elapsed. A negative diff (server clock slightly ahead) reads the same.
   const diffMin = Math.floor(diffMs / 60_000);
 
-  if (diffMin < 1) return "just now";
-  if (diffMin < 60) return `${diffMin}m ago`;
+  if (diffMin < 1) {
+    return "just now";
+  }
+  if (diffMin < 60) {
+    return `${diffMin}m ago`;
+  }
 
   const sameDay =
-    date.getFullYear() === now.getFullYear() &&
-    date.getMonth() === now.getMonth() &&
-    date.getDate() === now.getDate();
+    date.getFullYear() === now.getFullYear() && date.getMonth() === now.getMonth() && date.getDate() === now.getDate();
 
   if (sameDay) {
     return date.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" });
@@ -599,7 +610,7 @@ export function Transcript({
       // (back-to-back messages in the same minute).
       if (msg.timestamp) {
         const label = formatTurnTime(msg.timestamp, now);
-        const prev = result.findLast(r => r.kind === "separator");
+        const prev = result.findLast((r) => r.kind === "separator");
         if (label && (!prev || prev.label !== label)) {
           result.push({ kind: "separator", id: `sep-${msg.id}`, label });
         }
@@ -610,7 +621,9 @@ export function Transcript({
     // Echoes sit after the persisted history and before the reply they
     // provoked, which is where the server will place them once it catches up.
     for (const [index, text] of pendingUser.entries()) {
-      if (text.trim().startsWith("/")) continue;
+      if (text.trim().startsWith("/")) {
+        continue;
+      }
       result.push({
         kind: "message",
         id: `pending-${index}`,
@@ -665,11 +678,15 @@ export function Transcript({
   const tail = useCallback(() => {
     // Without virtualization, rendering is a standard DOM pass. Only one rAF
     // is needed to wait for layout before scrolling.
-    if (tailFrame.current !== undefined) cancelAnimationFrame(tailFrame.current);
+    if (tailFrame.current !== undefined) {
+      cancelAnimationFrame(tailFrame.current);
+    }
     tailFrame.current = requestAnimationFrame(() => {
       tailFrame.current = undefined;
       const el = scrollRef.current;
-      if (!el || !pinned.current) return;
+      if (!el || !pinned.current) {
+        return;
+      }
       el.scrollTop = el.scrollHeight;
     });
   }, []);
@@ -694,8 +711,12 @@ export function Transcript({
 
   useEffect(
     () => () => {
-      if (tailFrame.current !== undefined) cancelAnimationFrame(tailFrame.current);
-      for (const timer of tailTimers.current) window.clearTimeout(timer);
+      if (tailFrame.current !== undefined) {
+        cancelAnimationFrame(tailFrame.current);
+      }
+      for (const timer of tailTimers.current) {
+        window.clearTimeout(timer);
+      }
       tailTimers.current = [];
     },
     [],
@@ -718,7 +739,9 @@ export function Transcript({
   const lastTop = useRef(0);
   const handleScroll = useCallback(() => {
     const el = scrollRef.current;
-    if (!el) return;
+    if (!el) {
+      return;
+    }
     const top = el.scrollTop;
     const distance = el.scrollHeight - top - el.clientHeight;
     // A pixel of slack: sub-pixel scroll positions jitter on their own.
@@ -736,7 +759,9 @@ export function Transcript({
       return;
     }
     // Still pinned, but the bottom ran away: chase it.
-    if (pinned.current) tail();
+    if (pinned.current) {
+      tail();
+    }
   }, [tail]);
 
   /**
@@ -744,15 +769,19 @@ export function Transcript({
    */
   const navigateUserMessage = useCallback((direction: "prev" | "next") => {
     const scrollEl = scrollRef.current;
-    if (!scrollEl) return;
+    if (!scrollEl) {
+      return;
+    }
     const userNodes = Array.from(scrollEl.querySelectorAll<HTMLElement>('.omega-msg[data-role="user"]'));
-    if (userNodes.length === 0) return;
+    if (userNodes.length === 0) {
+      return;
+    }
 
     const currentScrollTop = scrollEl.scrollTop;
     const buffer = 40;
 
     if (direction === "prev") {
-      const prevNodes = userNodes.filter(node => node.offsetTop < currentScrollTop - buffer);
+      const prevNodes = userNodes.filter((node) => node.offsetTop < currentScrollTop - buffer);
       if (prevNodes.length > 0) {
         const target = prevNodes[prevNodes.length - 1]!;
         target.scrollIntoView({ behavior: "smooth", block: "start" });
@@ -764,7 +793,7 @@ export function Transcript({
         setAtBottom(false);
       }
     } else {
-      const nextNodes = userNodes.filter(node => node.offsetTop > currentScrollTop + buffer);
+      const nextNodes = userNodes.filter((node) => node.offsetTop > currentScrollTop + buffer);
       if (nextNodes.length > 0) {
         const target = nextNodes[0]!;
         target.scrollIntoView({ behavior: "smooth", block: "start" });
@@ -821,10 +850,14 @@ export function Transcript({
    */
   useEffect(() => {
     const el = scrollRef.current?.parentElement ?? scrollRef.current;
-    if (!el) return;
+    if (!el) {
+      return;
+    }
     const onFocusIn = (event: FocusEvent): void => {
       const target = event.target;
-      if (!(target instanceof HTMLElement) || !target.closest(".omega-composer")) return;
+      if (!(target instanceof HTMLElement) || !target.closest(".omega-composer")) {
+        return;
+      }
       pinned.current = true;
       setAtBottom(true);
       delayedTail([0, 150, 350, 600]);
@@ -845,13 +878,17 @@ export function Transcript({
   const restoreFromBottom = useRef<number | undefined>(undefined);
   const requestOlder = useCallback(() => {
     const el = scrollRef.current;
-    if (el && !pinned.current) restoreFromBottom.current = el.scrollHeight - el.scrollTop;
+    if (el && !pinned.current) {
+      restoreFromBottom.current = el.scrollHeight - el.scrollTop;
+    }
     onLoadOlder?.();
   }, [onLoadOlder]);
 
   useEffect(() => {
     const target = restoreFromBottom.current;
-    if (target === undefined) return;
+    if (target === undefined) {
+      return;
+    }
     restoreFromBottom.current = undefined;
 
     // Re-applied rather than written once: the prepended page mounts as raw
@@ -860,14 +897,18 @@ export function Transcript({
     // re-derives the position from the distance that was saved.
     const apply = (): void => {
       const node = scrollRef.current;
-      if (!node) return;
+      if (!node) {
+        return;
+      }
       node.scrollTop = Math.max(0, node.scrollHeight - target);
       lastTop.current = node.scrollTop;
     };
     apply();
-    const timers = [60, 180, 350, 600].map(delay => window.setTimeout(apply, delay));
+    const timers = [60, 180, 350, 600].map((delay) => window.setTimeout(apply, delay));
     return () => {
-      for (const timer of timers) window.clearTimeout(timer);
+      for (const timer of timers) {
+        window.clearTimeout(timer);
+      }
     };
   }, [items.length]);
 
@@ -886,15 +927,18 @@ export function Transcript({
   const pullStart = useRef<number | undefined>(undefined);
   useEffect(() => {
     const el = scrollRef.current;
-    if (!el || !onReload) return;
+    if (!el || !onReload) {
+      return;
+    }
 
     const atBottomEdge = (): boolean => el.scrollHeight - el.scrollTop - el.clientHeight <= 1;
 
     const isInteractiveTarget = (target: EventTarget | null): boolean => {
-      if (!(target instanceof HTMLElement)) return false;
+      if (!(target instanceof HTMLElement)) {
+        return false;
+      }
       return Boolean(
-        target.closest(".omega-composer") ||
-        target.closest("textarea, input, button, select, [contenteditable]"),
+        target.closest(".omega-composer") || target.closest("textarea, input, button, select, [contenteditable]"),
       );
     };
 
@@ -907,7 +951,9 @@ export function Transcript({
 
     const onMove = (event: TouchEvent): void => {
       const start = pullStart.current;
-      if (start === undefined) return;
+      if (start === undefined) {
+        return;
+      }
       if (isInteractiveTarget(event.target)) {
         pullStart.current = undefined;
         setPull(0);
@@ -924,15 +970,21 @@ export function Transcript({
       // need real effort, which is what makes the threshold findable.
       const distance = Math.min(PULL_MAX_PX, Math.sqrt(dragged) * 9);
       setPull(distance);
-      if (event.cancelable) event.preventDefault();
+      if (event.cancelable) {
+        event.preventDefault();
+      }
     };
 
     const onEnd = (): void => {
       const start = pullStart.current;
       pullStart.current = undefined;
-      if (start === undefined) return;
-      setPull(current => {
-        if (current < PULL_TRIGGER_PX) return 0;
+      if (start === undefined) {
+        return;
+      }
+      setPull((current) => {
+        if (current < PULL_TRIGGER_PX) {
+          return 0;
+        }
         setReloading(true);
         void Promise.resolve(onReload())
           .catch(() => undefined)
@@ -1038,7 +1090,7 @@ export function Transcript({
                       message={item.message}
                       streaming={item.streaming}
                       armedAt={armed?.id === item.id ? armed.offset : undefined}
-                      onArm={offset => setArmed({ id: item.id, offset })}
+                      onArm={(offset) => setArmed({ id: item.id, offset })}
                       onFork={onFork}
                       showThinking={showThinking}
                       showToolCalls={showToolCalls}
@@ -1057,7 +1109,7 @@ export function Transcript({
                     </Group>
                   );
                 case "working": {
-                  const activeCount = (subagents ?? []).filter(s => s.status === "running").length;
+                  const activeCount = (subagents ?? []).filter((s) => s.status === "running").length;
                   return (
                     <Group key="working" gap="xs">
                       <Badge
@@ -1117,6 +1169,8 @@ export function Transcript({
                     </Alert>
                   );
                 }
+                default:
+                  return null;
               }
             })}
           </Stack>
@@ -1145,7 +1199,9 @@ export function Transcript({
                       pinned.current = true;
                       setAtBottom(true);
                       const el = scrollRef.current;
-                      if (el) el.scrollTo({ top: el.scrollHeight, behavior: "smooth" });
+                      if (el) {
+                        el.scrollTo({ top: el.scrollHeight, behavior: "smooth" });
+                      }
                       delayedTail([100, 250]);
                     }}
                     style={{

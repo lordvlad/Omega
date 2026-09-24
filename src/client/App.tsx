@@ -1,3 +1,21 @@
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+  IconAlertTriangle,
+  IconCheck,
+  IconChevronDown,
+  IconFolder,
+  IconHistory,
+  IconLayout2,
+  IconListCheck,
+  IconMessage,
+  IconNote,
+  IconPencil,
+  IconSettings,
+  IconStack2,
+  IconTrash,
+} from "@tabler/icons-react";
+import { useQueryClient } from "@tanstack/react-query";
+import { useNavigate, useParams } from "@tanstack/react-router";
 /**
  * The app shell.
  *
@@ -21,7 +39,6 @@ import {
   Group,
   Indicator,
   Loader,
-  Paper,
   Stack,
   Text,
   Tooltip,
@@ -29,25 +46,6 @@ import {
 } from "@mantine/core";
 import { useDisclosure, useLocalStorage, useMediaQuery } from "@mantine/hooks";
 import { notifications } from "@mantine/notifications";
-import {
-  IconAlertTriangle,
-  IconCheck,
-  IconChevronDown,
-  IconFolder,
-  IconHistory,
-  IconLayout2,
-  IconListCheck,
-  IconMessage,
-  IconNote,
-  IconPencil,
-  IconSettings,
-  IconStack2,
-  IconTrash,
-} from "@tabler/icons-react";
-import { useQueryClient } from "@tanstack/react-query";
-import { useNavigate, useParams } from "@tanstack/react-router";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-
 import { type A2uiActionEvent, isAgentSurface } from "../shared/a2ui.ts";
 import { ApiError } from "./api/api.ts";
 import type {
@@ -55,8 +53,6 @@ import type {
   Attachment,
   CancelJobRequest,
   DeleteRuleRequest,
-  ForceToolRequest,
-  LiveState,
   MutateTodosRequest,
   OmfgRuleCandidate,
   PlanAction,
@@ -93,7 +89,6 @@ import {
   usePrompt,
   useRemoveMcpServer,
   useRenameSession,
-  useRenderMarkdown,
   useResolvePlan,
   useRestartProcess,
   useRetryTurn,
@@ -230,7 +225,9 @@ export function App() {
   const [treeOpen, { toggle: toggleTree, close: closeTree }] = useDisclosure(false);
   const [viewingFile, setViewingFile] = useState<string | null>(() => {
     const match = /^#file=(.+)$/.exec(window.location.hash);
-    if (!match) return null;
+    if (!match) {
+      return null;
+    }
     try {
       return decodeURIComponent(match[1] ?? "");
     } catch {
@@ -265,7 +262,9 @@ export function App() {
   useEffect(() => {
     const desired = viewingFile ? `#file=${encodeURIComponent(viewingFile)}` : "";
     const current = window.location.hash;
-    if (current === desired) return;
+    if (current === desired) {
+      return;
+    }
     if (desired) {
       window.history.replaceState(null, "", desired);
     } else if (current.startsWith("#file=")) {
@@ -286,10 +285,8 @@ export function App() {
   const [rulesDrawerOpen, { open: openRules, close: closeRules }] = useDisclosure(false);
   const [queueOpen, { open: openQueue, close: closeQueue }] = useDisclosure(false);
   /** The A2UI surface drawer, opened automatically when a surface arrives. */
-  const [
-    surfaceDrawerOpen,
-    { open: openSurfaceDrawer, close: closeSurfaceDrawer, toggle: toggleSurfaceDrawer },
-  ] = useDisclosure(false);
+  const [surfaceDrawerOpen, { open: openSurfaceDrawer, close: closeSurfaceDrawer, toggle: toggleSurfaceDrawer }] =
+    useDisclosure(false);
   /** The sub-agents panel, opened from the working badge in transcript. */
   const [subagentDrawerOpen, { open: openSubagents, close: closeSubagents }] = useDisclosure(false);
   /** The MCP server management drawer. */
@@ -380,10 +377,7 @@ export function App() {
     { query: { cwd: state.data?.cwd } },
     { enabled: Boolean(sessionKey && state.data?.cwd) },
   );
-  const files = useListFiles(
-    { query: { cwd: state.data?.cwd } },
-    { enabled: Boolean(sessionKey && state.data?.cwd) },
-  );
+  const files = useListFiles({ query: { cwd: state.data?.cwd } }, { enabled: Boolean(sessionKey && state.data?.cwd) });
   /**
    * The transcript window.
    *
@@ -414,7 +408,7 @@ export function App() {
     // Widening the window is a new cache key, and an empty transcript between
     // the two is both a flash of nothing and a scroll position thrown away.
     // The previous window stands in until the wider one lands.
-    placeholderData: previous => previous,
+    placeholderData: (previous) => previous,
   });
   // Show the conversation that was on screen last time while the fetch runs,
   // and while a released session is being re-opened.
@@ -434,7 +428,9 @@ export function App() {
   // The stream tells us when snapshot state went stale; refetching beats
   // mirroring omp's whole state machine in the client.
   const refresh = useCallback(() => {
-    if (!sessionKey) return;
+    if (!sessionKey) {
+      return;
+    }
     const path = { path: { key: sessionKey } };
     void queryClient.invalidateQueries({ queryKey: getGetStateQueryOptions(path).queryKey });
     // The transcript key carries its window, so invalidating one window would
@@ -525,15 +521,19 @@ export function App() {
 
   // Keep recent models updated when active model changes
   useEffect(() => {
-    if (!state.data?.model) return;
+    if (!state.data?.model) {
+      return;
+    }
     const current = state.data.model;
-    setRecentModels(prev => [current, ...prev.filter(m => m !== current)].slice(0, 5));
+    setRecentModels((prev) => [current, ...prev.filter((m) => m !== current)].slice(0, 5));
   }, [state.data?.model, setRecentModels]);
 
   const handleSelectModel = useCallback(
     (ref: string) => {
-      if (!sessionKey) return;
-      setRecentModels(prev => [ref, ...prev.filter(m => m !== ref)].slice(0, 5));
+      if (!sessionKey) {
+        return;
+      }
+      setRecentModels((prev) => [ref, ...prev.filter((m) => m !== ref)].slice(0, 5));
       selectModel.mutate({ path: { key: sessionKey }, body: { ref } }, { onSuccess: refresh, onError: fail });
     },
     [sessionKey, selectModel, refresh, setRecentModels],
@@ -541,7 +541,9 @@ export function App() {
 
   const handleYield = useCallback(
     (event: YieldEvent) => {
-      if (!settings.notifyOnYield) return;
+      if (!settings.notifyOnYield) {
+        return;
+      }
       // Dispatch native browser notification if window is hidden or blurred
       if (document.visibilityState === "hidden" || !document.hasFocus()) {
         const title = state.data?.title || "omega";
@@ -566,7 +568,9 @@ export function App() {
           badge: "/icon-192.png",
           onClick: () => {
             window.focus();
-            if (event.type === "plan") openPlan();
+            if (event.type === "plan") {
+              openPlan();
+            }
           },
         });
       }
@@ -578,10 +582,14 @@ export function App() {
   const handleCrossSessionNotification = useCallback(
     (event: CrossSessionNotificationEvent): void => {
       // Ignore notifications for the session currently in view
-      if (event.key === sessionKey) return;
+      if (event.key === sessionKey) {
+        return;
+      }
 
       const dedupeKey = `${event.key}:${event.status}:${event.timestamp ?? event.summary ?? ""}`;
-      if (seenCrossSessionNotifications.current.has(dedupeKey)) return;
+      if (seenCrossSessionNotifications.current.has(dedupeKey)) {
+        return;
+      }
       seenCrossSessionNotifications.current.add(dedupeKey);
       const isError = event.status === "error";
       const sessionLabel = event.title || event.key.slice(0, 8);
@@ -606,7 +614,7 @@ export function App() {
               c="cyan.4"
               fw={600}
               href={`/s/${encodeURIComponent(event.key)}`}
-              onClick={e => {
+              onClick={(e) => {
                 e.preventDefault();
                 setSwitchingSession(`Opening session ${sessionLabel}…`);
                 navigateTo({ session: event.key });
@@ -689,7 +697,9 @@ export function App() {
 
   // A plan arriving for review is the one event worth interrupting for.
   useEffect(() => {
-    if (!live.planAwaiting) return;
+    if (!live.planAwaiting) {
+      return;
+    }
     openPlan();
     notifications.show({
       color: "cyan",
@@ -716,7 +726,9 @@ export function App() {
       closePlan();
       return;
     }
-    if (shownPlan.current === content) return;
+    if (shownPlan.current === content) {
+      return;
+    }
     shownPlan.current = content;
     openPlan();
   }, [plan.data?.content]);
@@ -758,7 +770,9 @@ export function App() {
 
     if (live.status === "open") {
       clearWarning();
-      if (!warned.current) return;
+      if (!warned.current) {
+        return;
+      }
       warned.current = false;
       notifications.update({
         id: CONNECTION_TOAST,
@@ -797,7 +811,9 @@ export function App() {
       notifications.update(body());
       return;
     }
-    if (graceTimer.current !== undefined) return;
+    if (graceTimer.current !== undefined) {
+      return;
+    }
     graceTimer.current = window.setTimeout(() => {
       graceTimer.current = undefined;
       warned.current = true;
@@ -810,17 +826,21 @@ export function App() {
   // no message is ever rendered twice.
   useEffect(() => {
     const persisted = transcript.data?.messages;
-    if (!persisted) return;
+    if (!persisted) {
+      return;
+    }
     const sent = persisted
-      .filter(message => message.role === "user")
-      .map(message => message.parts.map(part => part.text).join("\n"));
-    if (sent.length === 0) return;
+      .filter((message) => message.role === "user")
+      .map((message) => message.parts.map((part) => part.text).join("\n"));
+    if (sent.length === 0) {
+      return;
+    }
     // Prefix, not equality: a message sent with attachments comes back with
     // the inlined files or an `[image]` marker appended, so the persisted copy
     // is longer than the echo. Requiring an exact match strands the echo and
     // the message renders twice, for good.
-    const delivered = (echo: string): boolean => sent.some(text => text.startsWith(echo));
-    setPendingUser(current => (current.some(delivered) ? current.filter(text => !delivered(text)) : current));
+    const delivered = (echo: string): boolean => sent.some((text) => text.startsWith(echo));
+    setPendingUser((current) => (current.some(delivered) ? current.filter((text) => !delivered(text)) : current));
   }, [transcript.data]);
 
   // Echoes belong to the conversation they were typed into.
@@ -874,9 +894,11 @@ export function App() {
   const [wake, setWake] = useState(0);
   useEffect(() => {
     const onWake = (): void => {
-      if (document.visibilityState !== "visible") return;
+      if (document.visibilityState !== "visible") {
+        return;
+      }
       reopenedAt.current = 0;
-      setWake(value => value + 1);
+      setWake((value) => value + 1);
     };
     window.addEventListener("focus", onWake);
     window.addEventListener("online", onWake);
@@ -891,18 +913,30 @@ export function App() {
   // A wake tells us to look, not what we will find: the snapshot in hand was
   // taken before the tab went away. Refetch, then let the effect below judge.
   useEffect(() => {
-    if (wake === 0 || !sessionKey) return;
+    if (wake === 0 || !sessionKey) {
+      return;
+    }
     void state.refetch();
   }, [wake, sessionKey]);
   useEffect(() => {
-    if (!sessionKey || !workspaces.data) return;
-    if (!state.isError && !socketGaveUp) return;
-    if (reopening.current) return;
-    if (Date.now() - reopenedAt.current < REOPEN_COOLDOWN_MS) return;
+    if (!sessionKey || !workspaces.data) {
+      return;
+    }
+    if (!state.isError && !socketGaveUp) {
+      return;
+    }
+    if (reopening.current) {
+      return;
+    }
+    if (Date.now() - reopenedAt.current < REOPEN_COOLDOWN_MS) {
+      return;
+    }
     const summary = workspaces.data
-      .flatMap(workspace => workspace.sessions)
-      .find(session => session.id === sessionKey);
-    if (!summary) return;
+      .flatMap((workspace) => workspace.sessions)
+      .find((session) => session.id === sessionKey);
+    if (!summary) {
+      return;
+    }
     reopening.current = true;
     reopenedAt.current = Date.now();
     // Reopening the same file yields the same session id, so the URL stays valid.
@@ -916,7 +950,7 @@ export function App() {
           // reconnect now rather than waiting out its backoff.
           live.reconnect();
         },
-        onError: error => {
+        onError: (error) => {
           reopening.current = false;
           fail(error);
         },
@@ -945,7 +979,9 @@ export function App() {
       greeted.current = false;
       return;
     }
-    if (greeted.current || !workspaces.data) return;
+    if (greeted.current || !workspaces.data) {
+      return;
+    }
     greeted.current = true;
     openPalette(PALETTE_COMMAND.project, setPaletteQuery);
   }, [project, sessionKey, workspaces.data]);
@@ -955,11 +991,11 @@ export function App() {
     openSession.mutate(
       { body: { sessionPath: session.path } },
       {
-        onSuccess: result => {
+        onSuccess: (result) => {
           navigateTo({ project: result.cwd, session: result.key });
           void queryClient.invalidateQueries();
         },
-        onError: error => {
+        onError: (error) => {
           setSwitchingSession(null);
           fail(error);
         },
@@ -972,11 +1008,11 @@ export function App() {
     openSession.mutate(
       { body: { cwd } },
       {
-        onSuccess: result => {
+        onSuccess: (result) => {
           navigateTo({ project: result.cwd, session: result.key });
           void queryClient.invalidateQueries();
         },
-        onError: error => {
+        onError: (error) => {
           setSwitchingSession(null);
           fail(error);
         },
@@ -997,11 +1033,13 @@ export function App() {
    * effect would helpfully reopen the very session just stopped.
    */
   const handleStopSession = (session: SessionSummary): void => {
-    if (session.id === sessionKey) navigateTo({ project: session.cwd });
+    if (session.id === sessionKey) {
+      navigateTo({ project: session.cwd });
+    }
     stopSession.mutate(
       { path: { key: session.id } },
       {
-        onSuccess: result => {
+        onSuccess: (result) => {
           notifications.show({
             color: "cyan",
             title: "Session stopped",
@@ -1035,11 +1073,13 @@ export function App() {
     if (!window.confirm(`Delete "${label}" and its artifacts from disk? This cannot be undone.`)) {
       return;
     }
-    if (session.id === sessionKey) navigateTo({ project: session.cwd });
+    if (session.id === sessionKey) {
+      navigateTo({ project: session.cwd });
+    }
     deleteSession.mutate(
       { path: { key: session.id } },
       {
-        onSuccess: result => {
+        onSuccess: (result) => {
           notifications.show({
             color: "orange",
             title: "Session deleted",
@@ -1056,11 +1096,13 @@ export function App() {
   };
 
   const handleCompact = (mode: CompactMode | undefined, focus: string): void => {
-    if (!sessionKey) return;
+    if (!sessionKey) {
+      return;
+    }
     compactSession.mutate(
       { path: { key: sessionKey }, body: { mode, focus: focus.trim() || undefined } },
       {
-        onSuccess: result => {
+        onSuccess: (result) => {
           notifications.show({
             color: "cyan",
             title: "Context compacted",
@@ -1082,7 +1124,9 @@ export function App() {
    * authoritative answer to "what is still waiting", fresher than a refetch.
    */
   const applyQueue = (next: QueuedMessage[]): void => {
-    if (!sessionKey) return;
+    if (!sessionKey) {
+      return;
+    }
     queryClient.setQueryData(getListQueueQueryOptions({ path: { key: sessionKey } }).queryKey, next);
     // `queued` on the session state is a count of the same thing.
     void queryClient.invalidateQueries({
@@ -1091,7 +1135,9 @@ export function App() {
   };
 
   const handleQueueEdit = (message: QueuedMessage, text: string): void => {
-    if (!sessionKey) return;
+    if (!sessionKey) {
+      return;
+    }
     editQueued.mutate(
       {
         path: { key: sessionKey },
@@ -1102,7 +1148,9 @@ export function App() {
   };
 
   const handleQueueDrop = (message: QueuedMessage): void => {
-    if (!sessionKey) return;
+    if (!sessionKey) {
+      return;
+    }
     dropQueued.mutate(
       {
         path: { key: sessionKey },
@@ -1120,11 +1168,13 @@ export function App() {
    */
   const [shaking, setShaking] = useState(false);
   const handleShake = (mode: ShakeMode): void => {
-    if (!sessionKey) return;
+    if (!sessionKey) {
+      return;
+    }
     shakeSession.mutate(
       { path: { key: sessionKey }, body: { mode } },
       {
-        onSuccess: result => {
+        onSuccess: (result) => {
           notifications.show({ color: "cyan", title: "Context shaken", message: result.detail ?? "Done." });
           setShaking(true);
           refresh();
@@ -1135,7 +1185,9 @@ export function App() {
   };
 
   const handleSetThinking = (level: ThinkingLevel): void => {
-    if (!sessionKey) return;
+    if (!sessionKey) {
+      return;
+    }
     setThinking.mutate(
       { path: { key: sessionKey }, body: { level } },
       {
@@ -1150,7 +1202,9 @@ export function App() {
 
   /** A new title changes the session listing too, so everything is refetched. */
   const handleRename = (title: string): void => {
-    if (!sessionKey) return;
+    if (!sessionKey) {
+      return;
+    }
     renameSession.mutate(
       { path: { key: sessionKey }, body: { title } },
       {
@@ -1161,14 +1215,18 @@ export function App() {
   };
 
   const handleRetry = (): void => {
-    if (!sessionKey) return;
+    if (!sessionKey) {
+      return;
+    }
     // The retried turn arrives as AG-UI frames, so the stream has to be up
     // before it starts — the same reason `handleSend` reconnects.
-    if (live.status !== "open") live.reconnect();
+    if (live.status !== "open") {
+      live.reconnect();
+    }
     retryTurn.mutate(
       { path: { key: sessionKey } },
       {
-        onSuccess: result => {
+        onSuccess: (result) => {
           notifications.show({
             color: result.ok ? "cyan" : "yellow",
             title: "Retry",
@@ -1182,7 +1240,9 @@ export function App() {
   };
 
   const handleAbort = (): void => {
-    if (!sessionKey) return;
+    if (!sessionKey) {
+      return;
+    }
     abort.mutate({ path: { key: sessionKey } }, { onError: fail });
   };
 
@@ -1191,7 +1251,9 @@ export function App() {
    * controls cannot drift apart.
    */
   const handleSetPlanMode = (enabled: boolean): void => {
-    if (!sessionKey) return;
+    if (!sessionKey) {
+      return;
+    }
     setPlanMode.mutate(
       { path: { key: sessionKey }, body: { enabled } },
       {
@@ -1208,12 +1270,14 @@ export function App() {
    * so the URL has to follow the key the server reports back.
    */
   const handleFork = (): void => {
-    if (!sessionKey) return;
+    if (!sessionKey) {
+      return;
+    }
     setSwitchingSession("Forking session…");
     forkSession.mutate(
       { path: { key: sessionKey } },
       {
-        onSuccess: next => {
+        onSuccess: (next) => {
           notifications.show({
             color: "cyan",
             title: "Session forked",
@@ -1222,7 +1286,7 @@ export function App() {
           navigateTo({ project: next.cwd, session: next.key });
           void queryClient.invalidateQueries();
         },
-        onError: error => {
+        onError: (error) => {
           setSwitchingSession(null);
           fail(error);
         },
@@ -1234,27 +1298,29 @@ export function App() {
    */
   const handleAskBtw = useCallback(
     (question: string): void => {
-      if (!sessionKey) return;
+      if (!sessionKey) {
+        return;
+      }
       const q = question.trim();
-      if (!q) return;
-      setBtwTurns(prev => [...prev, { question: q, loading: true }]);
+      if (!q) {
+        return;
+      }
+      setBtwTurns((prev) => [...prev, { question: q, loading: true }]);
       openBtw();
       askBtw.mutate(
         { path: { key: sessionKey }, body: { question: q } },
         {
-          onSuccess: result => {
-            setBtwTurns(prev =>
-              prev.map(turn =>
-                turn.question === q && turn.loading
-                  ? { ...turn, answer: result.answer, loading: false }
-                  : turn,
+          onSuccess: (result) => {
+            setBtwTurns((prev) =>
+              prev.map((turn) =>
+                turn.question === q && turn.loading ? { ...turn, answer: result.answer, loading: false } : turn,
               ),
             );
           },
-          onError: error => {
+          onError: (error) => {
             const problem = error instanceof ApiError ? (error.body as Problem | undefined) : undefined;
-            setBtwTurns(prev =>
-              prev.map(turn =>
+            setBtwTurns((prev) =>
+              prev.map((turn) =>
                 turn.question === q && turn.loading
                   ? {
                       ...turn,
@@ -1276,16 +1342,20 @@ export function App() {
    */
   const handleStartOmfg = useCallback(
     (complaint: string): void => {
-      if (!sessionKey) return;
+      if (!sessionKey) {
+        return;
+      }
       const c = complaint.trim();
-      if (!c) return;
+      if (!c) {
+        return;
+      }
       setOmfgComplaint(c);
       setOmfgCandidate(undefined);
       openOmfg();
       analyzeOmfg.mutate(
         { path: { key: sessionKey }, body: { complaint: c } },
         {
-          onSuccess: candidate => {
+          onSuccess: (candidate) => {
             setOmfgCandidate(candidate);
           },
           onError: fail,
@@ -1297,7 +1367,9 @@ export function App() {
 
   const handleAmendOmfg = useCallback(
     (feedback: string): void => {
-      if (!sessionKey) return;
+      if (!sessionKey) {
+        return;
+      }
       analyzeOmfg.mutate(
         {
           path: { key: sessionKey },
@@ -1308,7 +1380,7 @@ export function App() {
           },
         },
         {
-          onSuccess: candidate => {
+          onSuccess: (candidate) => {
             setOmfgCandidate(candidate);
           },
           onError: fail,
@@ -1320,11 +1392,13 @@ export function App() {
 
   const handleSaveOmfg = useCallback(
     (name: string, fileContent: string, scope: "project" | "global"): void => {
-      if (!sessionKey) return;
+      if (!sessionKey) {
+        return;
+      }
       saveOmfg.mutate(
         { path: { key: sessionKey }, body: { name, fileContent, scope } },
         {
-          onSuccess: result => {
+          onSuccess: (result) => {
             notifications.show({
               color: "cyan",
               title: "Rule saved",
@@ -1373,7 +1447,9 @@ export function App() {
 
   const handleMutateTodos = useCallback(
     async (req: MutateTodosRequest): Promise<void> => {
-      if (!sessionKey) return;
+      if (!sessionKey) {
+        return;
+      }
       await mutateTodos.mutateAsync({ path: { key: sessionKey }, body: req });
       void state.refetch();
     },
@@ -1394,12 +1470,14 @@ export function App() {
    */
   const handleBranch = useCallback(
     (entryId: string): void => {
-      if (!sessionKey) return;
+      if (!sessionKey) {
+        return;
+      }
       setSwitchingSession("Branching session…");
       branchSession.mutate(
         { path: { key: sessionKey }, body: { entryId } },
         {
-          onSuccess: result => {
+          onSuccess: (result) => {
             navigateTo({ project: result.state.cwd, session: result.state.key });
             setDraft({ text: result.draft });
             notifications.show({
@@ -1409,7 +1487,7 @@ export function App() {
             });
             void queryClient.invalidateQueries();
           },
-          onError: error => {
+          onError: (error) => {
             setSwitchingSession(null);
             fail(error);
           },
@@ -1424,7 +1502,9 @@ export function App() {
    */
   const handleDismissSurface = useCallback(
     (surfaceId: string): void => {
-      if (!sessionKey) return;
+      if (!sessionKey) {
+        return;
+      }
       dismissSurface.mutate(
         { path: { key: sessionKey }, body: { surfaceId } },
         {
@@ -1448,7 +1528,9 @@ export function App() {
    */
   const handleForceTool = useCallback(
     (toolName: string): void => {
-      if (!sessionKey) return;
+      if (!sessionKey) {
+        return;
+      }
       forceTool.mutate(
         { path: { key: sessionKey }, body: { toolName } },
         {
@@ -1468,7 +1550,9 @@ export function App() {
   );
 
   const handleClearForceTool = useCallback((): void => {
-    if (!sessionKey) return;
+    if (!sessionKey) {
+      return;
+    }
     forceTool.mutate(
       { path: { key: sessionKey }, body: { clear: true } },
       {
@@ -1487,7 +1571,9 @@ export function App() {
 
   const handleDeleteRule = useCallback(
     async (req: DeleteRuleRequest): Promise<void> => {
-      if (!sessionKey) return;
+      if (!sessionKey) {
+        return;
+      }
       await deleteRule.mutateAsync({ path: { key: sessionKey }, body: req });
     },
     [sessionKey, deleteRule],
@@ -1508,7 +1594,9 @@ export function App() {
    */
   const handleCancelJob = useCallback(
     async (req: CancelJobRequest): Promise<void> => {
-      if (!sessionKey) return;
+      if (!sessionKey) {
+        return;
+      }
       await cancelJob.mutateAsync({ path: { key: sessionKey }, body: req });
     },
     [sessionKey, cancelJob],
@@ -1560,7 +1648,7 @@ export function App() {
    * hands the path to the composer, which splices it in as an `@` mention.
    */
   const handlePickFile = useCallback((path: string): void => {
-    setInsertedFile(current => ({ path, id: (current?.id ?? 0) + 1 }));
+    setInsertedFile((current) => ({ path, id: (current?.id ?? 0) + 1 }));
   }, []);
 
   /**
@@ -1577,18 +1665,18 @@ export function App() {
     attachments: Attachment[] | undefined,
     onFailure?: () => void,
   ): void => {
-    if (!sessionKey) return;
-    if (
-      settings.notifyOnYield &&
-      typeof Notification !== "undefined" &&
-      Notification.permission === "default"
-    ) {
+    if (!sessionKey) {
+      return;
+    }
+    if (settings.notifyOnYield && typeof Notification !== "undefined" && Notification.permission === "default") {
       void Notification.requestPermission();
     }
-    if (live.status !== "open") live.reconnect();
+    if (live.status !== "open") {
+      live.reconnect();
+    }
     const isSlash = message.trim().startsWith("/");
     if (!isSlash) {
-      setPendingUser(current => [...current, message]);
+      setPendingUser((current) => [...current, message]);
     }
     // Identifies this send across every retry the outbox makes, so a message
     // parked with no network is delivered exactly once however many times it
@@ -1600,11 +1688,13 @@ export function App() {
         // Pull the persisted copy in immediately rather than waiting for the
         // turn to settle.
         onSuccess: refresh,
-        onError: error => {
+        onError: (error) => {
           if (!isSlash) {
-            setPendingUser(current => {
+            setPendingUser((current) => {
               const at = current.indexOf(message);
-              if (at < 0) return current;
+              if (at < 0) {
+                return current;
+              }
               return [...current.slice(0, at), ...current.slice(at + 1)];
             });
           }
@@ -1670,7 +1760,9 @@ export function App() {
         : undefined;
 
       const lines = [`[Action: ${action.name} on surface "${surfaceId}"]`];
-      if (userMsg) lines.push(userMsg);
+      if (userMsg) {
+        lines.push(userMsg);
+      }
       if (Object.keys(context).length > 0) {
         lines.push(`Context: ${JSON.stringify(context)}`);
       }
@@ -1683,13 +1775,17 @@ export function App() {
   );
 
   const handlePlanAction = (action: PlanAction, feedback: string, tier: string | undefined): void => {
-    if (!sessionKey) return;
+    if (!sessionKey) {
+      return;
+    }
     resolvePlan.mutate(
       { path: { key: sessionKey }, body: { action, feedback, tier } },
       {
-        onSuccess: result => {
+        onSuccess: (result) => {
           notifications.show({ color: "cyan", title: "Plan", message: result.detail ?? "Done." });
-          if (action !== "refine") closePlan();
+          if (action !== "refine") {
+            closePlan();
+          }
           // `execute` runs the approved plan in a fresh session; follow it.
           if (result.sessionKey) {
             navigateTo({ project: state.data?.cwd ?? project, session: result.sessionKey });
@@ -1708,8 +1804,10 @@ export function App() {
       busy={resolvePlan.isPending}
       compact={narrow}
       onAction={handlePlanAction}
-      onSave={content => {
-        if (!sessionKey) return;
+      onSave={(content) => {
+        if (!sessionKey) {
+          return;
+        }
         editPlan.mutate({ path: { key: sessionKey }, body: { content } }, { onError: fail });
       }}
     />
@@ -1762,9 +1860,7 @@ export function App() {
                 >
                   <IconFolder size={13} style={{ flexShrink: 0, marginRight: 4 }} />
                   <Text size="xs" c="dimmed" truncate style={HEADER_UNDERLINE}>
-                    {state.data?.cwd
-                      ? getBasename(state.data.cwd)
-                      : getBasename(project) || "choose a workspace"}
+                    {state.data?.cwd ? getBasename(state.data.cwd) : getBasename(project) || "choose a workspace"}
                   </Text>
                 </UnstyledButton>
               </Tooltip>
@@ -1848,11 +1944,7 @@ export function App() {
                   return (
                     <Tooltip
                       label={
-                        treeOpen
-                          ? "Hide files"
-                          : diffCount > 0
-                            ? `Show files (${diffCount} changed)`
-                            : "Show files"
+                        treeOpen ? "Hide files" : diffCount > 0 ? `Show files (${diffCount} changed)` : "Show files"
                       }
                     >
                       <Indicator
@@ -1901,9 +1993,9 @@ export function App() {
               </Tooltip>
             ) : null}
             {(() => {
-              const all = (state.data?.todos ?? []).flatMap(phase => phase.tasks);
+              const all = (state.data?.todos ?? []).flatMap((phase) => phase.tasks);
               const total = all.length;
-              const done = all.filter(task => task.status === "completed").length;
+              const done = all.filter((task) => task.status === "completed").length;
               return (
                 <Tooltip label={todoOpen ? "Hide tasks" : "Show tasks"}>
                   <Indicator
@@ -1951,7 +2043,7 @@ export function App() {
             gitStatus={gitStatus.data}
             projectKey={project ?? sessionKey ?? ""}
             workspaceName={getBasename(state.data?.cwd)}
-            onOpenFile={path => setViewingFile(path)}
+            onOpenFile={(path) => setViewingFile(path)}
             onInsertRef={handlePickFile}
             onClose={closeTree}
             onRefresh={() => {
@@ -1979,7 +2071,7 @@ export function App() {
           gitStatus={gitStatus.data}
           projectKey={project ?? sessionKey ?? ""}
           workspaceName={getBasename(state.data?.cwd)}
-          onOpenFile={path => setViewingFile(path)}
+          onOpenFile={(path) => setViewingFile(path)}
           onInsertRef={handlePickFile}
           onClose={closeTree}
           onRefresh={() => {
@@ -2006,7 +2098,7 @@ export function App() {
           cwd={state.data?.cwd}
           gitStatus={viewingFile && gitStatus.data?.files ? gitStatus.data.files[viewingFile] : undefined}
           onInsertRef={handlePickFile}
-          onAnnotate={selection => annotations.add({ kind: "file", ...selection })}
+          onAnnotate={(selection) => annotations.add({ kind: "file", ...selection })}
           onClose={() => setViewingFile(null)}
         />
       </ResizableDrawer>
@@ -2070,7 +2162,7 @@ export function App() {
               forcedTool={toolsQuery.data?.forcedTool}
               onClearForcedTool={handleClearForceTool}
               insertedFile={insertedFile}
-              compact={true}
+              compact
               enterSubmits={settings.enterSubmits}
             />
           </Box>
@@ -2159,7 +2251,7 @@ export function App() {
         padding="md"
       >
         <Stack gap="lg">
-          {live.surfaces.map(surface => (
+          {live.surfaces.map((surface) => (
             <Box key={surface.surfaceId}>
               <Group justify="space-between" align="center" mb={6} wrap="nowrap">
                 <Text size="xs" fw={700} c="dimmed" tt="uppercase">
@@ -2170,34 +2262,26 @@ export function App() {
                       telemetry dashboards are not a conversation. */}
                   {isAgentSurface(surface.surfaceId) ? (
                     <>
-                      <Tooltip
-                        label={penSurface === surface.surfaceId ? "Put the marker down" : "Draw on surface"}
-                      >
+                      <Tooltip label={penSurface === surface.surfaceId ? "Put the marker down" : "Draw on surface"}>
                         <ActionIcon
                           size="xs"
                           variant={penSurface === surface.surfaceId ? "light" : "subtle"}
                           color="red"
                           onClick={() =>
-                            setPenSurface(current =>
-                              current === surface.surfaceId ? null : surface.surfaceId,
-                            )
+                            setPenSurface((current) => (current === surface.surfaceId ? null : surface.surfaceId))
                           }
                           aria-label={`Draw on ${surface.surfaceId}`}
                         >
                           <IconPencil size={13} />
                         </ActionIcon>
                       </Tooltip>
-                      <Tooltip
-                        label={noteSurface === surface.surfaceId ? "Cancel sticky note" : "Add sticky note"}
-                      >
+                      <Tooltip label={noteSurface === surface.surfaceId ? "Cancel sticky note" : "Add sticky note"}>
                         <ActionIcon
                           size="xs"
                           variant={noteSurface === surface.surfaceId ? "light" : "subtle"}
                           color="yellow"
                           onClick={() =>
-                            setNoteSurface(current =>
-                              current === surface.surfaceId ? null : surface.surfaceId,
-                            )
+                            setNoteSurface((current) => (current === surface.surfaceId ? null : surface.surfaceId))
                           }
                           aria-label={`Add a sticky note to ${surface.surfaceId}`}
                         >
@@ -2252,11 +2336,7 @@ export function App() {
                 editingNoteId={editingNoteId}
                 onEditingDone={() => setEditingNoteId(null)}
               >
-                <A2UIRenderer
-                  surface={surface}
-                  onAction={handleSurfaceAction}
-                  onUpdateData={live.updateSurfaceData}
-                />
+                <A2UIRenderer surface={surface} onAction={handleSurfaceAction} onUpdateData={live.updateSurfaceData} />
               </SurfaceAnnotationLayer>
             </Box>
           ))}
@@ -2277,7 +2357,7 @@ export function App() {
           subagents={live.subagents.length > 0 ? live.subagents : (state.data?.subagents ?? [])}
           onClose={closeSubagents}
           onDispatchAgent={handleDispatchAgent}
-          onCancelSubagent={id => handleCancelJob({ id })}
+          onCancelSubagent={(id) => handleCancelJob({ id })}
           onShowAgentsHub={() => handleSend("/agents", undefined, undefined)}
         />
       </ResizableDrawer>
@@ -2437,7 +2517,7 @@ export function App() {
           onEdit={annotations.update}
           onDelete={annotations.remove}
           onClear={annotations.clear}
-          onOpenFile={path => setViewingFile(path)}
+          onOpenFile={(path) => setViewingFile(path)}
           onClose={closeAnnotations}
         />
       </ResizableDrawer>
@@ -2472,7 +2552,7 @@ export function App() {
               onOpenSubagents={openSubagents}
               hasOlder={transcript.data?.hasMore === true}
               loadingOlder={transcript.isFetching}
-              onLoadOlder={() => setTranscriptLimit(current => current + TRANSCRIPT_PAGE)}
+              onLoadOlder={() => setTranscriptLimit((current) => current + TRANSCRIPT_PAGE)}
               onReload={handleReload}
             >
               <Composer
@@ -2565,7 +2645,7 @@ export function App() {
         state={state.data}
         branchPoints={branchPoints.data ?? []}
         onSelectModel={handleSelectModel}
-        onSelectProject={cwd => navigateTo({ project: cwd, session: sessionKey })}
+        onSelectProject={(cwd) => navigateTo({ project: cwd, session: sessionKey })}
         onOpenSession={handleOpen}
         onNewSession={handleNew}
         onAddWorkspace={handleAddWorkspace}
@@ -2595,15 +2675,15 @@ export function App() {
         onShowStats={() => handleSend("/stats", undefined, undefined)}
         onShowContext={() => handleSend("/context", undefined, undefined)}
         onShowWorktrees={() => handleSend("/worktrees", undefined, undefined)}
-        onCreateWorktree={arg => handleSend(arg ? `/wt ${arg}` : "/wt", undefined, undefined)}
+        onCreateWorktree={(arg) => handleSend(arg ? `/wt ${arg}` : "/wt", undefined, undefined)}
         onShowGc={() => handleSend("/gc", undefined, undefined)}
-        onShowChangelog={full => handleSend(full ? "/changelog full" : "/changelog", undefined, undefined)}
+        onShowChangelog={(full) => handleSend(full ? "/changelog full" : "/changelog", undefined, undefined)}
         onShowSessionInfo={() => handleSend("/session", undefined, undefined)}
         onOpenSubagents={openSubagents}
         onShowAgents={() => handleSend("/agents", undefined, undefined)}
         onTogglePlanMode={handleSetPlanMode}
         onFork={handleFork}
-        onBranch={point => handleBranch(point.entryId)}
+        onBranch={(point) => handleBranch(point.entryId)}
         onStopSession={handleStopSession}
         onDeleteSession={handleDeleteSession}
         onRefreshWorkspaces={() => void workspaces.refetch()}

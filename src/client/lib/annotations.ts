@@ -1,3 +1,4 @@
+import { useCallback } from "react";
 /**
  * User annotations: remarks pinned to a file selection or to an agent surface,
  * held in the browser until the next message carries them to the agent.
@@ -15,8 +16,6 @@
  * rebuilds one outright — and pixel offsets would drift off their target.
  */
 import { useLocalStorage } from "@mantine/hooks";
-import { useCallback } from "react";
-
 import { newSendId } from "./outbox.ts";
 
 /** A remark against a selection in the file viewer. */
@@ -96,9 +95,11 @@ export interface AnnotationStore {
 }
 
 function isAnnotationList(value: unknown): value is Annotation[] {
-  if (!Array.isArray(value)) return false;
+  if (!Array.isArray(value)) {
+    return false;
+  }
   return value.every(
-    entry =>
+    (entry) =>
       typeof entry === "object" &&
       entry !== null &&
       typeof (entry as Annotation).id === "string" &&
@@ -113,8 +114,10 @@ export function useAnnotations(sessionKey: string | undefined): AnnotationStore 
     // Read on the first render: the composer's count is part of the first
     // paint, and a deferred read would flash a session's annotations away.
     getInitialValueInEffect: false,
-    deserialize: raw => {
-      if (raw === undefined) return [];
+    deserialize: (raw) => {
+      if (raw === undefined) {
+        return [];
+      }
       try {
         const parsed: unknown = JSON.parse(raw);
         return isAnnotationList(parsed) ? parsed : [];
@@ -128,7 +131,7 @@ export function useAnnotations(sessionKey: string | undefined): AnnotationStore 
     (annotation: NewAnnotation): string => {
       const id = newSendId();
       const stamped = { ...annotation, id, createdAt: new Date().toISOString() } as Annotation;
-      setAnnotations(current => [...current, stamped]);
+      setAnnotations((current) => [...current, stamped]);
       return id;
     },
     [setAnnotations],
@@ -136,15 +139,15 @@ export function useAnnotations(sessionKey: string | undefined): AnnotationStore 
 
   const update = useCallback(
     (id: string, note: string): void => {
-      setAnnotations(current => current.map(entry => (entry.id === id ? { ...entry, note } : entry)));
+      setAnnotations((current) => current.map((entry) => (entry.id === id ? { ...entry, note } : entry)));
     },
     [setAnnotations],
   );
 
   const move = useCallback(
     (id: string, x: number, y: number): void => {
-      setAnnotations(current =>
-        current.map(entry => (entry.id === id && entry.kind === "note" ? { ...entry, x, y } : entry)),
+      setAnnotations((current) =>
+        current.map((entry) => (entry.id === id && entry.kind === "note" ? { ...entry, x, y } : entry)),
       );
     },
     [setAnnotations],
@@ -152,7 +155,7 @@ export function useAnnotations(sessionKey: string | undefined): AnnotationStore 
 
   const remove = useCallback(
     (id: string): void => {
-      setAnnotations(current => current.filter(entry => entry.id !== id));
+      setAnnotations((current) => current.filter((entry) => entry.id !== id));
     },
     [setAnnotations],
   );
@@ -178,9 +181,11 @@ function escapeXmlAttr(str: string): string {
  * without ambiguous delimiter collisions or manual parsing ambiguity.
  */
 export function formatAnnotations(annotations: Annotation[]): string {
-  if (annotations.length === 0) return "";
+  if (annotations.length === 0) {
+    return "";
+  }
 
-  const items = annotations.map(annotation => {
+  const items = annotations.map((annotation) => {
     const noteText = annotation.note.trim();
     const noteTag = noteText ? `    <note>${noteText}</note>` : "    <note />";
 
@@ -192,12 +197,12 @@ export function formatAnnotations(annotations: Annotation[]): string {
       }
       if (annotation.view === "diff" && annotation.fileLine !== undefined) {
         attrs.push(`file_line="${annotation.fileLine}"`);
-        if (annotation.side) attrs.push(`side="${annotation.side}"`);
+        if (annotation.side) {
+          attrs.push(`side="${annotation.side}"`);
+        }
       }
 
-      const excerptTag = annotation.excerpt
-        ? `    <excerpt>\n${annotation.excerpt.trim()}\n    </excerpt>`
-        : "";
+      const excerptTag = annotation.excerpt ? `    <excerpt>\n${annotation.excerpt.trim()}\n    </excerpt>` : "";
 
       return [`  <file_annotation ${attrs.join(" ")}>`, excerptTag, noteTag, "  </file_annotation>"]
         .filter(Boolean)

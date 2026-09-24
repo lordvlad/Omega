@@ -21,8 +21,12 @@ export interface RateLimitInfo {
 /** Format milliseconds remaining into a concise relative string (e.g. "in 45s", "in 1m 30s"). */
 export function formatRelativeTime(msUntilReset: number): string {
   const totalSec = Math.ceil(msUntilReset / 1000);
-  if (totalSec <= 0) return "now";
-  if (totalSec < 60) return `in ${totalSec}s`;
+  if (totalSec <= 0) {
+    return "now";
+  }
+  if (totalSec < 60) {
+    return `in ${totalSec}s`;
+  }
   const mins = Math.floor(totalSec / 60);
   const secs = totalSec % 60;
   if (mins < 60) {
@@ -46,7 +50,9 @@ export function formatAbsoluteTime(timestamp: number): string {
     target.getMonth() === now.getMonth() &&
     target.getDate() === now.getDate();
 
-  if (isSameDay) return timeStr;
+  if (isSameDay) {
+    return timeStr;
+  }
   return `${target.getFullYear()}-${pad(target.getMonth() + 1)}-${pad(target.getDate())} ${timeStr}`;
 }
 
@@ -63,7 +69,9 @@ export function formatRateLimitUniformMessage(resetsAt: number, now = Date.now()
  * extracting the reset duration or timestamp when available.
  */
 export function parseRateLimit(errorInput: unknown, now = Date.now()): RateLimitInfo | null {
-  if (!errorInput) return null;
+  if (!errorInput) {
+    return null;
+  }
 
   const errorText =
     typeof errorInput === "string"
@@ -72,7 +80,9 @@ export function parseRateLimit(errorInput: unknown, now = Date.now()): RateLimit
         ? String((errorInput as { message?: unknown }).message)
         : String(errorInput);
 
-  if (!errorText || errorText === "undefined" || errorText === "null") return null;
+  if (!errorText || errorText === "undefined" || errorText === "null") {
+    return null;
+  }
 
   // Broad rate limit indicator regex covering Anthropic, OpenAI, Gemini, Groq, DeepSeek, etc.
   const isRateLimit =
@@ -80,7 +90,9 @@ export function parseRateLimit(errorInput: unknown, now = Date.now()): RateLimit
       errorText,
     );
 
-  if (!isRateLimit) return null;
+  if (!isRateLimit) {
+    return null;
+  }
 
   let durationMs = 0;
   let resetsAt = 0;
@@ -102,7 +114,9 @@ export function parseRateLimit(errorInput: unknown, now = Date.now()): RateLimit
     const epochMatch = errorText.match(/resets?\s+(?:at|epoch)\s+(\d{10,13})/i);
     if (epochMatch) {
       let val = Number(epochMatch[1]);
-      if (val < 1e11) val *= 1000;
+      if (val < 1e11) {
+        val *= 1000;
+      }
       if (val > now) {
         resetsAt = val;
         durationMs = Math.max(0, resetsAt - now);

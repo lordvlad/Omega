@@ -1,3 +1,5 @@
+import { useState } from "react";
+import { IconDeviceFloppy, IconHighlight, IconPencil, IconTrash, IconX } from "@tabler/icons-react";
 /**
  * The annotations panel: everything marked up but not yet sent.
  *
@@ -22,9 +24,6 @@ import {
   Tooltip,
   UnstyledButton,
 } from "@mantine/core";
-import { IconDeviceFloppy, IconHighlight, IconPencil, IconTrash, IconX } from "@tabler/icons-react";
-import { useState } from "react";
-
 import type { Annotation } from "../lib/annotations.ts";
 
 export interface AnnotationsPanelProps {
@@ -92,11 +91,7 @@ function AnnotationRow({
           {onOpenFile ? (
             <Tooltip label="Open in the file viewer" position="top-start">
               <UnstyledButton onClick={() => onOpenFile(annotation.path)}>
-                <Text
-                  size="xs"
-                  c="dimmed"
-                  style={{ ...MONO, textDecoration: "underline", textUnderlineOffset: "3px" }}
-                >
+                <Text size="xs" c="dimmed" style={{ ...MONO, textDecoration: "underline", textUnderlineOffset: "3px" }}>
                   {annotation.path}
                 </Text>
               </UnstyledButton>
@@ -123,8 +118,8 @@ function AnnotationRow({
     const on = annotation.target ? ` on ${annotation.target}` : "";
     return (
       <Text size="xs" c="dimmed" style={MONO}>
-        surface {annotation.surfaceId} · note at {Math.round(annotation.x * 100)}%,{" "}
-        {Math.round(annotation.y * 100)}%{on}
+        surface {annotation.surfaceId} · note at {Math.round(annotation.x * 100)}%, {Math.round(annotation.y * 100)}%
+        {on}
       </Text>
     );
   };
@@ -141,13 +136,7 @@ function AnnotationRow({
             {editing ? (
               <>
                 <Tooltip label="Save">
-                  <ActionIcon
-                    size="sm"
-                    variant="subtle"
-                    color="cyan"
-                    onClick={save}
-                    aria-label="Save annotation"
-                  >
+                  <ActionIcon size="sm" variant="subtle" color="cyan" onClick={save} aria-label="Save annotation">
                     <IconDeviceFloppy size={15} />
                   </ActionIcon>
                 </Tooltip>
@@ -205,8 +194,8 @@ function AnnotationRow({
             maxRows={10}
             size="xs"
             value={draft}
-            onChange={event => setDraft(event.currentTarget.value)}
-            onKeyDown={event => {
+            onChange={(event) => setDraft(event.currentTarget.value)}
+            onKeyDown={(event) => {
               // Same contract as the composer: Ctrl/⌘+Enter commits, Enter is
               // a newline, Escape abandons the edit.
               if (event.key === "Escape") {
@@ -214,8 +203,12 @@ function AnnotationRow({
                 setDraft(undefined);
                 return;
               }
-              if (event.key !== "Enter" || event.nativeEvent.isComposing) return;
-              if (!event.ctrlKey && !event.metaKey) return;
+              if (event.key !== "Enter" || event.nativeEvent.isComposing) {
+                return;
+              }
+              if (!event.ctrlKey && !event.metaKey) {
+                return;
+              }
               event.preventDefault();
               save();
             }}
@@ -285,14 +278,14 @@ export function AnnotationsPanel({
             No annotations yet.
           </Text>
           <Text size="xs" c="dimmed" ta="center">
-            Select text in the file viewer, or use the pen and sticky-note tools on a surface the agent drew.
-            Whatever is here rides along with your next message.
+            Select text in the file viewer, or use the pen and sticky-note tools on a surface the agent drew. Whatever
+            is here rides along with your next message.
           </Text>
         </Stack>
       ) : (
         <ScrollArea style={{ flex: 1 }} type="auto">
           <Stack gap="xs" p="md">
-            {annotations.map(annotation => (
+            {annotations.map((annotation) => (
               <AnnotationRow
                 key={annotation.id}
                 annotation={annotation}

@@ -1,3 +1,16 @@
+import React, { useState } from "react";
+import {
+  IconAlertTriangle,
+  IconCheck,
+  IconClock,
+  IconLayout2,
+  IconPlayerStopFilled,
+  IconPlus,
+  IconRobot,
+  IconSearch,
+  IconSend,
+  IconX,
+} from "@tabler/icons-react";
 /**
  * The sub-agents panel: lists active and settled sub-agents spawned during the session,
  * and provides interactive dispatch controls, filtering, status tracking, and Agents Hub access.
@@ -20,20 +33,6 @@ import {
   Tooltip,
 } from "@mantine/core";
 import { notifications } from "@mantine/notifications";
-import {
-  IconAlertTriangle,
-  IconCheck,
-  IconClock,
-  IconLayout2,
-  IconPlayerStopFilled,
-  IconPlus,
-  IconRobot,
-  IconSearch,
-  IconSend,
-  IconX,
-} from "@tabler/icons-react";
-import React, { useState } from "react";
-
 import type { SubagentStatus, SubagentTask } from "../api/model.ts";
 
 export interface SubagentPanelProps {
@@ -81,7 +80,9 @@ function statusBadge(status: SubagentStatus): { label: string; color: string; pu
 function formatDuration(startedAt: number, completedAt?: number): string {
   const end = completedAt ?? Date.now();
   const diffSec = Math.max(0, Math.round((end - startedAt) / 1000));
-  if (diffSec < 60) return `${diffSec}s`;
+  if (diffSec < 60) {
+    return `${diffSec}s`;
+  }
   const min = Math.floor(diffSec / 60);
   const sec = diffSec % 60;
   return `${min}m ${sec}s`;
@@ -94,7 +95,7 @@ export function SubagentPanel({
   onCancelSubagent,
   onShowAgentsHub,
 }: SubagentPanelProps): React.ReactNode {
-  const runningCount = subagents.filter(s => s.status === "running").length;
+  const runningCount = subagents.filter((s) => s.status === "running").length;
 
   const [showDispatch, setShowDispatch] = useState(false);
   const [selectedRole, setSelectedRole] = useState("scout");
@@ -106,7 +107,9 @@ export function SubagentPanel({
   const handleDispatchSubmit = async (e?: React.SyntheticEvent): Promise<void> => {
     e?.preventDefault();
     const task = taskPrompt.trim();
-    if (!task || !onDispatchAgent) return;
+    if (!task || !onDispatchAgent) {
+      return;
+    }
     setDispatching(true);
     try {
       await onDispatchAgent(selectedRole, task, taskContext.trim() || undefined);
@@ -129,8 +132,10 @@ export function SubagentPanel({
     }
   };
 
-  const filteredSubagents = subagents.filter(s => {
-    if (!filterQuery.trim()) return true;
+  const filteredSubagents = subagents.filter((s) => {
+    if (!filterQuery.trim()) {
+      return true;
+    }
     const q = filterQuery.toLowerCase();
     return (
       s.id.toLowerCase().includes(q) ||
@@ -192,7 +197,7 @@ export function SubagentPanel({
                 variant={showDispatch ? "subtle" : "light"}
                 color="plum"
                 leftSection={<IconPlus size={14} />}
-                onClick={() => setShowDispatch(prev => !prev)}
+                onClick={() => setShowDispatch((prev) => !prev)}
               >
                 {showDispatch ? "Cancel" : "Dispatch Agent"}
               </Button>
@@ -231,7 +236,7 @@ export function SubagentPanel({
                     label="Task / Goal"
                     placeholder="e.g. Map all exports in src/server/router.ts and find callers"
                     value={taskPrompt}
-                    onChange={e => setTaskPrompt(e.currentTarget.value)}
+                    onChange={(e) => setTaskPrompt(e.currentTarget.value)}
                     required
                     autoFocus
                   />
@@ -241,7 +246,7 @@ export function SubagentPanel({
                     label="Context / Constraints (optional)"
                     placeholder="e.g. Skip formatters and linters. Focus on API boundaries."
                     value={taskContext}
-                    onChange={e => setTaskContext(e.currentTarget.value)}
+                    onChange={(e) => setTaskContext(e.currentTarget.value)}
                     rows={2}
                   />
 
@@ -268,15 +273,10 @@ export function SubagentPanel({
               placeholder="Filter subagents by id, role, or task..."
               leftSection={<IconSearch size={14} />}
               value={filterQuery}
-              onChange={e => setFilterQuery(e.currentTarget.value)}
+              onChange={(e) => setFilterQuery(e.currentTarget.value)}
               rightSection={
                 filterQuery ? (
-                  <ActionIcon
-                    size="xs"
-                    variant="subtle"
-                    onClick={() => setFilterQuery("")}
-                    aria-label="Clear filter"
-                  >
+                  <ActionIcon size="xs" variant="subtle" onClick={() => setFilterQuery("")} aria-label="Clear filter">
                     <IconX size={12} />
                   </ActionIcon>
                 ) : null
@@ -304,7 +304,7 @@ export function SubagentPanel({
             </Stack>
           ) : (
             <Stack gap="sm">
-              {filteredSubagents.map(task => {
+              {filteredSubagents.map((task) => {
                 const badge = statusBadge(task.status);
                 const color = agentColor(task.agent);
                 const duration = formatDuration(task.startedAt, task.completedAt);

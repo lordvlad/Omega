@@ -33,7 +33,9 @@ type RecognitionConstructor = new () => RecognitionLike;
 
 /** Resolve the constructor, whichever prefix this browser uses. */
 function recognitionConstructor(): RecognitionConstructor | undefined {
-  if (typeof window === "undefined") return undefined;
+  if (typeof window === "undefined") {
+    return undefined;
+  }
   const scope = window as unknown as {
     SpeechRecognition?: RecognitionConstructor;
     webkitSpeechRecognition?: RecognitionConstructor;
@@ -90,18 +92,23 @@ export function useDictation(onCommit: (text: string) => void): Dictation {
     instance.continuous = true;
     instance.interimResults = true;
 
-    instance.onresult = event => {
+    instance.onresult = (event) => {
       let pending = "";
       for (let index = event.resultIndex; index < event.results.length; index++) {
         const result = event.results[index];
-        if (!result) continue;
+        if (!result) {
+          continue;
+        }
         const text = result[0]?.transcript ?? "";
-        if (result.isFinal) commit.current(text.trim());
-        else pending += text;
+        if (result.isFinal) {
+          commit.current(text.trim());
+        } else {
+          pending += text;
+        }
       }
       setInterim(pending.trim());
     };
-    instance.onerror = event => {
+    instance.onerror = (event) => {
       setError(
         event.error === "not-allowed"
           ? "Microphone permission denied."

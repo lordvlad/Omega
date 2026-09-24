@@ -8,7 +8,6 @@
  * render one collapsible block per tool invocation.
  */
 import type { AgentMessage } from "@oh-my-pi/pi-agent-core";
-
 import type { MessagePart, TranscriptMessage, TranscriptQuery } from "../shared/model.ts";
 import { toolResultText } from "./agui.ts";
 
@@ -30,8 +29,7 @@ export function flattenMessages(messages: readonly AgentMessage[], entryIds?: En
   const awaiting = new Map<string, MessagePart>();
 
   for (const [index, message] of messages.entries()) {
-    const timestamp =
-      typeof message.timestamp === "number" ? new Date(message.timestamp).toISOString() : undefined;
+    const timestamp = typeof message.timestamp === "number" ? new Date(message.timestamp).toISOString() : undefined;
 
     if (message.role === "toolResult") {
       const pending = awaiting.get(message.toolCallId);
@@ -65,12 +63,16 @@ export function flattenMessages(messages: readonly AgentMessage[], entryIds?: En
       const text =
         typeof message.content === "string"
           ? message.content
-          : message.content.map(part => (part.type === "text" ? part.text : `[${part.type}]`)).join("\n");
+          : message.content.map((part) => (part.type === "text" ? part.text : `[${part.type}]`)).join("\n");
       // Steering wrappers and synthetic directives are machinery, not
       // conversation; the plan-approved prompt would otherwise appear as a
       // user message nobody typed.
-      if ("synthetic" in message && message.synthetic) continue;
-      if (!text.trim()) continue;
+      if ("synthetic" in message && message.synthetic) {
+        continue;
+      }
+      if (!text.trim()) {
+        continue;
+      }
       out.push({
         id: `user-${index}`,
         role: "user",
@@ -85,7 +87,9 @@ export function flattenMessages(messages: readonly AgentMessage[], entryIds?: En
 
     if (message.role !== "assistant") {
       // Internal metadata messages without display: true should not render in chat
-      if ("display" in message && message.display === false) continue;
+      if ("display" in message && message.display === false) {
+        continue;
+      }
       const text = "content" in message && typeof message.content === "string" ? message.content : "";
       if (text.trim()) {
         out.push({ id: `custom-${index}`, role: "custom", timestamp, parts: [{ kind: "text", text }] });
@@ -97,7 +101,9 @@ export function flattenMessages(messages: readonly AgentMessage[], entryIds?: En
     for (const block of message.content) {
       switch (block.type) {
         case "text":
-          if (block.text.trim()) parts.push({ kind: "text", text: block.text });
+          if (block.text.trim()) {
+            parts.push({ kind: "text", text: block.text });
+          }
           break;
         case "thinking": {
           const thinkingText = block.thinking.trim();
@@ -138,7 +144,9 @@ export function flattenMessages(messages: readonly AgentMessage[], entryIds?: En
     // A failure is why the turn stopped, not a paragraph of it. Marking it as
     // its own kind lets the client render the same alert the live stream
     // shows, rather than bold text buried in the reply it never finished.
-    if (message.errorMessage) parts.push({ kind: "error", text: message.errorMessage });
+    if (message.errorMessage) {
+      parts.push({ kind: "error", text: message.errorMessage });
+    }
     if (parts.length > 0) {
       out.push({ id: `assistant-${index}`, role: "assistant", timestamp, parts });
     }
@@ -179,7 +187,9 @@ export function flattenSession(
 ): TranscriptMessage[] {
   const entryIds = new Map<AgentMessage, string>();
   for (const entry of entries) {
-    if (entry.type === "message" && entry.message) entryIds.set(entry.message, entry.id);
+    if (entry.type === "message" && entry.message) {
+      entryIds.set(entry.message, entry.id);
+    }
   }
 
   const out = flattenMessages(messages, entryIds);
@@ -190,10 +200,14 @@ export function flattenSession(
   const renderedAt = new Map<number, number>();
   for (const [position, rendered] of out.entries()) {
     const source = Number(rendered.id.slice(rendered.id.lastIndexOf("-") + 1));
-    if (Number.isInteger(source)) renderedAt.set(source, position);
+    if (Number.isInteger(source)) {
+      renderedAt.set(source, position);
+    }
   }
   const sourceOf = new Map<AgentMessage, number>();
-  for (const [index, message] of messages.entries()) sourceOf.set(message, index);
+  for (const [index, message] of messages.entries()) {
+    sourceOf.set(message, index);
+  }
 
   /** How many attempts each rendered failure stands for. */
   const repeats = new Map<string, number>();
@@ -201,18 +215,24 @@ export function flattenSession(
   let after = -1;
   for (const entry of entries) {
     const message = entry.type === "message" ? entry.message : undefined;
-    if (!message) continue;
+    if (!message) {
+      continue;
+    }
 
     const source = sourceOf.get(message);
     if (source !== undefined) {
       // A tool result folds into the call above it and renders nothing of its
       // own; anything that did render moves the insertion point along.
       const position = renderedAt.get(source);
-      if (position !== undefined) after = position + inserted;
+      if (position !== undefined) {
+        after = position + inserted;
+      }
       continue;
     }
 
-    if (message.role !== "assistant" || !message.errorMessage) continue;
+    if (message.role !== "assistant" || !message.errorMessage) {
+      continue;
+    }
 
     // omp retries a failing call before giving up, and each attempt is
     // recorded. Rendering one alert per attempt reads as several failed turns
@@ -230,8 +250,7 @@ export function flattenSession(
       continue;
     }
 
-    const timestamp =
-      typeof message.timestamp === "number" ? new Date(message.timestamp).toISOString() : undefined;
+    const timestamp = typeof message.timestamp === "number" ? new Date(message.timestamp).toISOString() : undefined;
     out.splice(after + 1, 0, {
       id: `failure-${entry.id}`,
       role: "assistant",
@@ -275,8 +294,12 @@ export interface TranscriptWindow {
 function project(message: TranscriptMessage, thinking: boolean, toolCalls: boolean): TranscriptMessage {
   const parts: MessagePart[] = [];
   for (const part of message.parts) {
-    if (part.kind === "thinking" && !thinking) continue;
-    if ((part.kind === "toolCall" || part.kind === "toolResult") && !toolCalls) continue;
+    if (part.kind === "thinking" && !thinking) {
+      continue;
+    }
+    if ((part.kind === "toolCall" || part.kind === "toolResult") && !toolCalls) {
+      continue;
+    }
     const previous = parts[parts.length - 1];
     if (part.kind === "thinking" && previous?.kind === "thinking") {
       previous.text = `${previous.text}\n\n${part.text}`;
@@ -305,8 +328,8 @@ export function pageTranscript(
   const limit = Math.max(1, Math.min(MAX_LIMIT, Math.trunc(requested) || DEFAULT_LIMIT));
 
   const visible = all
-    .map(message => project(message, thinking, toolCalls))
-    .filter(message => message.parts.length > 0);
+    .map((message) => project(message, thinking, toolCalls))
+    .filter((message) => message.parts.length > 0);
 
   const start = Math.max(0, visible.length - limit);
   return { messages: visible.slice(start), hasMore: start > 0 };

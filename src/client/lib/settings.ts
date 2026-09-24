@@ -42,13 +42,13 @@ export function useProjectSettings(
     // Spread over the defaults rather than trusting storage outright: a
     // setting added after this was written must not read as `undefined`
     // (falsy) forever for everyone who saved before it existed.
-    deserialize: raw => {
-      if (raw === undefined) return DEFAULT_PROJECT_SETTINGS;
+    deserialize: (raw) => {
+      if (raw === undefined) {
+        return DEFAULT_PROJECT_SETTINGS;
+      }
       try {
         const parsed: unknown = JSON.parse(raw);
-        return isProjectSettings(parsed)
-          ? { ...DEFAULT_PROJECT_SETTINGS, ...parsed }
-          : DEFAULT_PROJECT_SETTINGS;
+        return isProjectSettings(parsed) ? { ...DEFAULT_PROJECT_SETTINGS, ...parsed } : DEFAULT_PROJECT_SETTINGS;
       } catch {
         return DEFAULT_PROJECT_SETTINGS;
       }
@@ -56,7 +56,7 @@ export function useProjectSettings(
   });
 
   const toggle = (key: keyof ProjectSettings): void => {
-    setSettings(current => ({ ...current, [key]: !current[key] }));
+    setSettings((current) => ({ ...current, [key]: !current[key] }));
   };
 
   return [settings, toggle];

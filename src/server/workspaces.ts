@@ -9,9 +9,7 @@
  */
 import * as fs from "node:fs";
 import * as path from "node:path";
-
 import { SessionManager } from "@oh-my-pi/pi-coding-agent";
-
 import type { SessionStatus, SessionSummary, Workspace } from "../shared/model.ts";
 
 /** Longest session preview kept in a listing payload. */
@@ -75,7 +73,9 @@ async function countRange(file: string, from: number): Promise<{ count: number; 
         matched = 0;
         continue;
       }
-      if (!matching) continue;
+      if (!matching) {
+        continue;
+      }
       if (byte === MESSAGE_LINE[matched]) {
         matched += 1;
         if (matched === MESSAGE_LINE.length) {
@@ -94,7 +94,9 @@ async function countRange(file: string, from: number): Promise<{ count: number; 
 /** Messages in one session file, reusing or extending the cached count. */
 async function messageCount(file: string, size: number, mtimeMs: number, fallback: number): Promise<number> {
   const cached = counted.get(file);
-  if (cached && cached.size === size && cached.mtimeMs === mtimeMs) return cached.count;
+  if (cached && cached.size === size && cached.mtimeMs === mtimeMs) {
+    return cached.count;
+  }
 
   try {
     // Only an append can be resumed. A file that shrank or was rewritten in
@@ -127,14 +129,16 @@ export async function listWorkspaces(isLive: (sessionId: string) => boolean): Pr
   // are cache hits, and the first listing of a cold process is the one case
   // where there is real reading to overlap.
   const counts = await Promise.all(
-    sessions.map(info => messageCount(info.path, info.size, info.modified.getTime(), info.messageCount)),
+    sessions.map((info) => messageCount(info.path, info.size, info.modified.getTime(), info.messageCount)),
   );
 
   // A session deleted on disk must not keep its entry alive for the life of
   // the process.
-  const seen = new Set(sessions.map(info => info.path));
+  const seen = new Set(sessions.map((info) => info.path));
   for (const file of counted.keys()) {
-    if (!seen.has(file)) counted.delete(file);
+    if (!seen.has(file)) {
+      counted.delete(file);
+    }
   }
 
   for (const [index, info] of sessions.entries()) {
@@ -155,8 +159,11 @@ export async function listWorkspaces(isLive: (sessionId: string) => boolean): Pr
       live: isLive(info.id),
     };
     const bucket = groups.get(cwd);
-    if (bucket) bucket.push(summary);
-    else groups.set(cwd, [summary]);
+    if (bucket) {
+      bucket.push(summary);
+    } else {
+      groups.set(cwd, [summary]);
+    }
   }
 
   const workspaces: Workspace[] = [];

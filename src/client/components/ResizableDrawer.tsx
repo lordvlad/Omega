@@ -1,5 +1,5 @@
-import { Drawer, type DrawerProps } from "@mantine/core";
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Drawer, type DrawerProps } from "@mantine/core";
 
 export interface ResizableDrawerProps extends DrawerProps {
   /** Optional minimum size in pixels (default 280 for horizontal, 180 for vertical). */
@@ -39,7 +39,9 @@ export function ResizableDrawer({
         const saved = window.localStorage.getItem(`omega:drawer-size:${storageKey}`);
         if (saved) {
           const num = Number(saved);
-          if (!Number.isNaN(num) && num >= 150) return num;
+          if (!Number.isNaN(num) && num >= 150) {
+            return num;
+          }
         }
       } catch {}
     }
@@ -53,12 +55,13 @@ export function ResizableDrawer({
   const isVertical = position === "bottom" || position === "top";
   const effectiveMin = minSize ?? (isVertical ? 180 : 280);
   const effectiveMax =
-    maxSize ??
-    (typeof window !== "undefined" ? (isVertical ? window.innerHeight - 30 : window.innerWidth - 30) : 1600);
+    maxSize ?? (typeof window !== "undefined" ? (isVertical ? window.innerHeight - 30 : window.innerWidth - 30) : 1600);
 
   const handlePointerDown = useCallback(
     (e: React.PointerEvent<HTMLDivElement>) => {
-      if (!resizable) return;
+      if (!resizable) {
+        return;
+      }
       e.preventDefault();
       e.stopPropagation();
 
@@ -74,7 +77,9 @@ export function ResizableDrawer({
       document.body.style.cursor = startCursor;
 
       const onPointerMove = (moveEvent: PointerEvent) => {
-        if (!isDraggingRef.current) return;
+        if (!isDraggingRef.current) {
+          return;
+        }
 
         let calculated = 0;
         if (position === "right") {
@@ -199,14 +204,7 @@ export function ResizableDrawer({
   }, [position, isDragging, isHovered]);
 
   return (
-    <Drawer
-      opened={opened}
-      position={position}
-      size={activeSize}
-      className={className}
-      styles={styles}
-      {...rest}
-    >
+    <Drawer opened={opened} position={position} size={activeSize} className={className} styles={styles} {...rest}>
       {resizable && opened ? (
         <div
           style={handleStyle}

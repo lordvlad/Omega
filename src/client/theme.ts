@@ -79,8 +79,7 @@ export const theme = createTheme({
     accent: virtualColor({ name: "accent", dark: "cyan", light: "cyan" }),
   },
   defaultRadius: "md",
-  fontFamily:
-    "Inter, ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif",
+  fontFamily: "Inter, ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif",
   fontFamilyMonospace: "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', monospace",
   headings: { fontWeight: "650" },
   components: {

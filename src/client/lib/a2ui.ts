@@ -30,7 +30,9 @@ function unescapePointerToken(token: string): string {
  * A leading `/` is ignored. Empty pointer or `/` yields empty array (root).
  */
 function parsePointerSegments(pointer: string): string[] {
-  if (!pointer || pointer === "/") return [];
+  if (!pointer || pointer === "/") {
+    return [];
+  }
   const clean = pointer.startsWith("/") ? pointer.slice(1) : pointer;
   return clean.split("/").map(unescapePointerToken);
 }
@@ -42,14 +44,13 @@ function parsePointerSegments(pointer: string): string[] {
  * Otherwise, it is resolved against `scope` (current array item in a template).
  * The special identifier `@index` resolves to the current template item index.
  */
-export function resolvePointer(
-  root: unknown,
-  pointer: string | undefined,
-  scope?: unknown,
-  index?: number,
-): unknown {
-  if (pointer === undefined) return undefined;
-  if (pointer === "@index") return index;
+export function resolvePointer(root: unknown, pointer: string | undefined, scope?: unknown, index?: number): unknown {
+  if (pointer === undefined) {
+    return undefined;
+  }
+  if (pointer === "@index") {
+    return index;
+  }
 
   const isAbsolute = pointer.startsWith("/");
   const target = isAbsolute ? root : (scope ?? root);
@@ -57,10 +58,14 @@ export function resolvePointer(
 
   let current: unknown = target;
   for (const segment of segments) {
-    if (current == null) return undefined;
+    if (current == null) {
+      return undefined;
+    }
     if (Array.isArray(current)) {
       const idx = Number(segment);
-      if (!Number.isInteger(idx) || idx < 0 || idx >= current.length) return undefined;
+      if (!Number.isInteger(idx) || idx < 0 || idx >= current.length) {
+        return undefined;
+      }
       current = current[idx];
     } else if (typeof current === "object" && segment in (current as Record<string, unknown>)) {
       current = (current as Record<string, unknown>)[segment];
@@ -80,7 +85,9 @@ export function resolveDynamic<T>(
   scope?: unknown,
   index?: number,
 ): T | undefined {
-  if (dyn === undefined || dyn === null) return undefined;
+  if (dyn === undefined || dyn === null) {
+    return undefined;
+  }
   if (typeof dyn === "object" && "path" in dyn) {
     const binding = dyn as A2uiDataBinding;
     if (typeof binding.path === "string") {
@@ -97,14 +104,18 @@ export function resolveDynamic<T>(
 export function setPointer(root: Record<string, unknown>, pointer: string | undefined, value: unknown): void {
   if (!pointer || pointer === "/" || pointer === "") {
     if (typeof value === "object" && value !== null && !Array.isArray(value)) {
-      for (const k of Object.keys(root)) delete root[k];
+      for (const k of Object.keys(root)) {
+        delete root[k];
+      }
       Object.assign(root, value);
     }
     return;
   }
 
   const segments = parsePointerSegments(pointer);
-  if (segments.length === 0) return;
+  if (segments.length === 0) {
+    return;
+  }
 
   let current: Record<string, unknown> | unknown[] = root;
   for (let i = 0; i < segments.length - 1; i++) {
@@ -158,7 +169,9 @@ export function reduceA2uiMessage(
     const p = message.createSurface;
     const comps = new Map<string, A2uiComponent>();
     if (p.components) {
-      for (const c of p.components) comps.set(c.id, c);
+      for (const c of p.components) {
+        comps.set(c.id, c);
+      }
     }
     next.set(p.surfaceId, {
       surfaceId: p.surfaceId,
@@ -173,7 +186,9 @@ export function reduceA2uiMessage(
     const existing = next.get(p.surfaceId);
     if (existing) {
       const comps = new Map(existing.components);
-      for (const c of p.components) comps.set(c.id, c);
+      for (const c of p.components) {
+        comps.set(c.id, c);
+      }
       next.set(p.surfaceId, {
         ...existing,
         components: comps,
@@ -206,7 +221,9 @@ export function resolveActionContext(
   scope?: unknown,
   index?: number,
 ): Record<string, unknown> {
-  if (!context) return {};
+  if (!context) {
+    return {};
+  }
   const result: Record<string, unknown> = {};
   for (const [key, value] of Object.entries(context)) {
     result[key] = resolveDynamic(value as A2uiDynamic<unknown>, root, scope, index);

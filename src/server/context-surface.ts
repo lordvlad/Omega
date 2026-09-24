@@ -8,7 +8,6 @@
  * savings estimate.
  */
 import { computeSessionContextBreakdown } from "@oh-my-pi/pi-coding-agent/session/context-usage-runtime";
-
 import { CONTEXT_SURFACE_ID, type A2uiComponent } from "../shared/a2ui.ts";
 import type { LiveSession } from "./registry.ts";
 
@@ -49,8 +48,8 @@ export async function drawContextSurface(live: LiveSession): Promise<void> {
   const usedPct = Math.round((breakdown.usedTokens / breakdown.contextWindow) * 100);
 
   const categoryData = breakdown.categories
-    .filter(c => c.tokens > 0)
-    .map(c => ({ name: c.label, value: c.tokens, color: CATEGORY_COLORS[c.id] ?? "gray" }));
+    .filter((c: any) => c.tokens > 0)
+    .map((c: any) => ({ name: c.label, value: c.tokens, color: CATEGORY_COLORS[c.id] ?? "gray" }));
   if (breakdown.autoCompactBufferTokens > 0) {
     categoryData.push({
       name: "Auto-compact buffer",

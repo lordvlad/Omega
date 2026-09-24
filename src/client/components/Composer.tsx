@@ -1,3 +1,17 @@
+import { useCallback, useEffect, useRef, useState } from "react";
+import {
+  IconArrowUp,
+  IconBolt,
+  IconBrain,
+  IconClockPause,
+  IconHighlight,
+  IconMicrophone,
+  IconMicrophoneOff,
+  IconPaperclip,
+  IconPlayerStopFilled,
+  IconStack2,
+  IconX,
+} from "@tabler/icons-react";
 /**
  * The composer: message entry, prompt mode, dictation, and the stop control.
  *
@@ -24,21 +38,6 @@ import {
   UnstyledButton,
 } from "@mantine/core";
 import { useMergedRef, useResizeObserver } from "@mantine/hooks";
-import {
-  IconArrowUp,
-  IconBolt,
-  IconBrain,
-  IconClockPause,
-  IconHighlight,
-  IconMicrophone,
-  IconMicrophoneOff,
-  IconPaperclip,
-  IconPlayerStopFilled,
-  IconStack2,
-  IconX,
-} from "@tabler/icons-react";
-import { useCallback, useEffect, useRef, useState } from "react";
-
 import type { Attachment, LiveState } from "../api/model.ts";
 import { useQueuedSends } from "../lib/outbox.ts";
 import { useDictation } from "../lib/speech.ts";
@@ -63,8 +62,12 @@ interface Attached {
 }
 
 function formatSize(bytes: number): string {
-  if (bytes < 1024) return `${bytes} B`;
-  if (bytes < 1024 * 1024) return `${Math.round(bytes / 1024)} KB`;
+  if (bytes < 1024) {
+    return `${bytes} B`;
+  }
+  if (bytes < 1024 * 1024) {
+    return `${Math.round(bytes / 1024)} KB`;
+  }
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
@@ -97,11 +100,7 @@ export interface ComposerProps {
   planEnabled: boolean;
   /** True while the plan-mode round trip is in flight. */
   planPending?: boolean;
-  onSend: (
-    message: string,
-    deliverAs: "steer" | "followUp" | undefined,
-    attachments: Attachment[] | undefined,
-  ) => void;
+  onSend: (message: string, deliverAs: "steer" | "followUp" | undefined, attachments: Attachment[] | undefined) => void;
   onPlanMode: (enabled: boolean) => void;
   /** Open the model picker; the model is named here rather than in the header. */
   onChangeModel: () => void;
@@ -212,15 +211,19 @@ export function Composer({
   // input is the point of branching. Keyed on object identity so the same
   // text can be re-loaded by a later branch.
   useEffect(() => {
-    if (draft) setText(draft.text);
+    if (draft) {
+      setText(draft.text);
+    }
   }, [draft]);
 
   // Insert a file picked from the command palette.
   useEffect(() => {
-    if (!insertedFile) return;
+    if (!insertedFile) {
+      return;
+    }
     const file = insertedFile.path;
     const formatted = file.includes(" ") ? `@"${file}" ` : `@${file} `;
-    setText(current => {
+    setText((current) => {
       const atPos = atCursorRef.current;
       atCursorRef.current = undefined;
       if (atPos !== undefined && atPos > 0 && current[atPos - 1] === "@") {
@@ -243,14 +246,18 @@ export function Composer({
   }, [insertedFile]);
   // Stable dictation commit callback avoids re-binding speech recognition listeners.
   const onDictationCommit = useCallback((phrase: string) => {
-    if (!phrase) return;
-    setText(current => (current ? `${current} ${phrase}` : phrase));
+    if (!phrase) {
+      return;
+    }
+    setText((current) => (current ? `${current} ${phrase}` : phrase));
   }, []);
   const dictation = useDictation(onDictationCommit);
 
   /** Read the picked files into memory, refusing the ones too big to send. */
   const attach = async (picked: FileList | null): Promise<void> => {
-    if (!picked?.length) return;
+    if (!picked?.length) {
+      return;
+    }
     const accepted: Attached[] = [];
     const refused: string[] = [];
     for (const file of Array.from(picked)) {
@@ -266,28 +273,32 @@ export function Composer({
         : undefined,
     );
     // Same file picked twice is one attachment, not two.
-    setFiles(current => {
-      const seen = new Set(current.map(entry => entry.id));
-      return [...current, ...accepted.filter(entry => !seen.has(entry.id))];
+    setFiles((current) => {
+      const seen = new Set(current.map((entry) => entry.id));
+      return [...current, ...accepted.filter((entry) => !seen.has(entry.id))];
     });
   };
 
   const send = (): void => {
     const message = text.trim();
-    if (!message || !state) return;
+    if (!message || !state) {
+      return;
+    }
     // Offline is no longer a reason to refuse. The send is parked in the
     // outbox and delivered when the network returns, so clearing the input
     // does not lose the message — it hands it over.
     // Encoding is async, so the input is not cleared until the bytes are in
     // hand — a read that fails must not take the message with it either.
-    void Promise.all(files.map(entry => encode(entry.file)))
-      .then(attachments => {
+    void Promise.all(files.map((entry) => encode(entry.file)))
+      .then((attachments) => {
         onSend(message, running ? deliverAs : undefined, attachments.length > 0 ? attachments : undefined);
         setText("");
         setIsStacked(false);
         setFiles([]);
         setReadError(undefined);
-        if (dictation.listening) dictation.stop();
+        if (dictation.listening) {
+          dictation.stop();
+        }
       })
       .catch((error: unknown) => {
         setReadError(error instanceof Error ? error.message : "Could not read the attached files.");
@@ -305,12 +316,18 @@ export function Composer({
 
   const chooseMode = (next: PromptMode): void => {
     if (next === "plan") {
-      if (!planEnabled) onPlanMode(true);
+      if (!planEnabled) {
+        onPlanMode(true);
+      }
       return;
     }
     // Every other mode is the agent acting, so leaving plan mode is implied.
-    if (planEnabled) onPlanMode(false);
-    if (next === "steer" || next === "followUp") setDeliverAs(next);
+    if (planEnabled) {
+      onPlanMode(false);
+    }
+    if (next === "steer" || next === "followUp") {
+      setDeliverAs(next);
+    }
   };
 
   // Steer and queue only mean something against a turn in flight.
@@ -351,11 +368,7 @@ export function Composer({
     running && text.trim() ? (
       <>
         <Tooltip
-          label={
-            offline
-              ? "No network. This will be sent when it is back."
-              : `${MODE_HINT[mode]} Ctrl+Enter sends.`
-          }
+          label={offline ? "No network. This will be sent when it is back." : `${MODE_HINT[mode]} Ctrl+Enter sends.`}
           position="left"
         >
           <ActionIcon
@@ -444,11 +457,11 @@ export function Composer({
       <Stack gap={8} className="omega-measure">
         {files.length > 0 ? (
           <Group gap={6} wrap="wrap">
-            {files.map(entry => (
+            {files.map((entry) => (
               <Pill
                 key={entry.id}
                 withRemoveButton
-                onRemove={() => setFiles(current => current.filter(other => other.id !== entry.id))}
+                onRemove={() => setFiles((current) => current.filter((other) => other.id !== entry.id))}
                 size="md"
               >
                 {entry.file.name}
@@ -471,7 +484,7 @@ export function Composer({
             disabled={disabled}
             placeholder={disabled ? "Open a session to start" : "Message the agent…"}
             value={dictation.interim ? `${text} ${dictation.interim}`.trim() : text}
-            onChange={event => {
+            onChange={(event) => {
               const next = event.currentTarget.value;
               const cursorPos = event.currentTarget.selectionStart ?? next.length;
               if (onSlash && text === "" && next === "/") {
@@ -479,8 +492,7 @@ export function Composer({
                 return;
               }
               if (onAt) {
-                const isFirstChar =
-                  (text === "" && next === "@") || (cursorPos === 1 && next.startsWith("@"));
+                const isFirstChar = (text === "" && next === "@") || (cursorPos === 1 && next.startsWith("@"));
                 const isSpaceThenAt =
                   (cursorPos >= 2 && next[cursorPos - 1] === "@" && next[cursorPos - 2] === " ") ||
                   (text.endsWith(" ") && next === `${text}@`);
@@ -493,8 +505,10 @@ export function Composer({
               }
               setText(next);
             }}
-            onKeyDown={event => {
-              if (event.key !== "Enter" || event.nativeEvent.isComposing) return;
+            onKeyDown={(event) => {
+              if (event.key !== "Enter" || event.nativeEvent.isComposing) {
+                return;
+              }
               if (event.shiftKey) {
                 // Shift+Enter must always write newline
                 return;
@@ -519,7 +533,7 @@ export function Composer({
             type="file"
             multiple
             hidden
-            onChange={event => {
+            onChange={(event) => {
               void attach(event.currentTarget.files);
               event.currentTarget.value = "";
             }}
@@ -544,7 +558,7 @@ export function Composer({
                 size="xs"
                 radius="md"
                 value={mode}
-                onChange={value => chooseMode(value as PromptMode)}
+                onChange={(value) => chooseMode(value as PromptMode)}
                 disabled={disabled || planPending}
                 data={modes}
                 aria-label="Prompt mode"
@@ -558,11 +572,7 @@ export function Composer({
                   style={{ display: "inline-flex", alignItems: "center", gap: 4, cursor: "pointer" }}
                 >
                   <IconStack2 size={13} />
-                  <Text
-                    size="xs"
-                    c="dimmed"
-                    style={{ textDecoration: "underline", textUnderlineOffset: "3px" }}
-                  >
+                  <Text size="xs" c="dimmed" style={{ textDecoration: "underline", textUnderlineOffset: "3px" }}>
                     {queued} queued
                   </Text>
                 </UnstyledButton>
@@ -583,11 +593,7 @@ export function Composer({
                   style={{ display: "inline-flex", alignItems: "center", gap: 4, cursor: "pointer" }}
                 >
                   <IconHighlight size={13} />
-                  <Text
-                    size="xs"
-                    c="dimmed"
-                    style={{ textDecoration: "underline", textUnderlineOffset: "3px" }}
-                  >
+                  <Text size="xs" c="dimmed" style={{ textDecoration: "underline", textUnderlineOffset: "3px" }}>
                     {annotations} {annotations === 1 ? "annotation" : "annotations"}
                   </Text>
                 </UnstyledButton>
@@ -670,11 +676,7 @@ export function Composer({
                     aria-label="Change thinking level"
                     style={{ display: "inline-flex", alignItems: "center", cursor: "pointer" }}
                   >
-                    <Text
-                      size="xs"
-                      c="dimmed"
-                      style={{ textDecoration: "underline", textUnderlineOffset: "3px" }}
-                    >
+                    <Text size="xs" c="dimmed" style={{ textDecoration: "underline", textUnderlineOffset: "3px" }}>
                       {state.thinkingLevel ?? "off"}
                     </Text>
                   </UnstyledButton>

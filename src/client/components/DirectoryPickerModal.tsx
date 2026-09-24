@@ -1,3 +1,18 @@
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+  IconAlertTriangle,
+  IconChevronRight,
+  IconCornerLeftUp,
+  IconEdit,
+  IconEye,
+  IconEyeOff,
+  IconFolder,
+  IconFolderCheck,
+  IconGitBranch,
+  IconHome,
+  IconSearch,
+  IconX,
+} from "@tabler/icons-react";
 /**
  * Interactive Directory Picker Modal.
  *
@@ -23,24 +38,6 @@ import {
   Tooltip,
   UnstyledButton,
 } from "@mantine/core";
-import {
-  IconAlertTriangle,
-  IconArrowRight,
-  IconChevronRight,
-  IconCornerLeftUp,
-  IconEdit,
-  IconEye,
-  IconEyeOff,
-  IconFolder,
-  IconFolderCheck,
-  IconGitBranch,
-  IconHome,
-  IconRefresh,
-  IconSearch,
-  IconX,
-} from "@tabler/icons-react";
-import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
-
 import { useBrowseDirectory } from "../api/queries.ts";
 
 export interface DirectoryPickerModalProps {
@@ -52,7 +49,9 @@ export interface DirectoryPickerModalProps {
 
 /** Break an absolute path into breadcrumb segments (cross-platform for Windows and POSIX). */
 function pathSegments(fullPath: string): Array<{ name: string; path: string }> {
-  if (!fullPath) return [{ name: "/", path: "/" }];
+  if (!fullPath) {
+    return [{ name: "/", path: "/" }];
+  }
 
   const normalized = fullPath.replace(/\\/g, "/");
   const isWindows = /^[a-zA-Z]:/.test(normalized);
@@ -123,20 +122,23 @@ export function DirectoryPickerModal({
     if (data?.current && data.current !== currentPath) {
       setCurrentPath(data.current);
       setManualInput(data.current);
-      if (!selectedPath) setSelectedPath(data.current);
+      if (!selectedPath) {
+        setSelectedPath(data.current);
+      }
     }
   }, [data?.current, currentPath, selectedPath]);
 
-  const segments = useMemo(
-    () => pathSegments(data?.current || currentPath || "/"),
-    [data?.current, currentPath],
-  );
+  const segments = useMemo(() => pathSegments(data?.current || currentPath || "/"), [data?.current, currentPath]);
 
   const filteredEntries = useMemo(() => {
-    if (!data?.entries) return [];
-    if (!searchFilter.trim()) return data.entries;
+    if (!data?.entries) {
+      return [];
+    }
+    if (!searchFilter.trim()) {
+      return data.entries;
+    }
     const q = searchFilter.toLowerCase();
-    return data.entries.filter(e => e.name.toLowerCase().includes(q));
+    return data.entries.filter((e) => e.name.toLowerCase().includes(q));
   }, [data?.entries, searchFilter]);
 
   const handleNavigate = useCallback((targetPath: string) => {
@@ -232,14 +234,12 @@ export function DirectoryPickerModal({
                 </Tooltip>
               ) : null}
 
-              <Tooltip
-                label={showHidden ? "Hide hidden folders (dotfiles)" : "Show hidden folders (dotfiles)"}
-              >
+              <Tooltip label={showHidden ? "Hide hidden folders (dotfiles)" : "Show hidden folders (dotfiles)"}>
                 <ActionIcon
                   size="sm"
                   variant={showHidden ? "filled" : "light"}
                   color={showHidden ? "cyan" : "gray"}
-                  onClick={() => setShowHidden(v => !v)}
+                  onClick={() => setShowHidden((v) => !v)}
                   aria-label="Toggle hidden folders"
                 >
                   {showHidden ? <IconEye size={14} /> : <IconEyeOff size={14} />}
@@ -254,8 +254,10 @@ export function DirectoryPickerModal({
                 variant={manualMode ? "filled" : "subtle"}
                 color="gray"
                 onClick={() => {
-                  setManualMode(v => !v);
-                  if (!manualMode) setManualInput(data?.current || currentPath);
+                  setManualMode((v) => !v);
+                  if (!manualMode) {
+                    setManualInput(data?.current || currentPath);
+                  }
                 }}
                 aria-label="Edit path"
               >
@@ -272,7 +274,7 @@ export function DirectoryPickerModal({
                   <TextInput
                     size="xs"
                     value={manualInput}
-                    onChange={e => setManualInput(e.currentTarget.value)}
+                    onChange={(e) => setManualInput(e.currentTarget.value)}
                     placeholder="/path/to/directory"
                     style={{ flex: 1 }}
                     autoFocus
@@ -294,9 +296,7 @@ export function DirectoryPickerModal({
                           style={{
                             padding: "2px 6px",
                             borderRadius: "var(--mantine-radius-xs)",
-                            backgroundColor: isLast
-                              ? "var(--mantine-color-cyan-light)"
-                              : "rgba(255, 255, 255, 0.05)",
+                            backgroundColor: isLast ? "var(--mantine-color-cyan-light)" : "rgba(255, 255, 255, 0.05)",
                             color: isLast ? "var(--mantine-color-cyan-3)" : "inherit",
                             fontWeight: isLast ? 700 : 500,
                             fontSize: "12px",
@@ -307,11 +307,7 @@ export function DirectoryPickerModal({
                           {seg.name}
                         </UnstyledButton>
                         {!isLast ? (
-                          <IconChevronRight
-                            size={12}
-                            color="var(--mantine-color-dimmed)"
-                            style={{ flexShrink: 0 }}
-                          />
+                          <IconChevronRight size={12} color="var(--mantine-color-dimmed)" style={{ flexShrink: 0 }} />
                         ) : null}
                       </React.Fragment>
                     );
@@ -340,7 +336,7 @@ export function DirectoryPickerModal({
           leftSection={<IconSearch size={14} />}
           value={searchFilter}
           ref={searchInputRef}
-          onChange={e => setSearchFilter(e.currentTarget.value)}
+          onChange={(e) => setSearchFilter(e.currentTarget.value)}
           rightSection={
             searchFilter ? (
               <ActionIcon size="xs" variant="subtle" onClick={() => setSearchFilter("")}>
@@ -392,7 +388,7 @@ export function DirectoryPickerModal({
               </Center>
             ) : (
               <Stack gap={2}>
-                {filteredEntries.map(entry => {
+                {filteredEntries.map((entry) => {
                   const isSelected = selectedPath === entry.path;
 
                   return (
@@ -407,9 +403,7 @@ export function DirectoryPickerModal({
                       style={{
                         borderRadius: "var(--mantine-radius-xs)",
                         backgroundColor: isSelected ? "var(--mantine-color-cyan-light)" : "transparent",
-                        border: isSelected
-                          ? "1px solid var(--mantine-color-cyan-outline)"
-                          : "1px solid transparent",
+                        border: isSelected ? "1px solid var(--mantine-color-cyan-outline)" : "1px solid transparent",
                         cursor: "pointer",
                         userSelect: "none",
                         transition: "background-color 100ms ease",
@@ -449,7 +443,7 @@ export function DirectoryPickerModal({
                             size="xs"
                             variant="subtle"
                             color="gray"
-                            onClick={e => {
+                            onClick={(e) => {
                               e.stopPropagation();
                               handleNavigate(entry.path);
                             }}
@@ -468,12 +462,7 @@ export function DirectoryPickerModal({
         </Paper>
 
         {/* Selected target path & actions */}
-        <Group
-          justify="space-between"
-          align="center"
-          pt="xs"
-          style={{ borderTop: "1px solid var(--omega-line)" }}
-        >
+        <Group justify="space-between" align="center" pt="xs" style={{ borderTop: "1px solid var(--omega-line)" }}>
           <Box style={{ flex: 1, minWidth: 0 }}>
             <Text size="xs" c="dimmed">
               Target Directory:

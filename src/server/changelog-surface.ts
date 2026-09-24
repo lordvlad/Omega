@@ -6,7 +6,6 @@
  * with badges and structured bullets.
  */
 import { getChangelogPath, parseChangelog } from "@oh-my-pi/pi-coding-agent/utils/changelog";
-
 import { CHANGELOG_SURFACE_ID, type A2uiComponent } from "../shared/a2ui.ts";
 import type { LiveSession } from "./registry.ts";
 
@@ -38,12 +37,12 @@ function parseReleaseSections(content: string): ReleaseSection[] {
 
   for (const line of lines) {
     const trimmed = line.trim();
-    if (!trimmed) continue;
+    if (!trimmed) {
+      continue;
+    }
 
     // Match ### Section headers
-    const catMatch = /^###+\s*(Added|Changed|Fixed|Removed|Deprecated|Security|Breaking Changes.*)/i.exec(
-      trimmed,
-    );
+    const catMatch = /^###+\s*(Added|Changed|Fixed|Removed|Deprecated|Security|Breaking Changes.*)/i.exec(trimmed);
     if (catMatch) {
       if (currentCategory && currentItems.length > 0) {
         sections.push({ category: currentCategory, items: currentItems });
@@ -56,7 +55,7 @@ function parseReleaseSections(content: string): ReleaseSection[] {
     if (trimmed.startsWith("- ") || trimmed.startsWith("* ")) {
       currentItems.push(trimmed.slice(2).trim());
     } else if (currentItems.length > 0) {
-      currentItems[currentItems.length - 1] += " " + trimmed;
+      currentItems[currentItems.length - 1] += ` ${trimmed}`;
     } else if (currentCategory) {
       currentItems.push(trimmed);
     }

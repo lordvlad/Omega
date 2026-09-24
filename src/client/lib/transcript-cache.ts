@@ -1,3 +1,4 @@
+import { useEffect, useRef } from "react";
 /**
  * Browser-side transcript persistence.
  *
@@ -33,8 +34,6 @@
  * which is exactly the behaviour that existed before this file.
  */
 import { useQueryClient } from "@tanstack/react-query";
-import { useEffect, useRef } from "react";
-
 import type { GetTranscriptOptions } from "../api/api.ts";
 import type { Transcript, TranscriptMessage } from "../api/model.ts";
 import { getGetTranscriptQueryOptions } from "../api/queries.ts";
@@ -75,13 +74,17 @@ interface CachedTranscript {
 let connection: Promise<IDBDatabase | undefined> | undefined;
 
 function open(): Promise<IDBDatabase | undefined> {
-  if (connection) return connection;
-  connection = new Promise<IDBDatabase | undefined>(resolve => {
+  if (connection) {
+    return connection;
+  }
+  connection = new Promise<IDBDatabase | undefined>((resolve) => {
     // Absent in some embedded webviews, and throws outright in Firefox's
     // private mode rather than returning null.
     let request: IDBOpenDBRequest;
     try {
-      if (typeof indexedDB === "undefined") return resolve(undefined);
+      if (typeof indexedDB === "undefined") {
+        return resolve(undefined);
+      }
       request = indexedDB.open(DB_NAME, DB_VERSION);
     } catch {
       return resolve(undefined);
@@ -104,7 +107,7 @@ function open(): Promise<IDBDatabase | undefined> {
 
 /** Resolve when the transaction settles; never reject. */
 function settled(tx: IDBTransaction): Promise<boolean> {
-  return new Promise<boolean>(resolve => {
+  return new Promise<boolean>((resolve) => {
     tx.oncomplete = () => resolve(true);
     tx.onerror = () => resolve(false);
     tx.onabort = () => resolve(false);
@@ -114,17 +117,21 @@ function settled(tx: IDBTransaction): Promise<boolean> {
 /** The transcript last seen for this session, if one was kept. */
 export async function readTranscript(key: string): Promise<TranscriptMessage[] | undefined> {
   const db = await open();
-  if (!db) return undefined;
+  if (!db) {
+    return undefined;
+  }
   try {
     const tx = db.transaction(STORE, "readonly");
     const request = tx.objectStore(STORE).get(key);
-    const record = await new Promise<CachedTranscript | undefined>(resolve => {
+    const record = await new Promise<CachedTranscript | undefined>((resolve) => {
       request.onsuccess = () => resolve(request.result as CachedTranscript | undefined);
       request.onerror = () => resolve(undefined);
     });
     // A record written by an older, differently-shaped build is not worth a
     // migration: treat anything unexpected as a miss and let the fetch answer.
-    if (!record || !Array.isArray(record.messages)) return undefined;
+    if (!record || !Array.isArray(record.messages)) {
+      return undefined;
+    }
     return record.messages;
   } catch {
     return undefined;
@@ -137,18 +144,22 @@ async function prune(db: IDBDatabase): Promise<void> {
     const tx = db.transaction(STORE, "readwrite");
     const store = tx.objectStore(STORE);
     const countRequest = store.count();
-    const total = await new Promise<number>(resolve => {
+    const total = await new Promise<number>((resolve) => {
       countRequest.onsuccess = () => resolve(countRequest.result);
       countRequest.onerror = () => resolve(0);
     });
-    if (total <= MAX_ENTRIES) return;
+    if (total <= MAX_ENTRIES) {
+      return;
+    }
 
     let excess = total - MAX_ENTRIES;
     // Oldest first, deleting until the budget is met.
     const cursorRequest = store.index("savedAt").openCursor();
     cursorRequest.onsuccess = () => {
       const cursor = cursorRequest.result;
-      if (!cursor || excess <= 0) return;
+      if (!cursor || excess <= 0) {
+        return;
+      }
       cursor.delete();
       excess -= 1;
       cursor.continue();
@@ -162,7 +173,9 @@ async function prune(db: IDBDatabase): Promise<void> {
 /** Remember this transcript as the one to show next time the session opens. */
 export async function writeTranscript(key: string, messages: TranscriptMessage[]): Promise<void> {
   const db = await open();
-  if (!db) return;
+  if (!db) {
+    return;
+  }
   try {
     const tx = db.transaction(STORE, "readwrite");
     const record: CachedTranscript = { key, messages, savedAt: Date.now() };
@@ -170,7 +183,9 @@ export async function writeTranscript(key: string, messages: TranscriptMessage[]
     // A quota rejection surfaces here as a failed transaction, which is a
     // reason to stop caching, never a reason to interrupt the conversation.
     const ok = await settled(tx);
-    if (ok) await prune(db);
+    if (ok) {
+      await prune(db);
+    }
   } catch {
     // Best-effort.
   }
@@ -179,7 +194,9 @@ export async function writeTranscript(key: string, messages: TranscriptMessage[]
 /** Drop one session's cached transcript, e.g. when it is deleted. */
 export async function forgetTranscript(key: string): Promise<void> {
   const db = await open();
-  if (!db) return;
+  if (!db) {
+    return;
+  }
   try {
     const tx = db.transaction(STORE, "readwrite");
     tx.objectStore(STORE).delete(key);
@@ -212,7 +229,9 @@ export function usePersistedTranscript(
 
   useEffect(() => {
     written.current = undefined;
-    if (!sessionKey) return;
+    if (!sessionKey) {
+      return;
+    }
 
     let cancelled = false;
     const { queryKey } = getGetTranscriptQueryOptions({
@@ -220,11 +239,15 @@ export function usePersistedTranscript(
       query: queryRef.current,
     });
 
-    void readTranscript(sessionKey).then(messages => {
+    void readTranscript(sessionKey).then((messages) => {
       // The fetch can win the race, and a cached transcript is by definition
       // the older of the two. Seeding is only ever for an empty cache.
-      if (cancelled || !messages) return;
-      if (queryClient.getQueryData(queryKey) !== undefined) return;
+      if (cancelled || !messages) {
+        return;
+      }
+      if (queryClient.getQueryData(queryKey) !== undefined) {
+        return;
+      }
       written.current = messages;
       queryClient.setQueryData(queryKey, toTranscript(sessionKey, messages));
     });
@@ -235,11 +258,15 @@ export function usePersistedTranscript(
   }, [sessionKey, queryClient]);
 
   useEffect(() => {
-    if (!sessionKey || !data) return;
+    if (!sessionKey || !data) {
+      return;
+    }
     // Identity is enough: the query cache hands back the same array until a
     // fetch replaces it, so this skips both the seed round-trip and the
     // re-renders a streaming turn causes between transcript refetches.
-    if (written.current === data.messages) return;
+    if (written.current === data.messages) {
+      return;
+    }
     written.current = data.messages;
     void writeTranscript(sessionKey, data.messages);
   }, [sessionKey, data]);

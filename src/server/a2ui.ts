@@ -19,7 +19,6 @@
  */
 import type { CustomTool } from "@oh-my-pi/pi-coding-agent";
 import { jsonSchema, validate } from "wiz";
-
 import {
   A2UI_BASIC_CATALOG_ID,
   A2UI_VERSION,
@@ -227,7 +226,7 @@ function parameters(schema: Record<string, unknown>): Record<string, unknown> {
 
 /** One line per validation failure, in the shape wiz reports them. */
 function explain(errors: ReadonlyArray<{ path: string; message: string }>): string {
-  return errors.map(error => `- ${error.path}: ${error.message}`).join("\n");
+  return errors.map((error) => `- ${error.path}: ${error.message}`).join("\n");
 }
 
 /**
@@ -247,7 +246,9 @@ export class A2uiChannel {
   /** Point the channel at a live session and flush whatever it missed. */
   attach(sink: A2uiSink): void {
     this.#sink = sink;
-    for (const message of this.#buffered) sink(message);
+    for (const message of this.#buffered) {
+      sink(message);
+    }
     this.#buffered.length = 0;
   }
 
@@ -257,8 +258,11 @@ export class A2uiChannel {
   }
 
   #emit(message: A2uiMessage): void {
-    if (this.#sink) this.#sink(message);
-    else this.#buffered.push(message);
+    if (this.#sink) {
+      this.#sink(message);
+    } else {
+      this.#buffered.push(message);
+    }
   }
 
   createSurface(payload: A2uiCreateSurface): void {
@@ -306,13 +310,8 @@ export class A2uiChannel {
 }
 
 /** A tool result carrying one line of text. */
-function say(
-  text: string,
-  isError = false,
-): { content: [{ type: "text"; text: string }]; isError?: boolean } {
-  return isError
-    ? { content: [{ type: "text", text }], isError: true }
-    : { content: [{ type: "text", text }] };
+function say(text: string, isError = false): { content: [{ type: "text"; text: string }]; isError?: boolean } {
+  return isError ? { content: [{ type: "text", text }], isError: true } : { content: [{ type: "text", text }] };
 }
 
 /** `No surface …` plus what does exist, so a typo is self-correcting. */
@@ -324,19 +323,18 @@ function missing(channel: A2uiChannel, surfaceId: string): string {
     );
   }
   const live = channel.surfaces;
-  return (
-    `No surface "${surfaceId}" exists. ` +
-    (live.length > 0
-      ? `Live surfaces: ${live.join(", ")}.`
-      : "Create one with a2ui_createSurface before updating it.")
-  );
+  return `No surface "${surfaceId}" exists. ${
+    live.length > 0 ? `Live surfaces: ${live.join(", ")}.` : "Create one with a2ui_createSurface before updating it."
+  }`;
 }
 
 /** Component types in this list the renderer has no drawing for. */
 function unknownTypes(components: ReadonlyArray<{ component: string }>): string[] {
   const bad = new Set<string>();
   for (const component of components) {
-    if (A2UI_COMPONENTS[component.component] !== true) bad.add(component.component);
+    if (A2UI_COMPONENTS[component.component] !== true) {
+      bad.add(component.component);
+    }
   }
   return [...bad];
 }
@@ -355,15 +353,16 @@ export function createA2uiTools(channel: A2uiChannel): CustomTool[] {
     loadMode: "essential",
     approval: { tier: "read" },
     description:
-      "Create an A2UI surface and draw it in the user's browser, next to this conversation. " +
-      "A surface is one self-contained widget: a card, a form, a dashboard. Pass `components` " +
-      "and `dataModel` here to render the whole thing in a single call, or leave them out and " +
-      "follow up with a2ui_updateComponents. `surfaceId` must be new.\n\n" +
-      CATALOG_REFERENCE,
+      `Create an A2UI surface and draw it in the user's browser, next to this conversation. ` +
+      `A surface is one self-contained widget: a card, a form, a dashboard. Pass \`components\` ` +
+      `and \`dataModel\` here to render the whole thing in a single call, or leave them out and ` +
+      `follow up with a2ui_updateComponents. \`surfaceId\` must be new.\n\n${CATALOG_REFERENCE}`,
     parameters: parameters(jsonSchema<A2uiCreateSurface>()),
     async execute(_toolCallId, params) {
       const errors = validate<A2uiCreateSurface>(params);
-      if (errors.length > 0) return say(`Invalid createSurface:\n${explain(errors)}`, true);
+      if (errors.length > 0) {
+        return say(`Invalid createSurface:\n${explain(errors)}`, true);
+      }
       const payload = params as A2uiCreateSurface;
       if (channel.has(payload.surfaceId)) {
         return say(
@@ -381,14 +380,15 @@ export function createA2uiTools(channel: A2uiChannel): CustomTool[] {
       }
       channel.createSurface({ catalogId: A2UI_BASIC_CATALOG_ID, ...payload });
       const count = payload.components?.length ?? 0;
-      const rooted = (payload.components ?? []).some(component => component.id === "root");
+      const rooted = (payload.components ?? []).some((component) => component.id === "root");
       return say(
-        `Surface "${payload.surfaceId}" created with ${count} component(s).` +
-          (count > 0 && !rooted
+        `Surface "${payload.surfaceId}" created with ${count} component(s).${
+          count > 0 && !rooted
             ? ' Nothing is mounted yet: no component has id "root".'
             : count === 0
               ? " Send its components with a2ui_updateComponents."
-              : ""),
+              : ""
+        }`,
       );
     },
   };
@@ -399,16 +399,19 @@ export function createA2uiTools(channel: A2uiChannel): CustomTool[] {
     loadMode: "essential",
     approval: { tier: "read" },
     description:
-      "Add or replace components in an existing A2UI surface. Components are a flat adjacency " +
-      "list keyed by `id`; sending an id that already exists replaces it, which is how a " +
-      "rendered surface is edited in place. The component with id `root` is the one mounted.\n\n" +
-      CATALOG_REFERENCE,
+      `Add or replace components in an existing A2UI surface. Components are a flat adjacency ` +
+      `list keyed by \`id\`; sending an id that already exists replaces it, which is how a ` +
+      `rendered surface is edited in place. The component with id \`root\` is the one mounted.\n\n${CATALOG_REFERENCE}`,
     parameters: parameters(jsonSchema<A2uiUpdateComponents>()),
     async execute(_toolCallId, params) {
       const errors = validate<A2uiUpdateComponents>(params);
-      if (errors.length > 0) return say(`Invalid updateComponents:\n${explain(errors)}`, true);
+      if (errors.length > 0) {
+        return say(`Invalid updateComponents:\n${explain(errors)}`, true);
+      }
       const payload = params as A2uiUpdateComponents;
-      if (!channel.has(payload.surfaceId)) return say(missing(channel, payload.surfaceId), true);
+      if (!channel.has(payload.surfaceId)) {
+        return say(missing(channel, payload.surfaceId), true);
+      }
       const bad = unknownTypes(payload.components);
       if (bad.length > 0) {
         return say(
@@ -434,9 +437,13 @@ export function createA2uiTools(channel: A2uiChannel): CustomTool[] {
     parameters: parameters(jsonSchema<A2uiUpdateDataModel>()),
     async execute(_toolCallId, params) {
       const errors = validate<A2uiUpdateDataModel>(params);
-      if (errors.length > 0) return say(`Invalid updateDataModel:\n${explain(errors)}`, true);
+      if (errors.length > 0) {
+        return say(`Invalid updateDataModel:\n${explain(errors)}`, true);
+      }
       const payload = params as A2uiUpdateDataModel;
-      if (!channel.has(payload.surfaceId)) return say(missing(channel, payload.surfaceId), true);
+      if (!channel.has(payload.surfaceId)) {
+        return say(missing(channel, payload.surfaceId), true);
+      }
       const path = payload.path;
       if (path !== undefined && path !== "" && path !== "/" && !path.startsWith("/")) {
         return say(`path must be a JSON Pointer starting with "/", got "${path}".`, true);
@@ -457,9 +464,13 @@ export function createA2uiTools(channel: A2uiChannel): CustomTool[] {
     parameters: parameters(jsonSchema<A2uiDeleteSurface>()),
     async execute(_toolCallId, params) {
       const errors = validate<A2uiDeleteSurface>(params);
-      if (errors.length > 0) return say(`Invalid deleteSurface:\n${explain(errors)}`, true);
+      if (errors.length > 0) {
+        return say(`Invalid deleteSurface:\n${explain(errors)}`, true);
+      }
       const payload = params as A2uiDeleteSurface;
-      if (!channel.has(payload.surfaceId)) return say(missing(channel, payload.surfaceId), true);
+      if (!channel.has(payload.surfaceId)) {
+        return say(missing(channel, payload.surfaceId), true);
+      }
       channel.deleteSurface(payload);
       return say(`Surface "${payload.surfaceId}" deleted.`);
     },

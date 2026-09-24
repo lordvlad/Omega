@@ -11,10 +11,8 @@
  */
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
-
 import { resolveLocalUrlToPath } from "@oh-my-pi/pi-coding-agent/internal-urls";
 import { prompt as promptUtil } from "@oh-my-pi/pi-utils";
-
 import type { PlanActionRequest, PlanDocument, PlanSection } from "../shared/model.ts";
 import type { LiveSession, Registry } from "./registry.ts";
 
@@ -64,17 +62,26 @@ export function planSections(content: string): PlanSection[] {
     const fenceMatch = /^\s*(`{3,}|~{3,})/u.exec(line);
     if (fenceMatch) {
       const marker = fenceMatch[1] ?? "";
-      if (fence === undefined) fence = marker[0];
-      else if (marker[0] === fence) fence = undefined;
+      if (fence === undefined) {
+        fence = marker[0];
+      } else if (marker[0] === fence) {
+        fence = undefined;
+      }
       continue;
     }
-    if (fence !== undefined) continue;
+    if (fence !== undefined) {
+      continue;
+    }
 
     const heading = /^(#{1,6})\s+(.+?)\s*#*\s*$/u.exec(line);
-    if (!heading) continue;
+    if (!heading) {
+      continue;
+    }
     const level = heading[1]?.length ?? 1;
     const title = (heading[2] ?? "").trim();
-    if (!title) continue;
+    if (!title) {
+      continue;
+    }
 
     // Slugs are scroll anchors, so a document with two identically named
     // sections still gets two distinct targets.
@@ -85,7 +92,9 @@ export function planSections(content: string): PlanSection[] {
         .replace(/^-+|-+$/gu, "") || `section-${index}`;
     let slug = base;
     let suffix = 2;
-    while (seen.has(slug)) slug = `${base}-${suffix++}`;
+    while (seen.has(slug)) {
+      slug = `${base}-${suffix++}`;
+    }
     seen.add(slug);
 
     sections.push({ id: slug, title, level, line: index });
@@ -105,9 +114,13 @@ export function anchorHeadings(html: string, sections: PlanSection[]): string {
   return html.replace(/<h([1-6])>/gu, (match, level: string) => {
     // Match by depth: the renderer emits headings in source order, so the
     // next heading of this depth is this section.
-    while (cursor < sections.length && sections[cursor]?.level !== Number(level)) cursor++;
+    while (cursor < sections.length && sections[cursor]?.level !== Number(level)) {
+      cursor++;
+    }
     const section = sections[cursor];
-    if (!section) return match;
+    if (!section) {
+      return match;
+    }
     cursor++;
     return `<h${level} id="${section.id}">`;
   });
@@ -142,7 +155,9 @@ export async function planDocument(live: LiveSession): Promise<PlanDocument> {
 export async function writePlan(live: LiveSession, content: string): Promise<void> {
   const state = live.planState();
   const planFilePath = state?.planFilePath ?? live.session.getPlanReferencePath();
-  if (!planFilePath) throw new Error("No plan document to edit.");
+  if (!planFilePath) {
+    throw new Error("No plan document to edit.");
+  }
   const target = resolvePlanPath(live, planFilePath);
   await fs.mkdir(path.dirname(target), { recursive: true });
   await Bun.write(target, content);
@@ -169,16 +184,20 @@ export async function resolvePlan(
 ): Promise<PlanResolution> {
   const pending = live.pendingPlan;
   const planFilePath = pending?.planFilePath ?? live.session.getPlanReferencePath();
-  if (!planFilePath) throw new Error("No plan has been proposed.");
+  if (!planFilePath) {
+    throw new Error("No plan has been proposed.");
+  }
 
   if (request.action === "refine") {
     const feedback = request.feedback?.trim();
-    if (!feedback) throw new Error("Refine needs feedback for the model.");
+    if (!feedback) {
+      throw new Error("Refine needs feedback for the model.");
+    }
     // Release the proposal first: the agent is parked inside its `xd://propose`
     // call, and it cannot accept a new turn until that returns.
     live.settlePlan();
     live.session.setPlanModeState(live.session.getPlanModeState());
-    void live.session.prompt(feedback).catch(error => {
+    void live.session.prompt(feedback).catch((error) => {
       live.emitCustom({
         type: "RUN_ERROR",
         message: error instanceof Error ? error.message : String(error),
@@ -190,7 +209,9 @@ export async function resolvePlan(
   const content = await Bun.file(resolvePlanPath(live, planFilePath))
     .text()
     .catch(() => "");
-  if (!content) throw new Error(`Plan file not found at ${planFilePath}`);
+  if (!content) {
+    throw new Error(`Plan file not found at ${planFilePath}`);
+  }
 
   // Leaving plan mode restores write access and stops the plan-mode system
   // prompt from being rebuilt into the next turn.
@@ -200,8 +221,7 @@ export async function resolvePlan(
   live.settlePlan();
 
   const title = pending?.title ?? path.basename(planFilePath).replace(/-plan\.md$/u, "");
-  const target =
-    request.action === "execute" ? await forkForExecution(registry, live, planFilePath, content) : live;
+  const target = request.action === "execute" ? await forkForExecution(registry, live, planFilePath, content) : live;
 
   if (request.action === "compact") {
     // Distil the planning transcript so the approved-plan prompt lands as a
@@ -233,7 +253,7 @@ export async function resolvePlan(
   if (target.session.isStreaming) {
     void target.session.followUp(directive, undefined, { synthetic: true });
   } else {
-    void target.session.prompt(directive, { synthetic: true }).catch(error => {
+    void target.session.prompt(directive, { synthetic: true }).catch((error) => {
       target.emitCustom({
         type: "RUN_ERROR",
         message: error instanceof Error ? error.message : String(error),
@@ -273,8 +293,12 @@ async function forkForExecution(
 
 /** Switch the executing session to the chosen role tier. */
 async function applyTier(target: LiveSession, role: string | undefined): Promise<void> {
-  if (!role) return;
+  if (!role) {
+    return;
+  }
   const cycle = target.session.getRoleModelCycle(["smol", "default", "slow"]);
-  const entry = cycle?.models.find(candidate => candidate.role === role);
-  if (entry) await target.session.applyRoleModel(entry);
+  const entry = cycle?.models.find((candidate) => candidate.role === role);
+  if (entry) {
+    await target.session.applyRoleModel(entry);
+  }
 }

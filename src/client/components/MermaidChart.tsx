@@ -1,16 +1,4 @@
-import {
-  ActionIcon,
-  Alert,
-  Box,
-  Center,
-  Group,
-  Loader,
-  Stack,
-  Text,
-  ThemeIcon,
-  Tooltip,
-} from "@mantine/core";
-import { notifications } from "@mantine/notifications";
+import React, { useCallback, useEffect, useId, useRef, useState } from "react";
 import {
   IconAlertCircle,
   IconCheck,
@@ -21,8 +9,8 @@ import {
   IconZoomOut,
 } from "@tabler/icons-react";
 import mermaid from "mermaid";
-import React, { useCallback, useEffect, useId, useRef, useState } from "react";
-
+import { ActionIcon, Alert, Box, Center, Group, Loader, Stack, Text, ThemeIcon, Tooltip } from "@mantine/core";
+import { notifications } from "@mantine/notifications";
 import { copyText } from "../lib/clipboard.ts";
 
 export interface MermaidChartProps {
@@ -153,7 +141,9 @@ export const MermaidChart: React.FC<MermaidChartProps> = ({
   }, [rawCode, diagramId, theme]);
 
   const handleCopyCode = useCallback(async () => {
-    if (!rawCode) return;
+    if (!rawCode) {
+      return;
+    }
     const ok = await copyText(rawCode);
     if (ok) {
       setCopied(true);
@@ -168,13 +158,17 @@ export const MermaidChart: React.FC<MermaidChartProps> = ({
 
   // Drag-to-pan handlers
   const handleMouseDown = (e: React.MouseEvent) => {
-    if (e.button !== 0) return;
+    if (e.button !== 0) {
+      return;
+    }
     setIsDragging(true);
     dragStartRef.current = { x: e.clientX - panOffset.x, y: e.clientY - panOffset.y };
   };
 
   const handleMouseMove = (e: React.MouseEvent) => {
-    if (!isDragging) return;
+    if (!isDragging) {
+      return;
+    }
     setPanOffset({
       x: e.clientX - dragStartRef.current.x,
       y: e.clientY - dragStartRef.current.y,
@@ -191,15 +185,17 @@ export const MermaidChart: React.FC<MermaidChartProps> = ({
   };
 
   const handleZoomIn = () => {
-    setZoomLevel(z => Math.min(z + 0.2, 3));
+    setZoomLevel((z) => Math.min(z + 0.2, 3));
   };
 
   const handleZoomOut = () => {
-    setZoomLevel(z => Math.max(z - 0.2, 0.3));
+    setZoomLevel((z) => Math.max(z - 0.2, 0.3));
   };
 
   const handleContainerClick = (e: React.MouseEvent) => {
-    if (!onNodeClick) return;
+    if (!onNodeClick) {
+      return;
+    }
     const target = (e.target as HTMLElement).closest(".node, .actor, .classGroup, g[id*='node'], .cluster");
     if (target) {
       const id = target.id || target.getAttribute("data-id") || target.textContent?.trim() || "";
@@ -264,24 +260,12 @@ export const MermaidChart: React.FC<MermaidChartProps> = ({
             </ActionIcon>
           </Tooltip>
           <Tooltip label="Zoom Out">
-            <ActionIcon
-              size="xs"
-              variant="subtle"
-              color="slate"
-              onClick={handleZoomOut}
-              aria-label="Zoom Out"
-            >
+            <ActionIcon size="xs" variant="subtle" color="slate" onClick={handleZoomOut} aria-label="Zoom Out">
               <IconZoomOut size={14} />
             </ActionIcon>
           </Tooltip>
           <Tooltip label="Reset View">
-            <ActionIcon
-              size="xs"
-              variant="subtle"
-              color="slate"
-              onClick={handleReset}
-              aria-label="Reset View"
-            >
+            <ActionIcon size="xs" variant="subtle" color="slate" onClick={handleReset} aria-label="Reset View">
               <IconRefresh size={14} />
             </ActionIcon>
           </Tooltip>

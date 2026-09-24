@@ -2,7 +2,6 @@
  * Async background jobs and supervised long-running process management.
  */
 import { daemonClientForProject } from "@oh-my-pi/pi-coding-agent/launch/client";
-
 import type {
   Ack,
   CancelJobRequest,
@@ -21,7 +20,9 @@ import type { LiveSession } from "./registry.ts";
  */
 export function listSessionJobs(live: LiveSession): ListJobsResult {
   const snapshot = live.session.getAsyncJobSnapshot({ recentLimit: 20 });
-  if (!snapshot) return { running: [], recent: [] };
+  if (!snapshot) {
+    return { running: [], recent: [] };
+  }
 
   const mapJob = (job: any): SessionAsyncJob => ({
     id: job.id,
@@ -44,7 +45,9 @@ export function listSessionJobs(live: LiveSession): ListJobsResult {
  */
 export function cancelSessionJob(live: LiveSession, request: CancelJobRequest): Ack {
   const id = request.id.trim();
-  if (!id) throw new Error("Job id is required.");
+  if (!id) {
+    throw new Error("Job id is required.");
+  }
 
   try {
     const manager = live.session.asyncJobManager;
@@ -53,9 +56,7 @@ export function cancelSessionJob(live: LiveSession, request: CancelJobRequest): 
     }
     return { ok: true, detail: `Cancelled job "${id}".` };
   } catch (error) {
-    throw new Error(
-      `Failed to cancel job "${id}": ${error instanceof Error ? error.message : String(error)}`,
-    );
+    throw new Error(`Failed to cancel job "${id}": ${error instanceof Error ? error.message : String(error)}`);
   }
 }
 
@@ -111,7 +112,9 @@ export async function listManagedProcesses(cwd?: string): Promise<ListProcessesR
  */
 export async function signalManagedProcess(request: SignalProcessRequest): Promise<Ack> {
   const name = request.name.trim();
-  if (!name) throw new Error("Process name is required.");
+  if (!name) {
+    throw new Error("Process name is required.");
+  }
 
   const client = await daemonClientForProject(request.cwd || process.cwd());
   await client.request({ op: "send", name, signal: request.signal });
@@ -123,7 +126,9 @@ export async function signalManagedProcess(request: SignalProcessRequest): Promi
  */
 export async function stopManagedProcess(request: ProcessActionRequest): Promise<Ack> {
   const name = request.name.trim();
-  if (!name) throw new Error("Process name is required.");
+  if (!name) {
+    throw new Error("Process name is required.");
+  }
 
   const client = await daemonClientForProject(request.cwd || process.cwd());
   await client.request({ op: "stop", name, timeoutMs: 5000 });
@@ -135,7 +140,9 @@ export async function stopManagedProcess(request: ProcessActionRequest): Promise
  */
 export async function restartManagedProcess(request: ProcessActionRequest): Promise<Ack> {
   const name = request.name.trim();
-  if (!name) throw new Error("Process name is required.");
+  if (!name) {
+    throw new Error("Process name is required.");
+  }
 
   const client = await daemonClientForProject(request.cwd || process.cwd());
   await client.request({ op: "restart", name });

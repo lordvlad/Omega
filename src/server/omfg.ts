@@ -7,7 +7,6 @@
  */
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
-
 import type { OmfgAnalyzeRequest, OmfgRuleCandidate, OmfgSaveRequest } from "../shared/model.ts";
 import type { LiveSession } from "./registry.ts";
 
@@ -17,7 +16,9 @@ const JSON_FENCE_PATTERN = /```(?:json)?\s*([\s\S]*?)```/i;
 function extractJson(text: string): string {
   const trimmed = text.trim();
   const match = JSON_FENCE_PATTERN.exec(trimmed);
-  if (match?.[1]) return match[1].trim();
+  if (match?.[1]) {
+    return match[1].trim();
+  }
   const firstBrace = trimmed.indexOf("{");
   const lastBrace = trimmed.lastIndexOf("}");
   if (firstBrace >= 0 && lastBrace > firstBrace) {
@@ -51,7 +52,9 @@ export function formatRuleMarkdown(
       lines.push(`condition: ${JSON.stringify(condition[0])}`);
     } else {
       lines.push("condition:");
-      for (const c of condition) lines.push(`  - ${JSON.stringify(c)}`);
+      for (const c of condition) {
+        lines.push(`  - ${JSON.stringify(c)}`);
+      }
     }
   } else if (condition) {
     lines.push(`condition: ${JSON.stringify(condition)}`);
@@ -63,7 +66,9 @@ export function formatRuleMarkdown(
         lines.push(`scope: ${JSON.stringify(scope[0])}`);
       } else {
         lines.push("scope:");
-        for (const s of scope) lines.push(`  - ${JSON.stringify(s)}`);
+        for (const s of scope) {
+          lines.push(`  - ${JSON.stringify(s)}`);
+        }
       }
     } else {
       lines.push(`scope: ${JSON.stringify(scope)}`);
@@ -104,12 +109,11 @@ Latest candidate JSON:
 {{/if}}
 </omfg>`;
 
-export async function analyzeOmfgRule(
-  live: LiveSession,
-  request: OmfgAnalyzeRequest,
-): Promise<OmfgRuleCandidate> {
+export async function analyzeOmfgRule(live: LiveSession, request: OmfgAnalyzeRequest): Promise<OmfgRuleCandidate> {
   const complaint = request.complaint.trim();
-  if (!complaint) throw new Error("Complaint is required for /omfg.");
+  if (!complaint) {
+    throw new Error("Complaint is required for /omfg.");
+  }
 
   let promptText = OMFG_SYSTEM_PROMPT.replace("{{complaint}}", complaint);
   if (request.feedback) {
@@ -165,8 +169,12 @@ export async function saveOmfgRule(
   request: OmfgSaveRequest,
 ): Promise<{ ok: boolean; detail: string; path: string }> {
   const name = sanitizeRuleName(request.name);
-  if (!name) throw new Error("Rule name is required.");
-  if (!request.fileContent.trim()) throw new Error("Rule file content is empty.");
+  if (!name) {
+    throw new Error("Rule name is required.");
+  }
+  if (!request.fileContent.trim()) {
+    throw new Error("Rule file content is empty.");
+  }
 
   const cwd = live.manager.getCwd();
   const home = process.env.HOME || "/home/waldemar";

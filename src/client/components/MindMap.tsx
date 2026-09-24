@@ -1,7 +1,7 @@
-import { ActionIcon, Badge, Box, Group, Paper, Stack, Text, ThemeIcon, Tooltip } from "@mantine/core";
+import React, { useCallback, useMemo, useRef, useState } from "react";
 import { IconMinus, IconPlus, IconRefresh, IconSparkles, IconZoomIn, IconZoomOut } from "@tabler/icons-react";
 import * as d3 from "d3";
-import React, { useCallback, useMemo, useRef, useState } from "react";
+import { ActionIcon, Badge, Box, Group, Paper, Stack, Text, ThemeIcon, Tooltip } from "@mantine/core";
 
 /** Data node structure for the MindMap. */
 export interface MindMapNodeData {
@@ -78,7 +78,7 @@ export const MindMap: React.FC<MindMapProps> = ({ data, width = 800, height = 50
 
   const toggleCollapse = useCallback((id: string, e: React.MouseEvent) => {
     e.stopPropagation();
-    setCollapsedIds(prev => {
+    setCollapsedIds((prev) => {
       const next = new Set(prev);
       if (next.has(id)) {
         next.delete(id);
@@ -144,18 +144,16 @@ export const MindMap: React.FC<MindMapProps> = ({ data, width = 800, height = 50
       const rightChildren = rootChildren.slice(0, Math.ceil(rootChildren.length / 2));
       const leftChildren = rootChildren.slice(Math.ceil(rootChildren.length / 2));
 
-      const layoutSide = (
-        branches: d3.HierarchyNode<MindMapNodeData>[],
-        isLeft: boolean,
-        baseColorIdx: number,
-      ) => {
-        if (branches.length === 0) return;
+      const layoutSide = (branches: d3.HierarchyNode<MindMapNodeData>[], isLeft: boolean, baseColorIdx: number) => {
+        if (branches.length === 0) {
+          return;
+        }
 
         // Create a virtual subtree for this side
         const virtualRootData: MindMapNodeData = {
           id: isLeft ? "__virtual_left__" : "__virtual_right__",
           name: "",
-          children: branches.map(b => b.data),
+          children: branches.map((b) => b.data),
         };
         const virtualHierarchy = d3.hierarchy<MindMapNodeData>(virtualRootData);
 
@@ -171,12 +169,12 @@ export const MindMap: React.FC<MindMapProps> = ({ data, width = 800, height = 50
 
         const pointRoot = treeLayout(virtualHierarchy) as d3.HierarchyPointNode<MindMapNodeData>;
 
-        const sideDescendants = pointRoot.descendants().filter(d => d.depth > 0);
+        const sideDescendants = pointRoot.descendants().filter((d) => d.depth > 0);
         const nodeMap = new Map<MindMapNodeData, PositionedNode>();
         nodeMap.set(virtualRootData, rootNode);
 
         // Determine branch color for each node based on top ancestor
-        sideDescendants.forEach(d => {
+        sideDescendants.forEach((d) => {
           let topBranchIdx = 0;
           let ancestor: d3.HierarchyPointNode<MindMapNodeData> = d;
           while (ancestor.depth > 1 && ancestor.parent) {
@@ -196,11 +194,15 @@ export const MindMap: React.FC<MindMapProps> = ({ data, width = 800, height = 50
           const computedY = centerY + (pointX - sideHeight / 2);
           // Find original data to check actual child count
           function findOriginal(curr: MindMapNodeData): MindMapNodeData | undefined {
-            if (curr.id === d.data.id || curr.name === d.data.name) return curr;
+            if (curr.id === d.data.id || curr.name === d.data.name) {
+              return curr;
+            }
             if (curr.children) {
               for (const child of curr.children) {
                 const found = findOriginal(child);
-                if (found) return found;
+                if (found) {
+                  return found;
+                }
               }
             }
             return undefined;
@@ -227,7 +229,7 @@ export const MindMap: React.FC<MindMapProps> = ({ data, width = 800, height = 50
         });
 
         // Generate links for this side
-        virtualHierarchy.links().forEach(link => {
+        virtualHierarchy.links().forEach((link) => {
           const srcNode = nodeMap.get(link.source.data);
           const tgtNode = nodeMap.get(link.target.data);
           if (srcNode && tgtNode) {
@@ -268,13 +270,17 @@ export const MindMap: React.FC<MindMapProps> = ({ data, width = 800, height = 50
 
   // Drag-to-pan handlers
   const handleMouseDown = (e: React.MouseEvent) => {
-    if (e.button !== 0) return;
+    if (e.button !== 0) {
+      return;
+    }
     setIsDragging(true);
     dragStartRef.current = { x: e.clientX - panOffset.x, y: e.clientY - panOffset.y };
   };
 
   const handleMouseMove = (e: React.MouseEvent) => {
-    if (!isDragging) return;
+    if (!isDragging) {
+      return;
+    }
     setPanOffset({
       x: e.clientX - dragStartRef.current.x,
       y: e.clientY - dragStartRef.current.y,
@@ -291,11 +297,11 @@ export const MindMap: React.FC<MindMapProps> = ({ data, width = 800, height = 50
   };
 
   const handleZoomIn = () => {
-    setZoomLevel(z => Math.min(z + 0.15, 2.5));
+    setZoomLevel((z) => Math.min(z + 0.15, 2.5));
   };
 
   const handleZoomOut = () => {
-    setZoomLevel(z => Math.max(z - 0.15, 0.4));
+    setZoomLevel((z) => Math.max(z - 0.15, 0.4));
   };
 
   return (
@@ -349,24 +355,12 @@ export const MindMap: React.FC<MindMapProps> = ({ data, width = 800, height = 50
             </ActionIcon>
           </Tooltip>
           <Tooltip label="Zoom Out">
-            <ActionIcon
-              size="xs"
-              variant="subtle"
-              color="slate"
-              onClick={handleZoomOut}
-              aria-label="Zoom Out"
-            >
+            <ActionIcon size="xs" variant="subtle" color="slate" onClick={handleZoomOut} aria-label="Zoom Out">
               <IconZoomOut size={14} />
             </ActionIcon>
           </Tooltip>
           <Tooltip label="Reset View">
-            <ActionIcon
-              size="xs"
-              variant="subtle"
-              color="slate"
-              onClick={handleReset}
-              aria-label="Reset View"
-            >
+            <ActionIcon size="xs" variant="subtle" color="slate" onClick={handleReset} aria-label="Reset View">
               <IconRefresh size={14} />
             </ActionIcon>
           </Tooltip>
@@ -435,7 +429,7 @@ export const MindMap: React.FC<MindMapProps> = ({ data, width = 800, height = 50
             pointerEvents: "none",
           }}
         >
-          {nodes.map(node => {
+          {nodes.map((node) => {
             const isRoot = node.isRoot;
             const nodeId = node.data.id || node.data.name;
 
@@ -511,14 +505,10 @@ export const MindMap: React.FC<MindMapProps> = ({ data, width = 800, height = 50
                           color: node.isCollapsed ? "#fff" : undefined,
                           marginLeft: 2,
                         }}
-                        onClick={e => toggleCollapse(nodeId, e)}
+                        onClick={(e) => toggleCollapse(nodeId, e)}
                         aria-label={node.isCollapsed ? "Expand branch" : "Collapse branch"}
                       >
-                        {node.isCollapsed ? (
-                          <IconPlus size={10} stroke={2.5} />
-                        ) : (
-                          <IconMinus size={10} stroke={2.5} />
-                        )}
+                        {node.isCollapsed ? <IconPlus size={10} stroke={2.5} /> : <IconMinus size={10} stroke={2.5} />}
                       </ActionIcon>
                     ) : null}
                   </Group>

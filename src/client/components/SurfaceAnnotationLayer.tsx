@@ -1,3 +1,5 @@
+import React, { useCallback, useEffect, useRef, useState } from "react";
+import { IconNote, IconTrash } from "@tabler/icons-react";
 /**
  * The annotation layer over one A2UI surface: a red marker and sticky notes.
  *
@@ -12,9 +14,6 @@
  * rebuilds it, so a mark pinned to pixels would end up somewhere else.
  */
 import { Box, Button, Group, Modal, Textarea, Tooltip } from "@mantine/core";
-import { IconNote, IconTrash } from "@tabler/icons-react";
-import React, { useCallback, useEffect, useRef, useState } from "react";
-
 import type { Annotation, AnnotationStroke } from "../lib/annotations.ts";
 
 export interface SurfaceAnnotationLayerProps {
@@ -68,17 +67,18 @@ const DRAG_SLOP = 4;
  * element — a node label, a cell, a heading — which is what a user means when
  * they circle something.
  */
-function labelAt(
-  clientX: number,
-  clientY: number,
-  host: HTMLElement,
-  skip: Element | null,
-): string | undefined {
+function labelAt(clientX: number, clientY: number, host: HTMLElement, skip: Element | null): string | undefined {
   for (const hit of document.elementsFromPoint(clientX, clientY)) {
-    if (!host.contains(hit)) continue;
-    if (skip && (hit === skip || skip.contains(hit))) continue;
+    if (!host.contains(hit)) {
+      continue;
+    }
+    if (skip && (hit === skip || skip.contains(hit))) {
+      continue;
+    }
     const text = hit.textContent?.trim() ?? "";
-    if (text.length > 0 && text.length <= MAX_LABEL) return text;
+    if (text.length > 0 && text.length <= MAX_LABEL) {
+      return text;
+    }
   }
   return undefined;
 }
@@ -88,7 +88,7 @@ function clamp01(value: number): number {
 }
 
 function pointsAttribute(stroke: AnnotationStroke): string {
-  return stroke.points.map(point => `${point.x},${point.y}`).join(" ");
+  return stroke.points.map((point) => `${point.x},${point.y}`).join(" ");
 }
 
 export function SurfaceAnnotationLayer({
@@ -130,17 +130,19 @@ export function SurfaceAnnotationLayer({
   const [editing, setEditing] = useState<string | null>(null);
   const [draft, setDraft] = useState("");
 
-  const mine = annotations.filter(entry => entry.kind !== "file" && entry.surfaceId === surfaceId);
-  const drawings = mine.filter(
-    (entry): entry is Extract<Annotation, { kind: "drawing" }> => entry.kind === "drawing",
-  );
+  const mine = annotations.filter((entry) => entry.kind !== "file" && entry.surfaceId === surfaceId);
+  const drawings = mine.filter((entry): entry is Extract<Annotation, { kind: "drawing" }> => entry.kind === "drawing");
   const notes = mine.filter((entry): entry is Extract<Annotation, { kind: "note" }> => entry.kind === "note");
 
   const normalize = useCallback((clientX: number, clientY: number): { x: number; y: number } | null => {
     const host = hostRef.current;
-    if (!host) return null;
+    if (!host) {
+      return null;
+    }
     const rect = host.getBoundingClientRect();
-    if (rect.width === 0 || rect.height === 0) return null;
+    if (rect.width === 0 || rect.height === 0) {
+      return null;
+    }
     return {
       x: clamp01((clientX - rect.left) / rect.width),
       y: clamp01((clientY - rect.top) / rect.height),
@@ -160,7 +162,9 @@ export function SurfaceAnnotationLayer({
       window.clearTimeout(idleRef.current);
       idleRef.current = undefined;
     }
-    if (pendingRef.current.length === 0) return;
+    if (pendingRef.current.length === 0) {
+      return;
+    }
     const strokes = pendingRef.current;
     const targets = [...targetsRef.current];
     pendingRef.current = [];
@@ -171,7 +175,9 @@ export function SurfaceAnnotationLayer({
 
   // Putting the pen down commits what it drew, as does the drawer closing.
   useEffect(() => {
-    if (!penArmed) flush();
+    if (!penArmed) {
+      flush();
+    }
   }, [penArmed, flush]);
   const flushRef = useRef(flush);
   flushRef.current = flush;
@@ -180,18 +186,26 @@ export function SurfaceAnnotationLayer({
   // The host opens the editor for a note the moment it is dropped, so a
   // placed note never needs a second gesture before it can say anything.
   useEffect(() => {
-    if (!editingNoteId) return;
-    const target = notes.find(entry => entry.id === editingNoteId);
-    if (!target) return;
+    if (!editingNoteId) {
+      return;
+    }
+    const target = notes.find((entry) => entry.id === editingNoteId);
+    if (!target) {
+      return;
+    }
     setEditing(editingNoteId);
     setDraft(target.note);
     onEditingDone?.();
   }, [editingNoteId, notes, onEditingDone]);
 
   const handlePenDown = (event: React.PointerEvent<SVGSVGElement>): void => {
-    if (!penArmed) return;
+    if (!penArmed) {
+      return;
+    }
     const point = normalize(event.clientX, event.clientY);
-    if (!point) return;
+    if (!point) {
+      return;
+    }
     event.currentTarget.setPointerCapture(event.pointerId);
     if (idleRef.current !== undefined) {
       window.clearTimeout(idleRef.current);
@@ -201,26 +215,38 @@ export function SurfaceAnnotationLayer({
   };
 
   const handlePenMove = (event: React.PointerEvent<SVGSVGElement>): void => {
-    if (!liveStroke) return;
+    if (!liveStroke) {
+      return;
+    }
     const point = normalize(event.clientX, event.clientY);
-    if (!point) return;
+    if (!point) {
+      return;
+    }
     const last = liveStroke.points[liveStroke.points.length - 1];
-    if (last && Math.abs(point.x - last.x) < MIN_STEP && Math.abs(point.y - last.y) < MIN_STEP) return;
+    if (last && Math.abs(point.x - last.x) < MIN_STEP && Math.abs(point.y - last.y) < MIN_STEP) {
+      return;
+    }
     const next = { points: [...liveStroke.points, point] };
     setLiveStroke(next);
     const host = hostRef.current;
     if (host && next.points.length % 8 === 0 && targetsRef.current.size < MAX_TARGETS) {
       const label = labelAt(event.clientX, event.clientY, host, overlayRef.current);
-      if (label) targetsRef.current.add(label);
+      if (label) {
+        targetsRef.current.add(label);
+      }
     }
   };
 
   const handlePenUp = (): void => {
-    if (!liveStroke) return;
+    if (!liveStroke) {
+      return;
+    }
     const stroke = liveStroke;
     setLiveStroke(null);
     // A stray click is not a drawing.
-    if (stroke.points.length < 2) return;
+    if (stroke.points.length < 2) {
+      return;
+    }
     pendingRef.current = [...pendingRef.current, stroke];
     setLiveStrokes(pendingRef.current);
     idleRef.current = window.setTimeout(() => flush(), STROKE_IDLE_MS);
@@ -232,12 +258,16 @@ export function SurfaceAnnotationLayer({
   };
 
   const handleGhostMove = (event: React.PointerEvent<HTMLDivElement>): void => {
-    if (!dragGhost) return;
+    if (!dragGhost) {
+      return;
+    }
     setDragGhost({ x: event.clientX, y: event.clientY });
   };
 
   const handleGhostUp = (event: React.PointerEvent<HTMLDivElement>): void => {
-    if (!dragGhost) return;
+    if (!dragGhost) {
+      return;
+    }
     setDragGhost(null);
     const host = hostRef.current;
     const point = normalize(event.clientX, event.clientY);
@@ -273,11 +303,10 @@ export function SurfaceAnnotationLayer({
 
   const handleNoteMove = (event: React.PointerEvent<HTMLDivElement>): void => {
     const drag = dragNoteRef.current;
-    if (!drag || drag.captured) return;
-    if (
-      Math.abs(event.clientX - drag.startX) <= DRAG_SLOP &&
-      Math.abs(event.clientY - drag.startY) <= DRAG_SLOP
-    ) {
+    if (!drag || drag.captured) {
+      return;
+    }
+    if (Math.abs(event.clientX - drag.startX) <= DRAG_SLOP && Math.abs(event.clientY - drag.startY) <= DRAG_SLOP) {
       return;
     }
     drag.captured = true;
@@ -287,12 +316,16 @@ export function SurfaceAnnotationLayer({
   const handleNoteUp = (event: React.PointerEvent<HTMLDivElement>): void => {
     const drag = dragNoteRef.current;
     dragNoteRef.current = null;
-    if (!drag || !drag.captured) return;
+    if (!drag || !drag.captured) {
+      return;
+    }
     const point = normalize(event.clientX, event.clientY);
-    if (point) onMoveNote(drag.id, point.x, point.y);
+    if (point) {
+      onMoveNote(drag.id, point.x, point.y);
+    }
   };
 
-  const editingNote = editing ? notes.find(entry => entry.id === editing) : undefined;
+  const editingNote = editing ? notes.find((entry) => entry.id === editing) : undefined;
 
   return (
     <Box ref={hostRef} style={{ position: "relative" }}>
@@ -319,25 +352,23 @@ export function SurfaceAnnotationLayer({
         onPointerUp={handlePenUp}
         onPointerCancel={handlePenUp}
       >
-        {[
-          ...drawings.flatMap(drawing => drawing.strokes),
-          ...liveStrokes,
-          ...(liveStroke ? [liveStroke] : []),
-        ].map((stroke, index) => (
-          <polyline
-            key={index}
-            points={pointsAttribute(stroke)}
-            fill="none"
-            stroke={MARKER}
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            vectorEffect="non-scaling-stroke"
-            style={{ strokeWidth: 2 }}
-          />
-        ))}
+        {[...drawings.flatMap((drawing) => drawing.strokes), ...liveStrokes, ...(liveStroke ? [liveStroke] : [])].map(
+          (stroke, index) => (
+            <polyline
+              key={index}
+              points={pointsAttribute(stroke)}
+              fill="none"
+              stroke={MARKER}
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              vectorEffect="non-scaling-stroke"
+              style={{ strokeWidth: 2 }}
+            />
+          ),
+        )}
       </svg>
 
-      {notes.map(note => (
+      {notes.map((note) => (
         <div
           key={note.id}
           style={{
@@ -443,7 +474,7 @@ export function SurfaceAnnotationLayer({
           autoFocus
           value={draft}
           placeholder="What should the agent know about this?"
-          onChange={event => setDraft(event.currentTarget.value)}
+          onChange={(event) => setDraft(event.currentTarget.value)}
           aria-label="Annotation text"
         />
         <Group justify="space-between" mt="md">
@@ -452,7 +483,9 @@ export function SurfaceAnnotationLayer({
             color="red"
             leftSection={<IconTrash size={14} />}
             onClick={() => {
-              if (editingNote) onDeleteAnnotation(editingNote.id);
+              if (editingNote) {
+                onDeleteAnnotation(editingNote.id);
+              }
               setEditing(null);
             }}
           >
@@ -465,7 +498,9 @@ export function SurfaceAnnotationLayer({
             <Button
               color="plum"
               onClick={() => {
-                if (editingNote) onUpdateNote(editingNote.id, draft.trim());
+                if (editingNote) {
+                  onUpdateNote(editingNote.id, draft.trim());
+                }
                 setEditing(null);
               }}
             >

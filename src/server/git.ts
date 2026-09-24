@@ -6,7 +6,6 @@
  */
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
-
 import type { GitDiffResult, GitFileStatus, GitStatusResult } from "../shared/model.ts";
 
 /**
@@ -59,10 +58,7 @@ export async function getGitDiff(relPath: string, cwd?: string): Promise<GitDiff
       stdout: "pipe",
       stderr: "pipe",
     });
-    const [isRepoText, isRepoExit] = await Promise.all([
-      new Response(isRepoProc.stdout).text(),
-      isRepoProc.exited,
-    ]);
+    const [isRepoText, isRepoExit] = await Promise.all([new Response(isRepoProc.stdout).text(), isRepoProc.exited]);
     if (isRepoExit !== 0 || isRepoText.trim() !== "true") {
       return { path: relPath, diff: "", hasDiff: false };
     }
@@ -136,14 +132,18 @@ export function parseGitStatusOutput(output: string): GitStatusResult {
 
   const lines = output.split(/\r?\n/);
   for (const line of lines) {
-    if (!line) continue;
+    if (!line) {
+      continue;
+    }
 
     if (line.startsWith("## ")) {
       branch = parseBranchHeader(line.slice(3).trim());
       continue;
     }
 
-    if (line.length < 4) continue;
+    if (line.length < 4) {
+      continue;
+    }
 
     const x = line[0] ?? " ";
     const y = line[1] ?? " ";

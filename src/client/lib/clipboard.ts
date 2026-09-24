@@ -14,7 +14,9 @@
 
 /** Copy `text`, reporting whether it actually landed on the clipboard. */
 export async function copyText(text: string): Promise<boolean> {
-  if (!text) return false;
+  if (!text) {
+    return false;
+  }
 
   // Present only in a secure context, and can still reject when the
   // permission is denied, so a failure here falls through rather than ending
@@ -82,7 +84,9 @@ function copyBySelection(text: string): boolean {
     field.remove();
     if (selection) {
       selection.removeAllRanges();
-      if (previous) selection.addRange(previous);
+      if (previous) {
+        selection.addRange(previous);
+      }
     }
   }
 }

@@ -6,15 +6,15 @@
  * and persist canonical snapshots as `"user_todo_edit"` entries on the session
  * branch so changes survive session reloads.
  */
-import type { MutateTodosRequest, TodoPhase, TodoTask, TodoTaskStatus } from "../shared/model.ts";
+import type { MutateTodosRequest, TodoPhase, TodoTask } from "../shared/model.ts";
 import type { Ack } from "../shared/model.ts";
 import type { LiveSession } from "./registry.ts";
 
 /** Deep copy phases array to prevent accidental in-place mutations before committing. */
 function clonePhases(phases: readonly TodoPhase[]): TodoPhase[] {
-  return phases.map(phase => ({
+  return phases.map((phase) => ({
     name: phase.name,
-    tasks: phase.tasks.map(task => ({
+    tasks: phase.tasks.map((task) => ({
       content: task.content,
       status: task.status,
       blocker: task.blocker,
@@ -25,7 +25,7 @@ function clonePhases(phases: readonly TodoPhase[]): TodoPhase[] {
 /** Fuzzy/exact finder for a phase by name (case-insensitive). */
 function findPhase(phases: TodoPhase[], name: string): TodoPhase | undefined {
   const norm = name.trim().toLowerCase();
-  return phases.find(p => p.name.trim().toLowerCase() === norm);
+  return phases.find((p) => p.name.trim().toLowerCase() === norm);
 }
 
 /** Fuzzy/exact finder for a task across all phases. */
@@ -58,30 +58,26 @@ function findTask(
 /**
  * Pure mutation function applying a `MutateTodosRequest` to a phases array.
  */
-export function applyTodoMutation(
-  currentPhases: readonly TodoPhase[],
-  request: MutateTodosRequest,
-): TodoPhase[] {
+export function applyTodoMutation(currentPhases: readonly TodoPhase[], request: MutateTodosRequest): TodoPhase[] {
   const next = clonePhases(currentPhases);
 
   switch (request.action) {
     case "append": {
-      const targetPhaseName =
-        request.phase?.trim() || (next.length > 0 ? next[next.length - 1]!.name : "Tasks");
+      const targetPhaseName = request.phase?.trim() || (next.length > 0 ? next[next.length - 1]!.name : "Tasks");
       let phase = findPhase(next, targetPhaseName);
       if (!phase) {
         phase = { name: targetPhaseName, tasks: [] };
         next.push(phase);
       }
       const itemsToAdd: string[] = request.items?.length
-        ? request.items.map(s => s.trim()).filter(Boolean)
+        ? request.items.map((s) => s.trim()).filter(Boolean)
         : request.task?.trim()
           ? [request.task.trim()]
           : [];
 
       for (const content of itemsToAdd) {
         // Prevent exact duplicate in the same phase
-        if (!phase.tasks.some(t => t.content === content)) {
+        if (!phase.tasks.some((t) => t.content === content)) {
           phase.tasks.push({
             content,
             status: request.status ?? "pending",
@@ -111,12 +107,16 @@ export function applyTodoMutation(
       } else if (request.phase) {
         const phase = findPhase(next, request.phase);
         if (phase) {
-          for (const task of phase.tasks) task.status = "completed";
+          for (const task of phase.tasks) {
+            task.status = "completed";
+          }
         }
       } else {
         // Complete all
         for (const phase of next) {
-          for (const task of phase.tasks) task.status = "completed";
+          for (const task of phase.tasks) {
+            task.status = "completed";
+          }
         }
       }
       break;
@@ -131,12 +131,16 @@ export function applyTodoMutation(
       } else if (request.phase) {
         const phase = findPhase(next, request.phase);
         if (phase) {
-          for (const task of phase.tasks) task.status = "abandoned";
+          for (const task of phase.tasks) {
+            task.status = "abandoned";
+          }
         }
       } else {
         // Drop all
         for (const phase of next) {
-          for (const task of phase.tasks) task.status = "abandoned";
+          for (const task of phase.tasks) {
+            task.status = "abandoned";
+          }
         }
       }
       break;
@@ -171,9 +175,7 @@ export function applyTodoMutation(
           hit.phase.tasks.splice(hit.taskIndex, 1);
         }
       } else if (request.phase) {
-        const phaseIndex = next.findIndex(
-          p => p.name.trim().toLowerCase() === request.phase?.trim().toLowerCase(),
-        );
+        const phaseIndex = next.findIndex((p) => p.name.trim().toLowerCase() === request.phase?.trim().toLowerCase());
         if (phaseIndex !== -1) {
           next.splice(phaseIndex, 1);
         }
@@ -185,7 +187,7 @@ export function applyTodoMutation(
       if (request.status) {
         // Clear all tasks matching status (e.g. completed)
         for (const phase of next) {
-          phase.tasks = phase.tasks.filter(t => t.status !== request.status);
+          phase.tasks = phase.tasks.filter((t) => t.status !== request.status);
         }
       } else {
         next.length = 0;

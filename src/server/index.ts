@@ -1,5 +1,4 @@
 import * as os from "node:os";
-
 /**
  * The omega server: static client, REST routes, and one AG-UI WebSocket per
  * live session.
@@ -10,7 +9,6 @@ import * as os from "node:os";
  * `OMEGA_HOST=127.0.0.1` restricts it to this machine.
  */
 import { serve, type ServerWebSocket } from "bun";
-
 import index from "../client/index.html";
 import type { AguiFrame } from "./agui.ts";
 import { resolveDownloadPath } from "./files.ts";
@@ -70,14 +68,14 @@ const server = serve({
     "/api/workspaces": { GET: () => json(() => handlers.listWorkspaces()) },
     "/api/models": { GET: () => json(() => handlers.listModels()) },
     "/api/files": {
-      GET: request => {
+      GET: (request) => {
         const url = new URL(request.url);
         const cwd = url.searchParams.get("cwd") || undefined;
         return json(() => handlers.listFiles({ cwd }));
       },
     },
     "/api/files/content": {
-      GET: request => {
+      GET: (request) => {
         const url = new URL(request.url);
         const path = url.searchParams.get("path") || "";
         const cwd = url.searchParams.get("cwd") || undefined;
@@ -85,11 +83,13 @@ const server = serve({
       },
     },
     "/api/files/download": {
-      GET: async request => {
+      GET: async (request) => {
         const url = new URL(request.url);
         const relPath = url.searchParams.get("path");
         const cwd = url.searchParams.get("cwd") || undefined;
-        if (!relPath) return new Response("Path is required.", { status: 400 });
+        if (!relPath) {
+          return new Response("Path is required.", { status: 400 });
+        }
         try {
           const { fullPath, fileName, size, mimeType } = await resolveDownloadPath(relPath, cwd);
           return new Response(Bun.file(fullPath), {
@@ -105,7 +105,7 @@ const server = serve({
       },
     },
     "/api/fs/browse": {
-      GET: request => {
+      GET: (request) => {
         const url = new URL(request.url);
         const path = url.searchParams.get("path") || undefined;
         const showHidden = url.searchParams.get("showHidden") === "true";
@@ -113,14 +113,14 @@ const server = serve({
       },
     },
     "/api/git/status": {
-      GET: request => {
+      GET: (request) => {
         const url = new URL(request.url);
         const cwd = url.searchParams.get("cwd") || undefined;
         return json(() => handlers.getGitStatus({ cwd }));
       },
     },
     "/api/git/diff": {
-      GET: request => {
+      GET: (request) => {
         const url = new URL(request.url);
         const path = url.searchParams.get("path") || "";
         const cwd = url.searchParams.get("cwd") || undefined;
@@ -129,32 +129,32 @@ const server = serve({
     },
 
     "/api/mcp/servers": {
-      GET: request => {
+      GET: (request) => {
         const url = new URL(request.url);
         const cwd = url.searchParams.get("cwd") || undefined;
         return json(() => handlers.listMcpServers({ cwd }));
       },
     },
     "/api/mcp/test": {
-      POST: async request => {
+      POST: async (request) => {
         const body = await request.json();
         return json(() => handlers.testMcpServer(body));
       },
     },
     "/api/mcp/add": {
-      POST: async request => {
+      POST: async (request) => {
         const body = await request.json();
         return json(() => handlers.addMcpServer(body));
       },
     },
     "/api/mcp/remove": {
-      POST: async request => {
+      POST: async (request) => {
         const body = await request.json();
         return json(() => handlers.removeMcpServer(body));
       },
     },
     "/api/mcp/toggle": {
-      POST: async request => {
+      POST: async (request) => {
         const body = await request.json();
         return json(() => handlers.toggleMcpServer(body));
       },
@@ -164,17 +164,17 @@ const server = serve({
     },
 
     "/api/sessions": {
-      POST: async request => {
+      POST: async (request) => {
         const body = await request.json();
         return json(() => handlers.openSession(body));
       },
     },
 
     "/api/sessions/:key/state": {
-      GET: request => json(() => handlers.getState(request.params.key)),
+      GET: (request) => json(() => handlers.getState(request.params.key)),
     },
     "/api/sessions/:key/transcript": {
-      GET: request => {
+      GET: (request) => {
         const url = new URL(request.url);
         const limitRaw = url.searchParams.get("limit");
         const limit = limitRaw === null ? undefined : Number(limitRaw);
@@ -189,200 +189,204 @@ const server = serve({
       },
     },
     "/api/sessions/:key/prompt": {
-      POST: async request => {
+      POST: async (request) => {
         const body = await request.json();
         return json(() => handlers.prompt(request.params.key, body), 202);
       },
     },
     "/api/sessions/:key/queue": {
-      GET: request => json(() => handlers.listQueue(request.params.key)),
+      GET: (request) => json(() => handlers.listQueue(request.params.key)),
     },
     "/api/sessions/:key/commands": {
-      GET: request => json(() => handlers.listCommands(request.params.key)),
+      GET: (request) => json(() => handlers.listCommands(request.params.key)),
     },
     "/api/sessions/:key/queue/edit": {
-      POST: async request => {
+      POST: async (request) => {
         const body = await request.json();
         return json(() => handlers.editQueued(request.params.key, body));
       },
     },
     "/api/sessions/:key/queue/drop": {
-      POST: async request => {
+      POST: async (request) => {
         const body = await request.json();
         return json(() => handlers.dropQueued(request.params.key, body));
       },
     },
     "/api/sessions/:key/abort": {
-      POST: request => json(() => handlers.abort(request.params.key)),
+      POST: (request) => json(() => handlers.abort(request.params.key)),
     },
     "/api/sessions/:key/btw": {
-      POST: async request => {
+      POST: async (request) => {
         const body = await request.json();
         return json(() => handlers.askBtw(request.params.key, body));
       },
     },
     "/api/sessions/:key/omfg": {
-      POST: async request => {
+      POST: async (request) => {
         const body = await request.json();
         return json(() => handlers.analyzeOmfg(request.params.key, body));
       },
     },
     "/api/sessions/:key/omfg/save": {
-      POST: async request => {
+      POST: async (request) => {
         const body = await request.json();
         return json(() => handlers.saveOmfgRule(request.params.key, body));
       },
     },
     "/api/sessions/:key/a2ui/dismiss": {
-      POST: async request => {
+      POST: async (request) => {
         const body = await request.json();
         return json(() => handlers.dismissSurface(request.params.key, body));
       },
     },
     "/api/sessions/:key/tools": {
-      GET: request => json(() => handlers.listTools(request.params.key)),
+      GET: (request) => json(() => handlers.listTools(request.params.key)),
     },
     "/api/sessions/:key/tools/force": {
-      POST: async request => {
+      POST: async (request) => {
         const body = await request.json();
         return json(() => handlers.forceTool(request.params.key, body));
       },
     },
     "/api/sessions/:key/rules": {
-      GET: request => json(() => handlers.listRules(request.params.key)),
+      GET: (request) => json(() => handlers.listRules(request.params.key)),
     },
     "/api/sessions/:key/rules/delete": {
-      POST: async request => {
+      POST: async (request) => {
         const body = await request.json();
         return json(() => handlers.deleteRule(request.params.key, body));
       },
     },
     "/api/sessions/:key/jobs": {
-      GET: request => json(() => handlers.listJobs(request.params.key)),
+      GET: (request) => json(() => handlers.listJobs(request.params.key)),
     },
     "/api/sessions/:key/jobs/cancel": {
-      POST: async request => {
+      POST: async (request) => {
         const body = await request.json();
         return json(() => handlers.cancelJob(request.params.key, body));
       },
     },
     "/api/sessions/:key/todos": {
-      POST: async request => {
+      POST: async (request) => {
         const body = await request.json();
         return json(() => handlers.mutateTodos(request.params.key, body));
       },
     },
     "/api/processes": {
-      GET: request => {
+      GET: (request) => {
         const url = new URL(request.url);
         const cwd = url.searchParams.get("cwd") || undefined;
         return json(() => handlers.listProcesses({ cwd }));
       },
     },
     "/api/processes/signal": {
-      POST: async request => {
+      POST: async (request) => {
         const body = await request.json();
         return json(() => handlers.signalProcess(body));
       },
     },
     "/api/processes/stop": {
-      POST: async request => {
+      POST: async (request) => {
         const body = await request.json();
         return json(() => handlers.stopProcess(body));
       },
     },
     "/api/processes/restart": {
-      POST: async request => {
+      POST: async (request) => {
         const body = await request.json();
         return json(() => handlers.restartProcess(body));
       },
     },
     "/api/sessions/:key/stop": {
-      POST: request => json(() => handlers.stopSession(request.params.key)),
+      POST: (request) => json(() => handlers.stopSession(request.params.key)),
     },
     "/api/sessions/:key": {
-      DELETE: request => json(() => handlers.deleteSession(request.params.key)),
+      DELETE: (request) => json(() => handlers.deleteSession(request.params.key)),
     },
     "/api/sessions/:key/model": {
-      POST: async request => {
+      POST: async (request) => {
         const body = await request.json();
         return json(() => handlers.selectModel(request.params.key, body));
       },
     },
     "/api/sessions/:key/compact": {
-      POST: async request => {
+      POST: async (request) => {
         const body = await request.json();
         return json(() => handlers.compactSession(request.params.key, body));
       },
     },
     "/api/sessions/:key/shake": {
-      POST: async request => {
+      POST: async (request) => {
         const body = await request.json();
         return json(() => handlers.shakeSession(request.params.key, body));
       },
     },
     "/api/sessions/:key/thinking": {
-      POST: async request => {
+      POST: async (request) => {
         const body = await request.json();
         return json(() => handlers.setThinkingLevel(request.params.key, body));
       },
     },
     "/api/sessions/:key/title": {
-      POST: async request => {
+      POST: async (request) => {
         const body = await request.json();
         return json(() => handlers.renameSession(request.params.key, body));
       },
     },
     "/api/sessions/:key/retry": {
-      POST: request => json(() => handlers.retryTurn(request.params.key)),
+      POST: (request) => json(() => handlers.retryTurn(request.params.key)),
     },
     "/api/sessions/:key/fork": {
-      POST: request => json(() => handlers.forkSession(request.params.key)),
+      POST: (request) => json(() => handlers.forkSession(request.params.key)),
     },
     "/api/sessions/:key/branch-points": {
-      GET: request => json(() => handlers.listBranchPoints(request.params.key)),
+      GET: (request) => json(() => handlers.listBranchPoints(request.params.key)),
     },
     "/api/sessions/:key/branch": {
-      POST: async request => {
+      POST: async (request) => {
         const body = await request.json();
         return json(() => handlers.branchSession(request.params.key, body));
       },
     },
 
     "/api/sessions/:key/plan": {
-      GET: request => json(() => handlers.getPlan(request.params.key)),
+      GET: (request) => json(() => handlers.getPlan(request.params.key)),
     },
     "/api/sessions/:key/plan/mode": {
-      POST: async request => {
+      POST: async (request) => {
         const body = await request.json();
         return json(() => handlers.setPlanMode(request.params.key, body));
       },
     },
     "/api/sessions/:key/plan/document": {
-      PUT: async request => {
+      PUT: async (request) => {
         const body = await request.json();
         return json(() => handlers.editPlan(request.params.key, body));
       },
     },
     "/api/sessions/:key/plan/action": {
-      POST: async request => {
+      POST: async (request) => {
         const body = await request.json();
         return json(() => handlers.resolvePlan(request.params.key, body));
       },
     },
 
     "/api/markdown": {
-      POST: async request => {
+      POST: async (request) => {
         const body = await request.json();
         return json(() => handlers.renderMarkdown(body));
       },
     },
 
     /** AG-UI stream for one session. */
-    "/ws/:key": request => {
+    "/ws/:key": (request) => {
       const key = request.params.key;
-      if (!registry.get(key)) return new Response("No such session", { status: 404 });
-      if (server.upgrade(request, { data: { key } })) return undefined as unknown as Response;
+      if (!registry.get(key)) {
+        return new Response("No such session", { status: 404 });
+      }
+      if (server.upgrade(request, { data: { key } })) {
+        return undefined as unknown as Response;
+      }
       return new Response("Expected a WebSocket upgrade", { status: 426 });
     },
 
@@ -439,7 +443,9 @@ const server = serve({
     message(socket: ServerWebSocket<SocketData>, raw) {
       // The only client→server frame is a keepalive; prompts and aborts are
       // REST calls so they get a status code and an error body.
-      if (raw === "ping") socket.send(JSON.stringify({ type: "CUSTOM", name: "omp.pong", value: null }));
+      if (raw === "ping") {
+        socket.send(JSON.stringify({ type: "CUSTOM", name: "omp.pong", value: null }));
+      }
     },
     close(socket: ServerWebSocket<SocketData>) {
       // Detach only. A disconnect is never forwarded to omp: the agent keeps
@@ -473,7 +479,9 @@ console.log(`  Local:   http://localhost:${PORT}`);
 if (HOST === "0.0.0.0" || HOST === "::" || HOST === "") {
   const interfaces = os.networkInterfaces();
   for (const [name, addrs] of Object.entries(interfaces)) {
-    if (!addrs) continue;
+    if (!addrs) {
+      continue;
+    }
     for (const addr of addrs) {
       if (addr.family === "IPv4" && !addr.internal) {
         const label = name.startsWith("tailscale")

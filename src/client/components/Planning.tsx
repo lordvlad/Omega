@@ -1,3 +1,13 @@
+import { useEffect, useMemo, useState } from "react";
+import {
+  IconCheck,
+  IconDeviceFloppy,
+  IconEdit,
+  IconListSearch,
+  IconMessagePlus,
+  IconPackage,
+  IconTelescope,
+} from "@tabler/icons-react";
 /**
  * The planning surface: table of contents, plan document, and actions.
  *
@@ -29,17 +39,6 @@ import {
   Tooltip,
   Typography,
 } from "@mantine/core";
-import {
-  IconCheck,
-  IconDeviceFloppy,
-  IconEdit,
-  IconListSearch,
-  IconMessagePlus,
-  IconPackage,
-  IconTelescope,
-} from "@tabler/icons-react";
-import { useEffect, useMemo, useState } from "react";
-
 import type { PlanAction, PlanDocument } from "../api/model.ts";
 import { useRenderedHtml } from "../lib/markdown.tsx";
 
@@ -103,12 +102,14 @@ export function Planning({ plan, loading, busy, compact, onAction, onSave }: Pla
   // omp's slider starts on `default`, so execution does not silently inherit
   // whichever model happened to drive the planning conversation.
   useEffect(() => {
-    if (tier !== null || !plan?.tiers.length) return;
-    setTier(plan.tiers.some(entry => entry.role === "default") ? "default" : (plan.tiers[0]?.role ?? null));
+    if (tier !== null || !plan?.tiers.length) {
+      return;
+    }
+    setTier(plan.tiers.some((entry) => entry.role === "default") ? "default" : (plan.tiers[0]?.role ?? null));
   }, [plan?.tiers, tier]);
 
   const tierData = useMemo(
-    () => (plan?.tiers ?? []).map(entry => ({ value: entry.role, label: `${entry.role} — ${entry.name}` })),
+    () => (plan?.tiers ?? []).map((entry) => ({ value: entry.role, label: `${entry.role} — ${entry.name}` })),
     [plan?.tiers],
   );
 
@@ -126,8 +127,7 @@ export function Planning({ plan, loading, busy, compact, onAction, onSave }: Pla
   if (!plan?.content && plan?.enabled !== true) {
     return (
       <Alert variant="light" color="plum" title="No plan yet" m="sm">
-        Switch the composer to Plan mode to have the agent research first and propose a plan before it edits
-        anything.
+        Switch the composer to Plan mode to have the agent research first and propose a plan before it edits anything.
       </Alert>
     );
   }
@@ -152,7 +152,7 @@ export function Planning({ plan, loading, busy, compact, onAction, onSave }: Pla
           The plan has no headings yet.
         </Text>
       ) : (
-        plan.sections.map(section => (
+        plan.sections.map((section) => (
           <NavLink
             key={section.id}
             label={section.title}
@@ -214,7 +214,7 @@ export function Planning({ plan, loading, busy, compact, onAction, onSave }: Pla
               autosize
               minRows={20}
               value={draft}
-              onChange={event => setDraft(event.currentTarget.value)}
+              onChange={(event) => setDraft(event.currentTarget.value)}
               styles={{ input: { fontFamily: "var(--mantine-font-family-monospace)", fontSize: 13 } }}
               p="xs"
             />
@@ -236,8 +236,7 @@ export function Planning({ plan, loading, busy, compact, onAction, onSave }: Pla
     <Stack gap={8} p="sm">
       {!plan.awaitingApproval ? (
         <Text size="xs" c="dimmed">
-          The planner has not submitted this plan for review yet. You can still edit it, or send notes with
-          Refine.
+          The planner has not submitted this plan for review yet. You can still edit it, or send notes with Refine.
         </Text>
       ) : null}
 
@@ -249,7 +248,7 @@ export function Planning({ plan, loading, busy, compact, onAction, onSave }: Pla
         minRows={2}
         maxRows={6}
         value={feedback}
-        onChange={event => setFeedback(event.currentTarget.value)}
+        onChange={(event) => setFeedback(event.currentTarget.value)}
       />
 
       {tierData.length > 1 ? (
@@ -265,7 +264,7 @@ export function Planning({ plan, loading, busy, compact, onAction, onSave }: Pla
       ) : null}
 
       <SimpleGrid cols={{ base: 1, sm: 2 }} spacing="xs">
-        {ACTIONS.map(entry => {
+        {ACTIONS.map((entry) => {
           // omp disables keep-context when the planning transcript would
           // leave no room to execute; mirror that rather than letting the
           // request fail server-side.
@@ -286,7 +285,9 @@ export function Planning({ plan, loading, busy, compact, onAction, onSave }: Pla
                 disabled={blocked || needsFeedback}
                 onClick={() => {
                   onAction(entry.action, feedback, tier ?? undefined);
-                  if (entry.action === "refine") setFeedback("");
+                  if (entry.action === "refine") {
+                    setFeedback("");
+                  }
                 }}
                 fullWidth
               >

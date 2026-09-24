@@ -14,7 +14,6 @@
  *   as its own message, so the content index is what keeps them apart.
  */
 import { EventType } from "@tanstack/ai/client";
-
 import { parseRateLimit } from "../shared/ratelimit.ts";
 
 /** An AG-UI frame, as it goes over the wire. */
@@ -38,17 +37,29 @@ export function custom(name: OmpCustomName, value: unknown): AguiFrame {
 
 /** Flatten an omp tool result into display text. */
 export function toolResultText(result: unknown): string {
-  if (result == null) return "";
-  if (typeof result === "string") return result;
-  if (typeof result !== "object") return String(result);
+  if (result == null) {
+    return "";
+  }
+  if (typeof result === "string") {
+    return result;
+  }
+  if (typeof result !== "object") {
+    return String(result);
+  }
 
   if ("content" in result && Array.isArray(result.content)) {
     return result.content
-      .map(part => {
-        if (typeof part === "string") return part;
-        if (!part || typeof part !== "object") return "";
+      .map((part) => {
+        if (typeof part === "string") {
+          return part;
+        }
+        if (!part || typeof part !== "object") {
+          return "";
+        }
         const kind = "type" in part && typeof part.type === "string" ? part.type : "";
-        if (kind === "text" && "text" in part && typeof part.text === "string") return part.text;
+        if (kind === "text" && "text" in part && typeof part.text === "string") {
+          return part.text;
+        }
         // Non-text parts (images, resources) have no textual body; name the
         // kind so the transcript shows that something was returned.
         return kind ? `[${kind}]` : "";
@@ -56,7 +67,9 @@ export function toolResultText(result: unknown): string {
       .filter(Boolean)
       .join("\n");
   }
-  if ("text" in result && typeof result.text === "string") return result.text;
+  if ("text" in result && typeof result.text === "string") {
+    return result.text;
+  }
   return JSON.stringify(result);
 }
 
@@ -103,7 +116,9 @@ export class AguiTranslator {
         // `isTerminal: false` means maintenance or async delivery has already
         // scheduled more work, so the run has not settled and the composer
         // must stay busy.
-        if (event.isTerminal === false) return [];
+        if (event.isTerminal === false) {
+          return [];
+        }
         const frames = this.#closeOpenBlocks();
         frames.push({ type: EventType.RUN_FINISHED, threadId: this.#threadId, runId: this.#runId });
         return frames;
@@ -189,7 +204,9 @@ export class AguiTranslator {
   }
 
   #translateDelta(delta: { type: string } & Record<string, any>): AguiFrame[] {
-    if (!delta) return [];
+    if (!delta) {
+      return [];
+    }
     const index: number = typeof delta.contentIndex === "number" ? delta.contentIndex : 0;
     const messageId = this.#messageId(index);
     switch (delta.type) {
@@ -211,12 +228,7 @@ export class AguiTranslator {
         this.#openThinking.add(index);
         return [{ type: EventType.THINKING_TEXT_MESSAGE_START, messageId }];
       case "thinking_delta":
-        return this.#ensureOpen(
-          this.#openThinking,
-          index,
-          EventType.THINKING_TEXT_MESSAGE_START,
-          messageId,
-        ).concat({
+        return this.#ensureOpen(this.#openThinking, index, EventType.THINKING_TEXT_MESSAGE_START, messageId).concat({
           type: EventType.THINKING_TEXT_MESSAGE_CONTENT,
           messageId,
           delta: delta.delta,
@@ -246,7 +258,9 @@ export class AguiTranslator {
 
   /** Emit the opening frame for a block whose start event never arrived. */
   #ensureOpen(open: Set<number>, index: number, startType: string, messageId: string): AguiFrame[] {
-    if (open.has(index)) return [];
+    if (open.has(index)) {
+      return [];
+    }
     open.add(index);
     return [{ type: startType, messageId, role: "assistant" }];
   }

@@ -14,7 +14,6 @@ import {
 } from "@oh-my-pi/pi-coding-agent/mcp/config-writer";
 import type { MCPServerConfig } from "@oh-my-pi/pi-coding-agent/mcp/types";
 import { getMCPConfigPath } from "@oh-my-pi/pi-utils";
-
 import type {
   Ack,
   AddMcpServerRequest,
@@ -131,7 +130,7 @@ export async function testMcpServerConnection(request: TestMcpServerRequest): Pr
     try {
       const toolsResult = await listTools(connection);
       if (Array.isArray(toolsResult)) {
-        tools = toolsResult.map(t => t.name);
+        tools = toolsResult.map((t) => t.name);
       }
     } catch {
       tools = [];
@@ -160,12 +159,11 @@ export async function testMcpServerConnection(request: TestMcpServerRequest): Pr
 /**
  * Add or update an MCP server using omp's config-writer.
  */
-export async function addMcpServerConfig(
-  cwd: string | undefined,
-  request: AddMcpServerRequest,
-): Promise<Ack> {
+export async function addMcpServerConfig(cwd: string | undefined, request: AddMcpServerRequest): Promise<Ack> {
   const name = request.name.trim();
-  if (!name) throw new Error("Server name is required.");
+  if (!name) {
+    throw new Error("Server name is required.");
+  }
 
   const scope = request.scope === "global" ? "user" : "project";
   const configPath = getMCPConfigPath(scope, cwd);
@@ -174,8 +172,12 @@ export async function addMcpServerConfig(
   if (request.command) {
     serverConfig.type = "stdio";
     serverConfig.command = request.command;
-    if (request.args && request.args.length > 0) serverConfig.args = request.args;
-    if (request.env && Object.keys(request.env).length > 0) serverConfig.env = request.env;
+    if (request.args && request.args.length > 0) {
+      serverConfig.args = request.args;
+    }
+    if (request.env && Object.keys(request.env).length > 0) {
+      serverConfig.env = request.env;
+    }
   } else if (request.url) {
     serverConfig.type = "http";
     serverConfig.url = request.url;
@@ -190,12 +192,11 @@ export async function addMcpServerConfig(
 /**
  * Remove an MCP server using omp's config-writer.
  */
-export async function removeMcpServerConfig(
-  cwd: string | undefined,
-  request: RemoveMcpServerRequest,
-): Promise<Ack> {
+export async function removeMcpServerConfig(cwd: string | undefined, request: RemoveMcpServerRequest): Promise<Ack> {
   const name = request.name.trim();
-  if (!name) throw new Error("Server name is required.");
+  if (!name) {
+    throw new Error("Server name is required.");
+  }
 
   const scope = request.scope === "global" ? "user" : "project";
   const configPath = getMCPConfigPath(scope, cwd);
@@ -207,12 +208,11 @@ export async function removeMcpServerConfig(
 /**
  * Enable or disable an MCP server in project or global config.
  */
-export async function toggleMcpServerConfig(
-  cwd: string | undefined,
-  request: ToggleMcpServerRequest,
-): Promise<Ack> {
+export async function toggleMcpServerConfig(cwd: string | undefined, request: ToggleMcpServerRequest): Promise<Ack> {
   const name = request.name.trim();
-  if (!name) throw new Error("Server name is required.");
+  if (!name) {
+    throw new Error("Server name is required.");
+  }
 
   const scope = request.scope === "global" ? "user" : "project";
   const configPath = getMCPConfigPath(scope, cwd);

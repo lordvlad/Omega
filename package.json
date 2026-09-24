@@ -8,8 +8,10 @@
     "start": "NODE_ENV=production bun src/server/index.ts",
     "schema": "bun run src/shared/schema.ts > openapi.json",
     "gen:api": "bun run schema && bun node_modules/wiz/src/cli.ts generate -g reactQuery openapi.json --outdir src/client/api",
-    "format": "oxfmt .",
-    "format:check": "oxfmt --check .",
+    "lint": "oxlint --config oxlint.config.ts src/",
+    "lint:fix": "oxlint --config oxlint.config.ts --fix src/",
+    "format": "oxfmt --config oxfmt.config.ts --write src/",
+    "format:check": "oxfmt --config oxfmt.config.ts --check src/",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
@@ -38,7 +40,9 @@
     "@types/bun": "latest",
     "@types/react": "^19.3.0",
     "@types/react-dom": "^19.3.0",
-    "oxfmt": "^0.66.0",
+    "oxc-config-mantine": "^1.0.3",
+    "oxfmt": "^0.70.0",
+    "oxlint": "^1.85.0",
     "typescript": "^5.7.3",
     "wiz": "github:lordvlad/Wiz#main"
   }

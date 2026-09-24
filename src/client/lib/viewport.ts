@@ -24,7 +24,9 @@ import { useEffect } from "react";
 export function useVisualViewport(): void {
   useEffect(() => {
     const viewport = window.visualViewport;
-    if (!viewport) return;
+    if (!viewport) {
+      return;
+    }
 
     const root = document.documentElement;
     const publish = (): void => {
