@@ -49,8 +49,8 @@ export interface ActiveSessionOverview {
   modelName: string;
   thinkingLevel: ThinkingLevel;
   agentArchetype: string;
-  state: "error" | "streaming" | "idle" | "awaiting_plan";
-  turnCompletedDot: "error" | "streaming" | "idle" | "completed";
+  state: "error" | "streaming" | "idle" | "awaiting_plan" | "rate_limited";
+  turnCompletedDot: "error" | "streaming" | "idle" | "rate_limited" | "completed";
   messageCount: number;
   assistantTurns: number;
   totalTokens: number;
@@ -62,6 +62,7 @@ export interface ActiveSessionOverview {
     contextWindow: number;
     percent: number;
   };
+  rateLimit?: RateLimitState;
   lastError?: string;
   lastActivityAt: number;
   idleSeconds: number;
@@ -69,6 +70,16 @@ export interface ActiveSessionOverview {
 
 /** omp thinking levels, in ascending order of budget. */
 export type ThinkingLevel = "off" | "minimal" | "low" | "medium" | "high" | "xhigh" | "max";
+
+/** Rate limit details when a session has hit provider limits. */
+export interface RateLimitState {
+  isRateLimit: boolean;
+  resetsAt: number;
+  relative: string;
+  absolute: string;
+  message: string;
+  rawError?: string;
+}
 
 /** A model the local omp install is authenticated for. */
 export interface ModelOption {
@@ -142,6 +153,7 @@ export interface LiveState {
   plan?: PlanState;
   todos?: TodoPhase[];
   subagents?: SubagentTask[];
+  rateLimit?: RateLimitState;
   lastError?: string;
 }
 

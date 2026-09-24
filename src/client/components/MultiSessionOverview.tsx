@@ -30,6 +30,7 @@ import {
   IconBrain,
   IconCheck,
   IconChecklist,
+  IconClockPause,
   IconClock,
   IconFolder,
   IconGauge,
@@ -87,6 +88,12 @@ function renderDotMarker(dot: ActiveSessionOverview["turnCompletedDot"]): React.
           leftSection={<IconPlayerPlayFilled size={9} />}
         >
           STREAMING
+        </Badge>
+      );
+    case "rate_limited":
+      return (
+        <Badge size="xs" color="orange" variant="filled" leftSection={<IconClockPause size={9} />}>
+          RATE LIMITED
         </Badge>
       );
     case "error":
@@ -283,8 +290,8 @@ export function MultiSessionOverview({
           <SimpleGrid cols={{ base: 1, sm: 2, lg: 3, xl: 4 }} spacing="md">
             {filteredSessions.map(session => {
               const isStreaming = session.state === "streaming";
+              const isRateLimited = session.state === "rate_limited" || Boolean(session.rateLimit);
               const isError = session.state === "error";
-
               return (
                 <Card
                   key={session.key}
@@ -298,9 +305,11 @@ export function MultiSessionOverview({
                     justifyContent: "space-between",
                     borderColor: isStreaming
                       ? "var(--mantine-color-plum-6)"
-                      : isError
-                        ? "var(--mantine-color-red-6)"
-                        : undefined,
+                      : isRateLimited
+                        ? "var(--mantine-color-orange-6)"
+                        : isError
+                          ? "var(--mantine-color-red-6)"
+                          : undefined,
                   }}
                 >
                   <Stack gap="xs">
@@ -443,8 +452,28 @@ export function MultiSessionOverview({
                         </Text>
                       </Group>
                     </Stack>
-                    {/* Error message if present */}
-                    {session.lastError ? (
+                    {/* Rate limit info if session is rate-limited */}
+                    {session.rateLimit || session.state === "rate_limited" ? (
+                      <Box
+                        p={8}
+                        style={{
+                          borderRadius: "var(--mantine-radius-sm)",
+                          backgroundColor: "rgba(253, 126, 20, 0.12)",
+                          border: "1px solid rgba(253, 126, 20, 0.35)",
+                        }}
+                      >
+                        <Group gap={6} align="center" mb={2}>
+                          <IconClockPause size={13} color="var(--mantine-color-orange-4)" />
+                          <Text size="xs" fw={700} c="orange.4">
+                            Rate Limit Reached
+                          </Text>
+                        </Group>
+                        <Text size="xs" c="orange.3" fw={500}>
+                          Resets {session.rateLimit?.relative ?? "soon"} (at{" "}
+                          {session.rateLimit?.absolute ?? "--:--"})
+                        </Text>
+                      </Box>
+                    ) : session.lastError ? (
                       <Text size="xs" c="red.4" lineClamp={2} style={{ wordBreak: "break-word" }}>
                         {session.lastError}
                       </Text>

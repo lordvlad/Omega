@@ -15,6 +15,8 @@
  */
 import { EventType } from "@tanstack/ai/client";
 
+import { parseRateLimit } from "../shared/ratelimit.ts";
+
 /** An AG-UI frame, as it goes over the wire. */
 export type AguiFrame = Record<string, unknown> & { type: string };
 
@@ -105,6 +107,20 @@ export class AguiTranslator {
         const frames = this.#closeOpenBlocks();
         frames.push({ type: EventType.RUN_FINISHED, threadId: this.#threadId, runId: this.#runId });
         return frames;
+      }
+      case "message_end": {
+        if (event.message?.role === "assistant" && event.message?.stopReason === "error") {
+          const raw = event.message.errorMessage || "The model returned an error.";
+          const parsed = parseRateLimit(raw);
+          return [
+            ...this.#closeOpenBlocks(),
+            {
+              type: EventType.RUN_ERROR,
+              message: parsed ? parsed.message : raw,
+            },
+          ];
+        }
+        return [];
       }
       case "message_update":
         return this.#translateDelta(event.assistantMessageEvent);
@@ -208,14 +224,21 @@ export class AguiTranslator {
       case "thinking_end":
         this.#openThinking.delete(index);
         return [{ type: EventType.THINKING_TEXT_MESSAGE_END, messageId }];
-      case "error":
+      case "error": {
+        const raw =
+          delta.errorMessage ||
+          delta.error?.message ||
+          delta.message ||
+          (delta.reason === "aborted" ? "Turn aborted." : "The model returned an error.");
+        const parsed = parseRateLimit(raw);
         return [
           ...this.#closeOpenBlocks(),
           {
             type: EventType.RUN_ERROR,
-            message: delta.reason === "aborted" ? "Turn aborted." : "The model returned an error.",
+            message: parsed ? parsed.message : raw,
           },
         ];
+      }
       default:
         return [];
     }

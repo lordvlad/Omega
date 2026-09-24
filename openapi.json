@@ -2829,6 +2829,9 @@
               },
               {
                 "const": "awaiting_plan"
+              },
+              {
+                "const": "rate_limited"
               }
             ]
           },
@@ -2842,6 +2845,9 @@
               },
               {
                 "const": "idle"
+              },
+              {
+                "const": "rate_limited"
               },
               {
                 "const": "completed"
@@ -2884,6 +2890,9 @@
               "contextWindow",
               "percent"
             ]
+          },
+          "rateLimit": {
+            "$ref": "#/components/schemas/RateLimitState"
           },
           "lastError": {
             "type": "string"
@@ -2941,6 +2950,37 @@
           {
             "const": "max"
           }
+        ]
+      },
+      "RateLimitState": {
+        "description": "Rate limit details when a session has hit provider limits.",
+        "type": "object",
+        "properties": {
+          "isRateLimit": {
+            "type": "boolean"
+          },
+          "resetsAt": {
+            "type": "number"
+          },
+          "relative": {
+            "type": "string"
+          },
+          "absolute": {
+            "type": "string"
+          },
+          "message": {
+            "type": "string"
+          },
+          "rawError": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "isRateLimit",
+          "resetsAt",
+          "relative",
+          "absolute",
+          "message"
         ]
       },
       "ModelOption": {
@@ -3238,6 +3278,9 @@
               "$ref": "#/components/schemas/SubagentTask"
             },
             "description": "Sub-agent tasks spawned during this session."
+          },
+          "rateLimit": {
+            "$ref": "#/components/schemas/RateLimitState"
           },
           "lastError": {
             "type": "string",

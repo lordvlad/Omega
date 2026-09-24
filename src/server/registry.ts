@@ -36,6 +36,13 @@ import type {
   SubagentTask,
   ThinkingLevel,
 } from "../shared/model.ts";
+import {
+  formatAbsoluteTime,
+  formatRateLimitUniformMessage,
+  formatRelativeTime,
+  parseRateLimit,
+  type RateLimitInfo,
+} from "../shared/ratelimit.ts";
 import { A2uiChannel, createA2uiTools } from "./a2ui.ts";
 import { type AguiFrame, AguiTranslator, custom } from "./agui.ts";
 import { getGitStatus } from "./git.ts";
@@ -75,6 +82,8 @@ export class LiveSession {
   #wasBusy = false;
   /** Why the last turn stopped, for a page that reloaded after it did. */
   #lastError: string | undefined;
+  /** Active rate limit details when the last turn failed due to rate limits. */
+  #rateLimit: RateLimitInfo | undefined;
   readonly #subagents = new Map<string, SubagentTask>();
 
   constructor(
@@ -94,6 +103,9 @@ export class LiveSession {
 
   get key(): string {
     return this.#key;
+  }
+  get rateLimit(): RateLimitInfo | undefined {
+    return this.#rateLimit;
   }
 
   /**
@@ -139,7 +151,16 @@ export class LiveSession {
       // turn replay frames so a reconnect mid-turn only receives the current turn.
       if (event.type === "agent_start") {
         this.#lastError = undefined;
+        this.#rateLimit = undefined;
         this.#replay.length = 0;
+      }
+      if (
+        event.type === "message_end" &&
+        (event as any).message?.role === "assistant" &&
+        (event as any).message?.stopReason === "error"
+      ) {
+        const errorText = (event as any).message?.errorMessage || "The model returned an error.";
+        this.recordError(errorText);
       }
       for (const frame of this.#translator.translate(event)) this.#emit(frame);
       // A settled turn changes model/queue/context/plan state that the REST
@@ -184,6 +205,26 @@ export class LiveSession {
     for (const sink of this.#sinks) sink(frame);
   }
 
+  /** Record an error and check if it represents a rate limit. */
+  recordError(rawError: string): void {
+    const rateLimit = parseRateLimit(rawError);
+    if (rateLimit) {
+      this.#rateLimit = rateLimit;
+      this.#lastError = rateLimit.message;
+    } else {
+      this.#rateLimit = undefined;
+      this.#lastError = rawError;
+    }
+
+    this.registry?.broadcastCrossSessionNotification({
+      key: this.key,
+      title: this.manager.getSessionName() || "Untitled session",
+      cwd: this.manager.getCwd(),
+      status: "error",
+      error: this.#lastError,
+    });
+  }
+
   /**
    * Push an out-of-band frame, e.g. a plan proposal.
    *
@@ -194,15 +235,10 @@ export class LiveSession {
     if (frame.type === "RUN_ERROR") {
       const message = (frame as { message?: unknown }).message;
       const errorText = typeof message === "string" ? message : "The turn failed.";
-      this.#lastError = errorText;
-
-      this.registry?.broadcastCrossSessionNotification({
-        key: this.key,
-        title: this.manager.getSessionName() || "Untitled session",
-        cwd: this.manager.getCwd(),
-        status: "error",
-        error: errorText,
-      });
+      this.recordError(errorText);
+      if (this.#rateLimit) {
+        (frame as unknown as { message: string }).message = this.#rateLimit.message;
+      }
     }
     this.#emit(frame);
   }
@@ -389,8 +425,22 @@ export class LiveSession {
           blocker: task.blocker,
         })),
       })),
+      rateLimit: this.liveRateLimit(),
       lastError: this.#lastError,
       subagents: this.subagents,
+    };
+  }
+
+  /** Calculate current live rate limit snapshot with updated relative time. */
+  liveRateLimit(): RateLimitInfo | undefined {
+    if (!this.#rateLimit) return undefined;
+    const now = Date.now();
+    const remainingMs = Math.max(0, this.#rateLimit.resetsAt - now);
+    return {
+      ...this.#rateLimit,
+      relative: formatRelativeTime(remainingMs),
+      absolute: formatAbsoluteTime(this.#rateLimit.resetsAt),
+      message: formatRateLimitUniformMessage(this.#rateLimit.resetsAt, now),
     };
   }
 
@@ -500,12 +550,17 @@ export class Registry {
         gitBranch = undefined;
       }
 
-      let sessionState: "streaming" | "idle" | "awaiting_plan" | "error" = "idle";
-      let turnCompletedDot: "completed" | "error" | "streaming" | "idle" = "idle";
+      let sessionState: "streaming" | "idle" | "awaiting_plan" | "error" | "rate_limited" = "idle";
+      let turnCompletedDot: "completed" | "error" | "streaming" | "idle" | "rate_limited" = "idle";
+
+      const rateLimit = live.liveRateLimit();
 
       if (live.session.isStreaming) {
         sessionState = "streaming";
         turnCompletedDot = "streaming";
+      } else if (rateLimit) {
+        sessionState = "rate_limited";
+        turnCompletedDot = "rate_limited";
       } else if (state.lastError) {
         sessionState = "error";
         turnCompletedDot = "error";
@@ -537,6 +592,7 @@ export class Registry {
         totalTodos: allTodos.length,
         completedTodos,
         contextUsage: state.contextUsage,
+        rateLimit,
         lastError: state.lastError,
         lastActivityAt: live.idleFor(now),
         idleSeconds: Math.round(live.idleFor(now) / 1000),

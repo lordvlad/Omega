@@ -31,6 +31,7 @@ import {
   IconArrowUpDashed,
   IconBrain,
   IconChevronRight,
+  IconClockPause,
   IconCopy,
   IconDots,
   IconGitBranch,
@@ -43,6 +44,7 @@ import {
 } from "@tabler/icons-react";
 import { type MouseEvent as ReactMouseEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
 
+import { parseRateLimit } from "../../shared/ratelimit.ts";
 import type { MessagePart, SubagentTask, TranscriptMessage } from "../api/model.ts";
 import { copyText } from "../lib/clipboard.ts";
 import { Markdown } from "../lib/markdown.tsx";
@@ -1079,7 +1081,30 @@ export function Transcript({
                       {item.notice}
                     </Alert>
                   );
-                case "error":
+                case "error": {
+                  const rateLimit = parseRateLimit(item.error);
+                  if (rateLimit) {
+                    return (
+                      <Alert
+                        key={`error-${index}`}
+                        variant="light"
+                        color="orange"
+                        icon={<IconClockPause size={16} />}
+                        title="Rate limit reached"
+                      >
+                        <Stack gap={4}>
+                          <Text size="sm" fw={600} c="orange.3">
+                            {rateLimit.message}
+                          </Text>
+                          {rateLimit.rawError && rateLimit.rawError !== rateLimit.message ? (
+                            <Text size="xs" c="dimmed" style={{ wordBreak: "break-word" }}>
+                              {rateLimit.rawError}
+                            </Text>
+                          ) : null}
+                        </Stack>
+                      </Alert>
+                    );
+                  }
                   return (
                     <Alert
                       key={`error-${index}`}
@@ -1091,6 +1116,7 @@ export function Transcript({
                       {item.error}
                     </Alert>
                   );
+                }
               }
             })}
           </Stack>

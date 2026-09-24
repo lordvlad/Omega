@@ -100,6 +100,7 @@ export interface LiveState {
   todos?: TodoPhase[];
   /** Sub-agent tasks spawned during this session. */
   subagents?: SubagentTask[];
+  rateLimit?: RateLimitState;
   /**
    * Why the last turn stopped without finishing, if it did.
    *
@@ -111,6 +112,17 @@ export interface LiveState {
    */
   lastError?: string;
 }
+
+/** Rate limit details when a session has hit provider limits. */
+export interface RateLimitState {
+  isRateLimit: boolean;
+  resetsAt: number;
+  relative: string;
+  absolute: string;
+  message: string;
+  rawError?: string;
+}
+
 /** Detailed snapshot of an active live session for the multi-session overview. */
 export interface ActiveSessionOverview {
   key: string;
@@ -123,8 +135,8 @@ export interface ActiveSessionOverview {
   modelName: string;
   thinkingLevel: ThinkingLevel;
   agentArchetype: string;
-  state: "streaming" | "idle" | "awaiting_plan" | "error";
-  turnCompletedDot: "completed" | "error" | "streaming" | "idle";
+  state: "streaming" | "idle" | "awaiting_plan" | "error" | "rate_limited";
+  turnCompletedDot: "completed" | "error" | "streaming" | "idle" | "rate_limited";
   messageCount: number;
   assistantTurns: number;
   totalTokens: number;
@@ -136,6 +148,7 @@ export interface ActiveSessionOverview {
     contextWindow: number;
     percent: number;
   };
+  rateLimit?: RateLimitState;
   lastError?: string;
   lastActivityAt: number;
   idleSeconds: number;
