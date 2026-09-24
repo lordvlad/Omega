@@ -163,6 +163,7 @@ import { formatAnnotations, useAnnotations } from "./lib/annotations.ts";
 import { showYieldNotification } from "./lib/notifications.ts";
 import { useOnline } from "./lib/online.ts";
 import { newSendId } from "./lib/outbox.ts";
+import { getBasename } from "./lib/paths.ts";
 import { useProjectSettings } from "./lib/settings.ts";
 import { type CrossSessionNotificationEvent, type YieldEvent, useLiveTurn } from "./lib/stream.ts";
 import { forgetTranscript, usePersistedTranscript } from "./lib/transcript-cache.ts";
@@ -1762,8 +1763,8 @@ export function App() {
                   <IconFolder size={13} style={{ flexShrink: 0, marginRight: 4 }} />
                   <Text size="xs" c="dimmed" truncate style={HEADER_UNDERLINE}>
                     {state.data?.cwd
-                      ? state.data.cwd.split("/").pop()
-                      : (project?.split("/").pop() ?? "choose a workspace")}
+                      ? getBasename(state.data.cwd)
+                      : getBasename(project) || "choose a workspace"}
                   </Text>
                 </UnstyledButton>
               </Tooltip>
@@ -1949,7 +1950,7 @@ export function App() {
             files={files.data ?? []}
             gitStatus={gitStatus.data}
             projectKey={project ?? sessionKey ?? ""}
-            workspaceName={state.data?.cwd?.split("/").pop()}
+            workspaceName={getBasename(state.data?.cwd)}
             onOpenFile={path => setViewingFile(path)}
             onInsertRef={handlePickFile}
             onClose={closeTree}
@@ -1977,7 +1978,7 @@ export function App() {
           files={files.data ?? []}
           gitStatus={gitStatus.data}
           projectKey={project ?? sessionKey ?? ""}
-          workspaceName={state.data?.cwd?.split("/").pop()}
+          workspaceName={getBasename(state.data?.cwd)}
           onOpenFile={path => setViewingFile(path)}
           onInsertRef={handlePickFile}
           onClose={closeTree}
@@ -2509,7 +2510,7 @@ export function App() {
           <Stack className="omega-main omega-landing" gap="lg" px="md" py="xl" align="center">
             <Stack gap={4} align="center">
               <Text fw={700} size="xl">
-                {project ? (project.split("/").pop() ?? project) : "omega"}
+                {project ? getBasename(project) || project : "omega"}
               </Text>
               <Text size="sm" c="dimmed" ta="center">
                 {project

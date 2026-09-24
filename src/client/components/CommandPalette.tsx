@@ -313,7 +313,7 @@ function scoreFileMatch(filePath: string, query: string): number {
   const lowerQuery = query.toLowerCase().trim();
   if (!lowerQuery) return 1;
 
-  const parts = filePath.split("/");
+  const parts = filePath.replace(/\\/g, "/").split("/");
   const fileName = parts[parts.length - 1] ?? filePath;
   const lowerName = fileName.toLowerCase();
   const ext = fileName.includes(".") ? fileName.slice(fileName.lastIndexOf(".")) : "";
@@ -688,7 +688,7 @@ export function CommandPalette({
       {
         group: `Files in workspace (${files.length})`,
         actions: files.map(file => {
-          const parts = file.split("/");
+          const parts = file.replace(/\\/g, "/").split("/");
           const fileName = parts.pop() ?? file;
           const dir = parts.join("/");
           return {

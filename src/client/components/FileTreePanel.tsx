@@ -146,10 +146,13 @@ function buildTree(files: string[], gitStatus?: GitStatusResult): TreeNode[] {
   const dirMap = new Map<string, TreeNode>();
 
   // Collect all unique file paths from file list and git status
-  const allPaths = new Set<string>(files);
+  const allPaths = new Set<string>();
+  for (const f of files) {
+    if (f) allPaths.add(f.replace(/\\/g, "/"));
+  }
   if (gitStatus?.files) {
     for (const filePath of Object.keys(gitStatus.files)) {
-      if (filePath) allPaths.add(filePath);
+      if (filePath) allPaths.add(filePath.replace(/\\/g, "/"));
     }
   }
 
@@ -157,7 +160,7 @@ function buildTree(files: string[], gitStatus?: GitStatusResult): TreeNode[] {
     const existing = dirMap.get(dirPath);
     if (existing) return existing;
 
-    const parts = dirPath.split("/");
+    const parts = dirPath.replace(/\\/g, "/").split("/");
     const name = parts[parts.length - 1] ?? dirPath;
     const node: TreeNode = {
       id: dirPath,
@@ -180,7 +183,7 @@ function buildTree(files: string[], gitStatus?: GitStatusResult): TreeNode[] {
   }
 
   for (const filePath of allPaths) {
-    const parts = filePath.split("/");
+    const parts = filePath.replace(/\\/g, "/").split("/");
     const fileName = parts[parts.length - 1] ?? filePath;
     const fileGitStatus = gitStatus?.files?.[filePath];
 

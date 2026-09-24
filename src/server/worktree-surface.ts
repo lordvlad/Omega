@@ -102,7 +102,13 @@ export async function createNewWorktree(
   let targetBranch: string;
 
   if (rawArg) {
-    if (rawArg.startsWith("/") || rawArg.startsWith("./") || rawArg.startsWith("../")) {
+    if (
+      path.isAbsolute(rawArg) ||
+      rawArg.startsWith("./") ||
+      rawArg.startsWith(".\\") ||
+      rawArg.startsWith("../") ||
+      rawArg.startsWith("..\\")
+    ) {
       targetPath = path.resolve(normalizedProject, rawArg);
       targetBranch = path.basename(targetPath);
     } else {

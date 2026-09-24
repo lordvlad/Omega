@@ -49,6 +49,7 @@ import type { GitFileStatus } from "../api/model.ts";
 import { useGetFileContent, useGetGitDiff } from "../api/queries.ts";
 import { copyText } from "../lib/clipboard.ts";
 import { Markdown } from "../lib/markdown.tsx";
+import { getBasename } from "../lib/paths.ts";
 
 /** What a selection in the viewer records, before the note is written. */
 export interface FileSelectionAnnotation {
@@ -213,7 +214,7 @@ const MAX_EXCERPT = 400;
 
 export function FileViewer({ filePath, cwd, gitStatus, onInsertRef, onAnnotate, onClose }: FileViewerProps) {
   const isModified = Boolean(gitStatus && gitStatus.status);
-  const fileName = filePath ? (filePath.split("/").pop() ?? filePath) : "";
+  const fileName = filePath ? getBasename(filePath) : "";
   const ext = fileName.split(".").pop()?.toLowerCase() ?? "";
   const isMarkdown = ext === "md" || ext === "markdown";
   const language = LANGUAGE_MAP[ext] ?? "text";

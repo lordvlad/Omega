@@ -184,7 +184,8 @@ export async function resolveDownloadPath(
   const root = path.resolve(cwd || process.cwd());
   const fullPath = path.resolve(root, relPath);
 
-  if (fullPath !== root && !fullPath.startsWith(root + path.sep)) {
+  const rel = path.relative(root, fullPath);
+  if (rel.startsWith("..") || path.isAbsolute(rel)) {
     throw new Error("Path is outside workspace directory.");
   }
 
@@ -211,7 +212,7 @@ export async function browseDirectory(query?: BrowseDirectoryQuery): Promise<Dir
   const rawPath = query?.path?.trim();
   let target = rawPath
     ? rawPath.startsWith("~")
-      ? path.join(home, rawPath.slice(1))
+      ? path.join(home, rawPath.replace(/^~[/\\]?/, ""))
       : path.resolve(rawPath)
     : process.cwd();
 

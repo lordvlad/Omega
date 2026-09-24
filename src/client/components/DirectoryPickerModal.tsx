@@ -50,19 +50,37 @@ export interface DirectoryPickerModalProps {
   onSelectDirectory: (directoryPath: string) => void;
 }
 
-/** Break an absolute path into breadcrumb segments. */
+/** Break an absolute path into breadcrumb segments (cross-platform for Windows and POSIX). */
 function pathSegments(fullPath: string): Array<{ name: string; path: string }> {
-  if (!fullPath || fullPath === "/") return [{ name: "/", path: "/" }];
+  if (!fullPath) return [{ name: "/", path: "/" }];
 
-  const parts = fullPath.split("/").filter(Boolean);
-  const segments: Array<{ name: string; path: string }> = [{ name: "/", path: "/" }];
+  const normalized = fullPath.replace(/\\/g, "/");
+  const isWindows = /^[a-zA-Z]:/.test(normalized);
 
+  if (isWindows) {
+    const drive = normalized.slice(0, 2).toUpperCase(); // e.g. "C:"
+    const rest = normalized.slice(2); // e.g. "/Users/waldemar/repo"
+    const parts = rest.split("/").filter(Boolean);
+    const sep = fullPath.includes("\\") ? "\\" : "/";
+
+    const segments = [{ name: drive, path: `${drive}${sep}` }];
+    let accumulated = `${drive}`;
+
+    for (const part of parts) {
+      accumulated += `${sep}${part}`;
+      segments.push({ name: part, path: accumulated });
+    }
+    return segments;
+  }
+
+  // POSIX
+  const parts = normalized.split("/").filter(Boolean);
+  const segments = [{ name: "/", path: "/" }];
   let accumulated = "";
   for (const part of parts) {
     accumulated += `/${part}`;
     segments.push({ name: part, path: accumulated });
   }
-
   return segments;
 }
 

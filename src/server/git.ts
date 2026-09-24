@@ -89,7 +89,8 @@ export async function getGitDiff(relPath: string, cwd?: string): Promise<GitDiff
       try {
         const stat = await fs.stat(fullPath);
         if (stat.isFile() || stat.isSymbolicLink()) {
-          const noIndexProc = Bun.spawn(["git", "diff", "--no-index", "--", "/dev/null", fullPath], {
+          const nullDevice = process.platform === "win32" ? "NUL" : "/dev/null";
+          const noIndexProc = Bun.spawn(["git", "diff", "--no-index", "--", nullDevice, fullPath], {
             cwd: root,
             stdout: "pipe",
             stderr: "pipe",
@@ -133,7 +134,7 @@ export function parseGitStatusOutput(output: string): GitStatusResult {
   let branch: string | undefined;
   const files: Record<string, GitFileStatus> = {};
 
-  const lines = output.split("\n");
+  const lines = output.split(/\r?\n/);
   for (const line of lines) {
     if (!line) continue;
 
