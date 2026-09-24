@@ -590,6 +590,7 @@ export class Registry {
         turnCompletedDot,
         messageCount: live.session.messages.length,
         assistantTurns,
+        queuedMessages: live.session.queuedMessageCount || state.queued || 0,
         totalTokens,
         totalCost,
         totalTodos: allTodos.length,

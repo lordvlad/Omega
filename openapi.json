@@ -2913,6 +2913,9 @@
           "assistantTurns": {
             "type": "number"
           },
+          "queuedMessages": {
+            "type": "number"
+          },
           "totalTokens": {
             "type": "number"
           },

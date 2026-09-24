@@ -36,6 +36,7 @@ import {
   IconFolder,
   IconGauge,
   IconGitBranch,
+  IconHourglass,
   IconMessage,
   IconPlayerPlayFilled,
   IconPlayerStopFilled,
@@ -345,6 +346,17 @@ export function MultiSessionOverview({
                             {session.gitChangedFiles} modified
                           </Badge>
                         ) : null}
+                        {typeof session.queuedMessages === "number" && session.queuedMessages > 0 ? (
+                          <Badge
+                            size="xs"
+                            variant="light"
+                            color="indigo"
+                            leftSection={<IconHourglass size={10} />}
+                            style={{ flexShrink: 0 }}
+                          >
+                            {session.queuedMessages} queued
+                          </Badge>
+                        ) : null}
                       </Group>
 
                       {renderDotMarker(session.turnCompletedDot)}
@@ -430,9 +442,21 @@ export function MultiSessionOverview({
                             Messages
                           </Text>
                         </Group>
-                        <Text size="xs" fw={500}>
-                          {session.messageCount} ({session.assistantTurns} turns)
-                        </Text>
+                        <Group gap={6} align="center">
+                          <Text size="xs" fw={500}>
+                            {session.messageCount} ({session.assistantTurns} turns)
+                          </Text>
+                          {typeof session.queuedMessages === "number" && session.queuedMessages > 0 ? (
+                            <Badge
+                              size="xs"
+                              variant="filled"
+                              color="indigo"
+                              leftSection={<IconHourglass size={9} />}
+                            >
+                              {session.queuedMessages} queued
+                            </Badge>
+                          ) : null}
+                        </Group>
                       </Group>
 
                       <Group justify="space-between" align="center">

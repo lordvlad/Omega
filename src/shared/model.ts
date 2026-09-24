@@ -140,6 +140,7 @@ export interface ActiveSessionOverview {
   turnCompletedDot: "completed" | "error" | "streaming" | "idle" | "rate_limited";
   messageCount: number;
   assistantTurns: number;
+  queuedMessages?: number;
   totalTokens: number;
   totalCost: number;
   totalTodos: number;
