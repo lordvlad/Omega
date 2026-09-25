@@ -44,6 +44,8 @@ import type {
   ListToolsResult,
   LiveState,
   MarkdownRequest,
+  MkdirRequest,
+  MkdirResult,
   ModelOption,
   MutateTodosRequest,
   OmfgAnalyzeRequest,
@@ -120,6 +122,15 @@ export interface OmpApi {
    * @response 200 application/json DirectoryBrowseResult
    */
   browseDirectory(query?: BrowseDirectoryQuery): Promise<DirectoryBrowseResult>;
+  /**
+   * Create a new directory in the filesystem.
+   *
+   * @post /api/fs/mkdir
+   * @summary Create a new directory
+   * @response 200 application/json MkdirResult
+   * @response 400 application/json Problem
+   */
+  makeDirectory(body: MkdirRequest): Promise<MkdirResult>;
 
   /**
    * Read content and metadata of a workspace file.

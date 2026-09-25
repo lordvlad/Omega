@@ -30,6 +30,8 @@ import type {
   ListToolsResult,
   LiveState,
   MarkdownRequest,
+  MkdirRequest,
+  MkdirResult,
   ModelOption,
   MutateTodosRequest,
   OmfgAnalyzeRequest,
@@ -73,7 +75,7 @@ import type { OmpApi } from "../shared/service.ts";
 import { drawAgentsSurface } from "./agents-surface.ts";
 import { drawChangelogSurface } from "./changelog-surface.ts";
 import { drawContextSurface } from "./context-surface.ts";
-import { browseDirectory, listFiles, readFileContent } from "./files.ts";
+import { browseDirectory, listFiles, makeDirectory, readFileContent } from "./files.ts";
 import { drawGcSurface } from "./gc-surface.ts";
 import { getGitDiff, getGitStatus } from "./git.ts";
 import {
@@ -224,6 +226,16 @@ export class Handlers implements OmpApi {
   }
   browseDirectory(query?: BrowseDirectoryQuery): Promise<DirectoryBrowseResult> {
     return browseDirectory(query);
+  }
+  async makeDirectory(body: MkdirRequest): Promise<MkdirResult> {
+    if (!body?.path?.trim()) {
+      throw new HttpError(400, "Directory path is required.");
+    }
+    try {
+      return await makeDirectory(body.path);
+    } catch (error) {
+      throw new HttpError(400, error instanceof Error ? error.message : String(error));
+    }
   }
 
   async getFileContent(query?: ReadFileQuery): Promise<ReadFileResult> {

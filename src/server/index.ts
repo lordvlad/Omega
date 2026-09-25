@@ -10,6 +10,7 @@ import * as os from "node:os";
  */
 import { serve, type ServerWebSocket } from "bun";
 import index from "../client/index.html";
+import type { MkdirRequest } from "../shared/model.ts";
 import type { AguiFrame } from "./agui.ts";
 import { resolveDownloadPath } from "./files.ts";
 import { registry } from "./registry.ts";
@@ -110,6 +111,12 @@ const server = serve({
         const path = url.searchParams.get("path") || undefined;
         const showHidden = url.searchParams.get("showHidden") === "true";
         return json(() => handlers.browseDirectory({ path, showHidden }));
+      },
+    },
+    "/api/fs/mkdir": {
+      POST: async (request) => {
+        const body = (await request.json().catch(() => ({}))) as MkdirRequest;
+        return json(() => handlers.makeDirectory(body));
       },
     },
     "/api/git/status": {

@@ -175,6 +175,49 @@
         }
       }
     },
+    "/api/fs/mkdir": {
+      "post": {
+        "operationId": "makeDirectory",
+        "x-service": "OmpApi",
+        "tags": [
+          "OmpApi"
+        ],
+        "summary": "Create a new directory",
+        "description": "Create a new directory in the filesystem.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MkdirRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MkdirResult"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/files/content": {
       "get": {
         "operationId": "getFileContent",
@@ -3161,6 +3204,38 @@
         },
         "required": [
           "name",
+          "path"
+        ]
+      },
+      "MkdirRequest": {
+        "description": "Request payload for creating a new directory.",
+        "type": "object",
+        "properties": {
+          "path": {
+            "type": "string",
+            "description": "Absolute or relative path of the directory to create."
+          }
+        },
+        "required": [
+          "path"
+        ]
+      },
+      "MkdirResult": {
+        "description": "Result of creating a new directory.",
+        "type": "object",
+        "properties": {
+          "ok": {
+            "type": "boolean"
+          },
+          "path": {
+            "type": "string"
+          },
+          "detail": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "ok",
           "path"
         ]
       },

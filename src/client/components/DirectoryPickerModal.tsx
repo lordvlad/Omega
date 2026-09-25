@@ -8,6 +8,7 @@ import {
   IconEyeOff,
   IconFolder,
   IconFolderCheck,
+  IconFolderPlus,
   IconGitBranch,
   IconHome,
   IconSearch,
@@ -38,6 +39,7 @@ import {
   Tooltip,
   UnstyledButton,
 } from "@mantine/core";
+import { useMakeDirectory } from "../api/mutations.ts";
 import { useBrowseDirectory } from "../api/queries.ts";
 
 export interface DirectoryPickerModalProps {
@@ -95,8 +97,11 @@ export function DirectoryPickerModal({
   const [showHidden, setShowHidden] = useState(false);
   const [manualMode, setManualMode] = useState(false);
   const [manualInput, setManualInput] = useState("");
+  const [creatingFolder, setCreatingFolder] = useState(false);
+  const [newFolderName, setNewFolderName] = useState("");
 
   const searchInputRef = useRef<HTMLInputElement>(null);
+  const mkdirMutation = useMakeDirectory();
 
   // Initialize path when opened
   useEffect(() => {
@@ -163,6 +168,28 @@ export function DirectoryPickerModal({
       handleNavigate(manualInput.trim());
     }
   };
+  const handleCreateFolderSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const name = newFolderName.trim();
+    if (!name) {
+      return;
+    }
+
+    const base = data?.current || currentPath;
+    const isWindows = /^[a-zA-Z]:/.test(base.replace(/\\/g, "/"));
+    const sep = isWindows && base.includes("\\") ? "\\" : "/";
+    const targetPath = base.endsWith(sep) || base === "/" ? `${base}${name}` : `${base}${sep}${name}`;
+
+    try {
+      await mkdirMutation.mutateAsync({ body: { path: targetPath } });
+      setCreatingFolder(false);
+      setNewFolderName("");
+      await browseQuery.refetch();
+      setSelectedPath(targetPath);
+    } catch {
+      // Error is caught and surfaced by mutation state
+    }
+  };
 
   return (
     <Modal
@@ -183,11 +210,26 @@ export function DirectoryPickerModal({
           </Box>
         </Group>
       }
-      size="lg"
+      size="xl"
       padding="md"
       radius="md"
+      styles={{
+        content: {
+          height: "calc(100vh - 48px)",
+          maxHeight: "calc(100vh - 48px)",
+          display: "flex",
+          flexDirection: "column",
+        },
+        body: {
+          flex: 1,
+          display: "flex",
+          flexDirection: "column",
+          minHeight: 0,
+          overflow: "hidden",
+        },
+      }}
     >
-      <Stack gap="sm">
+      <Stack gap="sm" style={{ flex: 1, minHeight: 0 }}>
         {/* Navigation & Breadcrumb Toolbar */}
         <Paper p="xs" withBorder radius="sm" style={{ backgroundColor: "var(--mantine-color-dark-8)" }}>
           <Group justify="space-between" align="center" wrap="nowrap">
@@ -329,30 +371,86 @@ export function DirectoryPickerModal({
           </Box>
         </Paper>
 
-        {/* Search filter within directory */}
-        <TextInput
-          size="xs"
-          placeholder="Filter subdirectories..."
-          leftSection={<IconSearch size={14} />}
-          value={searchFilter}
-          ref={searchInputRef}
-          onChange={(e) => setSearchFilter(e.currentTarget.value)}
-          rightSection={
-            searchFilter ? (
-              <ActionIcon size="xs" variant="subtle" onClick={() => setSearchFilter("")}>
-                <IconX size={12} />
-              </ActionIcon>
-            ) : null
-          }
-        />
+        {/* Search filter & New Folder Action */}
+        <Group gap="xs" wrap="nowrap">
+          <TextInput
+            size="xs"
+            placeholder="Filter subdirectories..."
+            leftSection={<IconSearch size={14} />}
+            value={searchFilter}
+            ref={searchInputRef}
+            onChange={(e) => setSearchFilter(e.currentTarget.value)}
+            style={{ flex: 1 }}
+            rightSection={
+              searchFilter ? (
+                <ActionIcon size="xs" variant="subtle" onClick={() => setSearchFilter("")}>
+                  <IconX size={12} />
+                </ActionIcon>
+              ) : null
+            }
+          />
+          <Tooltip label="Create new folder in current directory">
+            <Button
+              size="xs"
+              variant={creatingFolder ? "filled" : "light"}
+              color="cyan"
+              leftSection={<IconFolderPlus size={14} />}
+              onClick={() => {
+                setCreatingFolder((v) => !v);
+                setNewFolderName("");
+              }}
+            >
+              New Folder
+            </Button>
+          </Tooltip>
+        </Group>
+
+        {/* New Folder Creation Row */}
+        {creatingFolder ? (
+          <Paper p="xs" withBorder radius="sm" style={{ backgroundColor: "var(--mantine-color-dark-7)" }}>
+            <form onSubmit={handleCreateFolderSubmit}>
+              <Group gap="xs" wrap="nowrap">
+                <TextInput
+                  size="xs"
+                  placeholder="New folder name..."
+                  value={newFolderName}
+                  onChange={(e) => setNewFolderName(e.currentTarget.value)}
+                  style={{ flex: 1 }}
+                  autoFocus
+                />
+                <Button
+                  size="xs"
+                  color="cyan"
+                  type="submit"
+                  disabled={!newFolderName.trim() || mkdirMutation.isPending}
+                  loading={mkdirMutation.isPending}
+                >
+                  Create
+                </Button>
+                <ActionIcon
+                  size="sm"
+                  variant="subtle"
+                  color="gray"
+                  onClick={() => {
+                    setCreatingFolder(false);
+                    setNewFolderName("");
+                  }}
+                  aria-label="Cancel new folder"
+                >
+                  <IconX size={14} />
+                </ActionIcon>
+              </Group>
+            </form>
+          </Paper>
+        ) : null}
 
         {/* Subdirectories Listing */}
         <Paper
           withBorder
           radius="sm"
           style={{
-            minHeight: 220,
-            maxHeight: 320,
+            flex: 1,
+            minHeight: 0,
             overflow: "hidden",
             display: "flex",
             flexDirection: "column",

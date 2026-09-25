@@ -8,7 +8,13 @@
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import type { BrowseDirectoryQuery, DirectoryBrowseResult, DirectoryEntry, ReadFileResult } from "../shared/model.ts";
+import type {
+  BrowseDirectoryQuery,
+  DirectoryBrowseResult,
+  DirectoryEntry,
+  MkdirResult,
+  ReadFileResult,
+} from "../shared/model.ts";
 import { getGitStatus } from "./git.ts";
 
 const IGNORED_DIRS: Record<string, true> = {
@@ -309,4 +315,19 @@ export async function browseDirectory(query?: BrowseDirectoryQuery): Promise<Dir
     gitBranch,
     exists: true,
   };
+}
+/**
+ * Create a new directory in the filesystem.
+ */
+export async function makeDirectory(dirPath: string): Promise<MkdirResult> {
+  const home = os.homedir();
+  const rawPath = dirPath.trim();
+  if (!rawPath) {
+    throw new Error("Directory path is required.");
+  }
+
+  const target = rawPath.startsWith("~") ? path.join(home, rawPath.replace(/^~[/\\]?/, "")) : path.resolve(rawPath);
+
+  await fs.mkdir(target, { recursive: true });
+  return { ok: true, path: target };
 }

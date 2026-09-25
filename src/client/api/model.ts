@@ -115,6 +115,18 @@ export interface DirectoryEntry {
   hasChildren?: false | true;
 }
 
+/** Request payload for creating a new directory. */
+export interface MkdirRequest {
+  path: string;
+}
+
+/** Result of creating a new directory. */
+export interface MkdirResult {
+  ok: boolean;
+  path: string;
+  detail?: string;
+}
+
 /** File content and metadata. */
 export interface ReadFileResult {
   path: string;

@@ -2,7 +2,36 @@
 // React Query options getters and hooks for mutation operations. Edit the document, not this file.
 
 import { useMutation, type UseMutationOptions } from "@tanstack/react-query";
-import { defaultClient, type Client, type AbortOptions, type AbortResult, type AddMcpServerOptions, type AddMcpServerResult, type AnalyzeOmfgOptions, type AnalyzeOmfgResult, type AskBtwOptions, type AskBtwResult, type BranchSessionOptions, type BranchSessionResult, type CancelJobOptions, type CancelJobResult, type CompactSessionOptions, type CompactSessionResult, type DeleteRuleOptions, type DeleteRuleResult, type DeleteSessionOptions, type DeleteSessionResult, type DismissSurfaceOptions, type DismissSurfaceResult, type DropQueuedOptions, type DropQueuedResult, type EditPlanOptions, type EditPlanResult, type EditQueuedOptions, type EditQueuedResult, type ForceToolOptions, type ForceToolResult, type ForkSessionOptions, type ForkSessionResult, type MutateTodosOptions, type MutateTodosResult, type OpenSessionOptions, type OpenSessionResult, type PromptOptions, type PromptResult, type RemoveMcpServerOptions, type RemoveMcpServerResult, type RenameSessionOptions, type RenameSessionResult, type RenderMarkdownOptions, type RenderMarkdownResult, type ResolvePlanOptions, type ResolvePlanResult, type RestartProcessOptions, type RestartProcessResult, type RetryTurnOptions, type RetryTurnResult, type SaveOmfgRuleOptions, type SaveOmfgRuleResult, type SelectModelOptions, type SelectModelResult, type SetPlanModeOptions, type SetPlanModeResult, type SetThinkingLevelOptions, type SetThinkingLevelResult, type ShakeSessionOptions, type ShakeSessionResult, type SignalProcessOptions, type SignalProcessResult, type StopProcessOptions, type StopProcessResult, type StopSessionOptions, type StopSessionResult, type TestMcpServerOptions, type TestMcpServerResult2, type ToggleMcpServerOptions, type ToggleMcpServerResult } from "./api.ts";
+import { defaultClient, type Client, type AbortOptions, type AbortResult, type AddMcpServerOptions, type AddMcpServerResult, type AnalyzeOmfgOptions, type AnalyzeOmfgResult, type AskBtwOptions, type AskBtwResult, type BranchSessionOptions, type BranchSessionResult, type CancelJobOptions, type CancelJobResult, type CompactSessionOptions, type CompactSessionResult, type DeleteRuleOptions, type DeleteRuleResult, type DeleteSessionOptions, type DeleteSessionResult, type DismissSurfaceOptions, type DismissSurfaceResult, type DropQueuedOptions, type DropQueuedResult, type EditPlanOptions, type EditPlanResult, type EditQueuedOptions, type EditQueuedResult, type ForceToolOptions, type ForceToolResult, type ForkSessionOptions, type ForkSessionResult, type MakeDirectoryOptions, type MakeDirectoryResult, type MutateTodosOptions, type MutateTodosResult, type OpenSessionOptions, type OpenSessionResult, type PromptOptions, type PromptResult, type RemoveMcpServerOptions, type RemoveMcpServerResult, type RenameSessionOptions, type RenameSessionResult, type RenderMarkdownOptions, type RenderMarkdownResult, type ResolvePlanOptions, type ResolvePlanResult, type RestartProcessOptions, type RestartProcessResult, type RetryTurnOptions, type RetryTurnResult, type SaveOmfgRuleOptions, type SaveOmfgRuleResult, type SelectModelOptions, type SelectModelResult, type SetPlanModeOptions, type SetPlanModeResult, type SetThinkingLevelOptions, type SetThinkingLevelResult, type ShakeSessionOptions, type ShakeSessionResult, type SignalProcessOptions, type SignalProcessResult, type StopProcessOptions, type StopProcessResult, type StopSessionOptions, type StopSessionResult, type TestMcpServerOptions, type TestMcpServerResult2, type ToggleMcpServerOptions, type ToggleMcpServerResult } from "./api.ts";
+
+/**
+ * Create a new directory
+ * 
+ * Create a new directory in the filesystem.
+ */
+export function getMakeDirectoryMutationOptions<
+  TError = unknown
+>(
+  mutationOptions?: Omit<UseMutationOptions<MakeDirectoryResult, TError, MakeDirectoryOptions>, "mutationFn">,
+  client: Client = defaultClient()
+) {
+  return {
+    mutationKey: ["/api/fs/mkdir", "POST"] as const,
+    mutationFn: (options: MakeDirectoryOptions) =>
+      client.makeDirectory(options as any),
+    ...mutationOptions,
+  };
+}
+
+/** React Query hook for `makeDirectory`. */
+export function useMakeDirectory<
+  TError = unknown
+>(
+  mutationOptions?: Omit<UseMutationOptions<MakeDirectoryResult, TError, MakeDirectoryOptions>, "mutationFn">,
+  client: Client = defaultClient()
+) {
+  return useMutation(getMakeDirectoryMutationOptions<TError>(mutationOptions, client));
+}
 
 /**
  * Open or create a live session
@@ -1008,6 +1037,12 @@ export function useRenderMarkdown<
 /** Factory binding all mutation options getters and mutation hooks to a custom client instance. */
 export function createMutations(client: Client = defaultClient()) {
   return {
+    getMakeDirectoryMutationOptions: <TError = unknown>(
+      mutationOptions?: Omit<UseMutationOptions<MakeDirectoryResult, TError, MakeDirectoryOptions>, "mutationFn">
+    ) => getMakeDirectoryMutationOptions<TError>(mutationOptions, client),
+    useMakeDirectory: <TError = unknown>(
+      mutationOptions?: Omit<UseMutationOptions<MakeDirectoryResult, TError, MakeDirectoryOptions>, "mutationFn">
+    ) => useMakeDirectory<TError>(mutationOptions, client),
     getOpenSessionMutationOptions: <TError = unknown>(
       mutationOptions?: Omit<UseMutationOptions<OpenSessionResult, TError, OpenSessionOptions>, "mutationFn">
     ) => getOpenSessionMutationOptions<TError>(mutationOptions, client),

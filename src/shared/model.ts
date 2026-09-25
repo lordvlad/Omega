@@ -844,6 +844,18 @@ export interface DirectoryBrowseResult {
   /** Error message if directory reading encountered an issue. */
   error?: string;
 }
+/** Request payload for creating a new directory. */
+export interface MkdirRequest {
+  /** Absolute or relative path of the directory to create. */
+  path: string;
+}
+
+/** Result of creating a new directory. */
+export interface MkdirResult {
+  ok: boolean;
+  path: string;
+  detail?: string;
+}
 
 /** Query parameters for reading workspace git status. */
 export interface GitStatusQuery {
