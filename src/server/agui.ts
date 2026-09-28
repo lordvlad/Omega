@@ -9,9 +9,13 @@
  *   `message_update`. Only the former carry a `toolCallId`, and AG-UI keys
  *   every tool frame by it; the delta events identify a block by
  *   `contentIndex` alone, which cannot be correlated with a result.
- * - A `messageId` is `<runId>-<contentIndex>`. One assistant turn interleaves
- *   several text and thinking blocks around tool calls, and AG-UI treats each
- *   as its own message, so the content index is what keeps them apart.
+ * - A `messageId` is `<runId>-<messageSeq>-<contentIndex>`. One agent turn
+ *   can stream several *provider* assistant messages back to back (thinking,
+ *   a tool call, tool result, then more thinking) and each one's
+ *   `contentIndex` restarts at 0, so `messageSeq` — bumped on every
+ *   assistant `message_start` — is what keeps a later thinking block from
+ *   colliding with an earlier one and growing it instead of opening a new
+ *   block underneath.
  */
 import { EventType } from "@tanstack/ai/client";
 import { parseRateLimit } from "../shared/ratelimit.ts";
@@ -81,10 +85,12 @@ export class AguiTranslator {
   readonly #threadId: string;
   #runSeq = 0;
   #runId: string;
-  /** Content indices with an open `TEXT_MESSAGE_START`. */
-  readonly #openText = new Set<number>();
-  /** Content indices with an open `THINKING_TEXT_MESSAGE_START`. */
-  readonly #openThinking = new Set<number>();
+  /** Bumped on every assistant `message_start`; see the class doc comment. */
+  #messageSeq = 0;
+  /** Open `messageId`s with a `TEXT_MESSAGE_START` awaiting their `_END`. */
+  readonly #openText = new Set<string>();
+  /** Open `messageId`s with a `THINKING_TEXT_MESSAGE_START` awaiting their `_END`. */
+  readonly #openThinking = new Set<string>();
 
   constructor(threadId: string) {
     this.#threadId = threadId;
@@ -96,7 +102,7 @@ export class AguiTranslator {
   }
 
   #messageId(contentIndex: number): string {
-    return `${this.#runId}-${contentIndex}`;
+    return `${this.#runId}-${this.#messageSeq}-${contentIndex}`;
   }
 
   /**
@@ -110,7 +116,17 @@ export class AguiTranslator {
       case "agent_start": {
         this.#runSeq += 1;
         this.#runId = `${this.#threadId}-${this.#runSeq}`;
+        this.#messageSeq = 0;
         return [{ type: EventType.RUN_STARTED, threadId: this.#threadId, runId: this.#runId }];
+      }
+      case "message_start": {
+        // A fresh provider assistant message restarts `contentIndex` at 0, so
+        // its blocks must land under a new `messageId` rather than growing
+        // whatever thinking/text block last held index 0.
+        if (event.message?.role === "assistant") {
+          this.#messageSeq += 1;
+        }
+        return [];
       }
       case "agent_end": {
         // `isTerminal: false` means maintenance or async delivery has already
@@ -192,12 +208,12 @@ export class AguiTranslator {
   /** Close whatever blocks are open, so an abort cannot strand them. */
   #closeOpenBlocks(): AguiFrame[] {
     const frames: AguiFrame[] = [];
-    for (const index of this.#openThinking) {
-      frames.push({ type: EventType.THINKING_TEXT_MESSAGE_END, messageId: this.#messageId(index) });
+    for (const messageId of this.#openThinking) {
+      frames.push({ type: EventType.THINKING_TEXT_MESSAGE_END, messageId });
     }
     this.#openThinking.clear();
-    for (const index of this.#openText) {
-      frames.push({ type: EventType.TEXT_MESSAGE_END, messageId: this.#messageId(index) });
+    for (const messageId of this.#openText) {
+      frames.push({ type: EventType.TEXT_MESSAGE_END, messageId });
     }
     this.#openText.clear();
     return frames;
@@ -211,30 +227,30 @@ export class AguiTranslator {
     const messageId = this.#messageId(index);
     switch (delta.type) {
       case "text_start":
-        this.#openText.add(index);
+        this.#openText.add(messageId);
         return [{ type: EventType.TEXT_MESSAGE_START, messageId, role: "assistant" }];
       case "text_delta":
         // A provider that streams content without a preceding start event
         // would otherwise drop its first tokens on the client.
-        return this.#ensureOpen(this.#openText, index, EventType.TEXT_MESSAGE_START, messageId).concat({
+        return this.#ensureOpen(this.#openText, messageId, EventType.TEXT_MESSAGE_START).concat({
           type: EventType.TEXT_MESSAGE_CONTENT,
           messageId,
           delta: delta.delta,
         });
       case "text_end":
-        this.#openText.delete(index);
+        this.#openText.delete(messageId);
         return [{ type: EventType.TEXT_MESSAGE_END, messageId }];
       case "thinking_start":
-        this.#openThinking.add(index);
+        this.#openThinking.add(messageId);
         return [{ type: EventType.THINKING_TEXT_MESSAGE_START, messageId }];
       case "thinking_delta":
-        return this.#ensureOpen(this.#openThinking, index, EventType.THINKING_TEXT_MESSAGE_START, messageId).concat({
+        return this.#ensureOpen(this.#openThinking, messageId, EventType.THINKING_TEXT_MESSAGE_START).concat({
           type: EventType.THINKING_TEXT_MESSAGE_CONTENT,
           messageId,
           delta: delta.delta,
         });
       case "thinking_end":
-        this.#openThinking.delete(index);
+        this.#openThinking.delete(messageId);
         return [{ type: EventType.THINKING_TEXT_MESSAGE_END, messageId }];
       case "error": {
         const raw =
@@ -257,11 +273,11 @@ export class AguiTranslator {
   }
 
   /** Emit the opening frame for a block whose start event never arrived. */
-  #ensureOpen(open: Set<number>, index: number, startType: string, messageId: string): AguiFrame[] {
-    if (open.has(index)) {
+  #ensureOpen(open: Set<string>, messageId: string, startType: string): AguiFrame[] {
+    if (open.has(messageId)) {
       return [];
     }
-    open.add(index);
+    open.add(messageId);
     return [{ type: startType, messageId, role: "assistant" }];
   }
 }
