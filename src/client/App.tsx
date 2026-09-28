@@ -378,6 +378,27 @@ export function App() {
     { enabled: Boolean(sessionKey && state.data?.cwd) },
   );
   const files = useListFiles({ query: { cwd: state.data?.cwd } }, { enabled: Boolean(sessionKey && state.data?.cwd) });
+  // Keeps the browser tab title in sync with the active session so switching
+  // tabs or windows shows identity at a glance: "Ω <title> · <workdir> · <branch>".
+  // Falls back to the workspace/branch pieces that are actually known, and to
+  // bare "Ω omega" when no session is open.
+  useEffect(() => {
+    const parts: string[] = [];
+    if (state.data) {
+      parts.push(state.data.title || "Untitled session");
+    } else {
+      parts.push("omega");
+    }
+    const workdir = state.data?.cwd ? getBasename(state.data.cwd) : project ? getBasename(project) : undefined;
+    if (workdir) {
+      parts.push(workdir);
+    }
+    const branch = gitStatus.data?.branch;
+    if (branch) {
+      parts.push(branch);
+    }
+    document.title = `Ω ${parts.join(" · ")}`;
+  }, [state.data, gitStatus.data?.branch, project]);
   /**
    * The transcript window.
    *
