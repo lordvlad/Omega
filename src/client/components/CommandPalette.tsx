@@ -691,13 +691,57 @@ export function CommandPalette({
   const newDescription = activeProject ? `Start a session in ${activeProject}` : "Pick a workspace first";
 
   /** The command list: what the palette shows before a command is chosen. */
-  /** `@`: every file in the active workspace. */
-  const fileActions = useMemo<PaletteAction[]>(() => {
+  /**
+   * `@`: every directory and file in the active workspace.
+   *
+   * Directories are derived from the flat file list — every ancestor path
+   * segment of every file — since the server only walks real files. They are
+   * listed in their own group ahead of files so an unfiltered `@` prefers
+   * referencing a whole directory over picking through its contents, and the
+   * `@` scorer below gives them a matching boost once the user starts typing.
+   */
+  const directories = useMemo<string[]>(() => {
     if (!files || files.length === 0) {
       return [];
     }
-    return [
-      {
+    const dirs = new Set<string>();
+    for (const file of files) {
+      const parts = file.replace(/\\/g, "/").split("/");
+      parts.pop();
+      let accumulated = "";
+      for (const part of parts) {
+        accumulated = accumulated ? `${accumulated}/${part}` : part;
+        dirs.add(accumulated);
+      }
+    }
+    return Array.from(dirs).sort((a, b) => a.localeCompare(b));
+  }, [files]);
+
+  const fileActions = useMemo<PaletteAction[]>(() => {
+    if ((!files || files.length === 0) && directories.length === 0) {
+      return [];
+    }
+    const groups: PaletteAction[] = [];
+    if (directories.length > 0) {
+      groups.push({
+        group: `Directories in workspace (${directories.length})`,
+        actions: directories.map((dir) => {
+          const parts = dir.split("/");
+          const dirName = parts.pop() ?? dir;
+          const parent = parts.join("/");
+          return {
+            id: `dir-${dir}`,
+            label: dir,
+            description: parent ? `directory in ${parent}` : "directory in workspace root",
+            keywords: [dirName, parent, dir],
+            leftSection: <IconFolder size={16} />,
+            onClick: () => onPickFile?.(dir),
+          };
+        }),
+      });
+    }
+    if (files && files.length > 0) {
+      groups.push({
         group: `Files in workspace (${files.length})`,
         actions: files.map((file) => {
           const parts = file.replace(/\\/g, "/").split("/");
@@ -712,9 +756,10 @@ export function CommandPalette({
             onClick: () => onPickFile?.(file),
           };
         }),
-      },
-    ];
-  }, [files, onPickFile]);
+      });
+    }
+    return groups;
+  }, [files, directories, onPickFile]);
   const commandActions = useMemo<PaletteAction[]>(() => {
     const rawActions: SpotlightActionData[] = [
       {
@@ -2239,17 +2284,24 @@ export function CommandPalette({
 
       const scoredActions: Array<{ action: SpotlightActionData; score: number }> = [];
 
+      // Directories are preferred over files: a matching directory outranks a
+      // file of otherwise equal relevance, since it is the broader (and often
+      // the intended) target of an `@` mention.
+      const DIRECTORY_PREFERENCE_BOOST = 40;
+
       for (const item of items) {
         if (!isActionsGroup(item)) {
+          const isDir = String(item.id).startsWith("dir-");
           const s = scoreFileMatch(item.label as string, term);
           if (s > 0) {
-            scoredActions.push({ action: item, score: s });
+            scoredActions.push({ action: item, score: isDir ? s + DIRECTORY_PREFERENCE_BOOST : s });
           }
         } else {
           for (const action of item.actions) {
+            const isDir = String(action.id).startsWith("dir-");
             const s = scoreFileMatch(action.label as string, term);
             if (s > 0) {
-              scoredActions.push({ action, score: s });
+              scoredActions.push({ action, score: isDir ? s + DIRECTORY_PREFERENCE_BOOST : s });
             }
           }
         }
@@ -2266,7 +2318,7 @@ export function CommandPalette({
 
       return [
         {
-          group: `Matching files (${scoredActions.length})`,
+          group: `Matching directories & files (${scoredActions.length})`,
           actions: topActions,
         },
       ];
