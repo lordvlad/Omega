@@ -2713,6 +2713,7 @@ export function App() {
         opened={overviewOpen}
         onClose={closeOverview}
         activeSessions={activeSessions.data ?? []}
+        workspaces={workspaces.data}
         loading={activeSessions.isFetching}
         onSelectSession={(cwd, key) => navigateTo({ project: cwd, session: key })}
         onNewSession={handleNew}
