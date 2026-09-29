@@ -97,20 +97,34 @@ export function parseRateLimit(errorInput: unknown, now = Date.now()): RateLimit
   let durationMs = 0;
   let resetsAt = 0;
 
+  // 0. Most authoritative when present: an explicit millisecond value embedded
+  // in a retry-after-style key, e.g. Anthropic's `retry-after-ms=11149000`
+  // trailer or a `retry_after_ms`/`Retry-After-Ms` field. This is the exact
+  // wait the provider gave, so it must win over any fuzzy wording parsed from
+  // the human-readable message elsewhere in the same error (which for this
+  // exact Anthropic error is a static "Please try again later." with no
+  // usable number, and would otherwise fall through to the 60s default).
+  const retryAfterMsMatch = errorText.match(/retry[-_]after[-_]ms[:=\s]+(\d+(?:\.\d+)?)/i);
+  if (retryAfterMsMatch && retryAfterMsMatch[1]) {
+    durationMs = Number(retryAfterMsMatch[1]);
+  }
+
   // 1. Try ISO timestamp / date: "resets at 2026-09-24T15:30:00Z" or "resets at 2026-09-24 15:30:00"
-  const dateMatch = errorText.match(
-    /resets?\s+(?:at|on)\s+([0-9]{4}-[0-9]{2}-[0-9]{2}[T\s][0-9]{2}:[0-9]{2}:[0-9]{2}(?:\.[0-9]+)?(?:Z|[+-][0-9]{2}:?[0-9]{2})?)/i,
-  );
-  if (dateMatch && dateMatch[1]) {
-    const parsed = Date.parse(dateMatch[1]);
-    if (!isNaN(parsed) && parsed > 0) {
-      resetsAt = parsed;
-      durationMs = Math.max(0, resetsAt - now);
+  if (!durationMs && !resetsAt) {
+    const dateMatch = errorText.match(
+      /resets?\s+(?:at|on)\s+([0-9]{4}-[0-9]{2}-[0-9]{2}[T\s][0-9]{2}:[0-9]{2}:[0-9]{2}(?:\.[0-9]+)?(?:Z|[+-][0-9]{2}:?[0-9]{2})?)/i,
+    );
+    if (dateMatch && dateMatch[1]) {
+      const parsed = Date.parse(dateMatch[1]);
+      if (!isNaN(parsed) && parsed > 0) {
+        resetsAt = parsed;
+        durationMs = Math.max(0, resetsAt - now);
+      }
     }
   }
 
   // 2. Try epoch timestamp: "resets at 1758728400"
-  if (!resetsAt) {
+  if (!durationMs && !resetsAt) {
     const epochMatch = errorText.match(/resets?\s+(?:at|epoch)\s+(\d{10,13})/i);
     if (epochMatch) {
       let val = Number(epochMatch[1]);
@@ -125,7 +139,7 @@ export function parseRateLimit(errorInput: unknown, now = Date.now()): RateLimit
   }
 
   // 3. Try compound durations: "in 1h 30m", "in 1m30s", "in 1 min 30 sec", "in 45s", "in 45.5s", "in 45 seconds", "in 2 minutes"
-  if (!resetsAt) {
+  if (!durationMs && !resetsAt) {
     const complexMatch = errorText.match(
       /(?:try again in|retry (?:after|in)|resets? in|wait)\s+(?:about\s+)?(?:(\d+)\s*(?:hours?|hrs?|h))?\s*(?:(\d+)\s*(?:minutes?|mins?|m))?\s*(?:(\d+(?:\.\d+)?)\s*(?:seconds?|secs?|s))?/i,
     );
